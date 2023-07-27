@@ -1,0 +1,176 @@
+{
+	"info": {
+		"_postman_id": "a91a8d80-6361-4331-ad65-3db553d2af4f",
+		"name": "Flask-REST-API Token验证",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "HelloToken",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_ip}}/",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "请求Token",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "grant_type",
+							"value": "password",
+							"type": "default"
+						},
+						{
+							"key": "user",
+							"value": "yourself",
+							"type": "default"
+						},
+						{
+							"key": "passwd",
+							"value": "f**k",
+							"type": "default"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_ip}}/get_token",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"get_token"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "请求Token-no-user|passwd",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "grant_type",
+							"value": "password",
+							"type": "default"
+						},
+						{
+							"key": "user",
+							"value": "yourself",
+							"type": "default"
+						},
+						{
+							"key": "passwd",
+							"value": "f**k",
+							"type": "default"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_ip}}/get_token",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"get_token"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "请求Token-wrong-user|passwd",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "grant_type",
+							"value": "password",
+							"type": "default"
+						},
+						{
+							"key": "user",
+							"value": "yourself",
+							"type": "default"
+						},
+						{
+							"key": "passwd",
+							"value": "s**t",
+							"type": "default"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_ip}}/get_token",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"get_token"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "验证Token",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzUxMiIsImlhdCI6MTY5MDQ0MDUwNiwiZXhwIjoxNjkwNDQwODA2fQ.eyJ1c2VyIjoieW91cnNlbGYifQ.uqETMfcq543h9y3P3nVbiCSUOe2rLXWRk-iEf2pjOTtgqd1IvExXdP2FfQRV4k-DwN2F0c61KtwOLxGckDRWcg",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_ip}}/test_token",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"test_token"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
