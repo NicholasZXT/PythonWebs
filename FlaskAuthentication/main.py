@@ -1,7 +1,7 @@
 import logging
 from flask import Flask
 from configs.flask_config import config
-from extentions import db
+from extentions import db, auth
 from views import *
 
 
@@ -20,7 +20,7 @@ if __name__ == '__main__':
         # 必须要导入表定义才能创建
         from models.users import User
         print("****** creating all tables... ******")
-        db.create_all()
+        # db.create_all()
         print("****** creating all tables done. ******")
     # print(app.url_map)
     app.run(host='localhost', port=8100)
