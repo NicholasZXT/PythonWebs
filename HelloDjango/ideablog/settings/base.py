@@ -36,10 +36,11 @@ WSGI_APPLICATION = 'ideablog.wsgi.application'
 # Application definition
 
 INSTALLED_APPS = [
-    'ideablog',
+    'ideablog',  # 管理app
     'blog',
     # 'sidebar',
     # 'comment',
+    'rest_framework',  # DRF 框架
 
     'django.contrib.admin',
     'django.contrib.auth',
