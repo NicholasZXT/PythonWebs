@@ -36,18 +36,21 @@ WSGI_APPLICATION = 'ideablog.wsgi.application'
 # Application definition
 
 INSTALLED_APPS = [
-    'ideablog',  # 管理app
-    'blog',
-    # 'sidebar',
-    # 'comment',
-    'rest_framework',  # DRF 框架
-
+    # Django框架提供的app
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # DRF框架
+    'rest_framework',
+    # 项目管理app
+    'ideablog',
+    'blog',
+    'api'
+    # 'sidebar',
+    # 'comment'
 ]
 
 MIDDLEWARE = [
