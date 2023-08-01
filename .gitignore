@@ -67,7 +67,7 @@ cover/
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
-*_initial.py
+migrations/00*.py
 
 # Flask stuff:
 instance/
