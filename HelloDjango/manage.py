@@ -3,11 +3,15 @@
 import os
 import sys
 
+import pymysql
+# 配置MySQL使用pymysql作为驱动
+pymysql.install_as_MySQLdb()
+
 
 def main():
     """Run administrative tasks."""
     # os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ideablog.settings')
-    env_profile = os.environ.get('BLOG_PROFILE', 'dev')
+    env_profile = os.environ.get('IDEA_BLOG_PROFILE', 'dev')
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', f'ideablog.settings.{env_profile}')
     try:
         from django.core.management import execute_from_command_line

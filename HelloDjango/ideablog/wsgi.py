@@ -12,7 +12,7 @@ import os
 from django.core.wsgi import get_wsgi_application
 
 # os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ideablog.settings')
-env_profile = os.environ.get('BLOG_PROFILE', 'dev')
+env_profile = os.environ.get('IDEA_BLOG_PROFILE', 'dev')
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', f'ideablog.settings.{env_profile}')
 
 application = get_wsgi_application()

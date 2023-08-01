@@ -16,11 +16,11 @@ class BaseConfig:
 
 class DevelopmentConfig(BaseConfig):
     mysql_conf = {
-        'user': '',
-        'passwd': parse.quote_plus(''),
+        'user': 'root',
+        'passwd': parse.quote_plus('mysql2022'),
         'host': 'localhost',
         'port': 3306,
-        'db': ''
+        'db': 'patents'
     }
     SQLALCHEMY_DATABASE_URI = "mysql+pymysql://{user}:{passwd}@{host}:{port}/{db}".format(**mysql_conf)
 
