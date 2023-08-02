@@ -30,3 +30,10 @@ def verify_token(token):
 @auth.error_handler
 def auth_error(status):
     return "Access Denied", status
+
+
+@login_manager.user_loader
+def load_user(uid):
+    from .models import User
+    user = User.query.get(int(uid))
+    return user
