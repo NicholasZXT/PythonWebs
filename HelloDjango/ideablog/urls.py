@@ -38,8 +38,39 @@ path(route, view, kwargs=None, name=None)
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.core.handlers.wsgi import WSGIRequest
+from django.http.response import HttpResponse, JsonResponse
+from django.views.decorators.http import require_http_methods, require_GET
+import json
+
+@require_http_methods(request_method_list=['GET'])  # 这个视图装饰器是可选的，这里使用它来限制视图函数可以接受的请求类型
+def hello(request: WSGIRequest):
+    # 视图函数必须要接受一个 request 参数，它是 WSGIRequest 对象
+    print('request: ', request)
+    print('request.__class__: ', type(request))
+    # 视图函数的返回值必须要用 HttpResponse(及其子类) 封装起来，或者调用 render() 方法返回渲染的HTML
+    # HttpResponse的默认类型是 content_type='text/html'
+    return HttpResponse(content="<h1>Hello Django!</h1>", content_type='text/html')
+
+# 返回JSON数据
+@require_GET
+def hello_json(request):
+    json_data = {'k1': 'v1', 'k2': 'v2'}
+    # 使用 HttpResponse 封装时，需要手动 dumps
+    json_data = json.dumps(json_data)
+    return HttpResponse(content=json_data, content_type='application/json')
+
+@require_GET
+def hello_json_v2(request):
+    json_data = {'k1': 'v1', 'k2': 'v2'}
+    # 使用 JsonResponse 时，则不需要手动 dumps，也不需要手动设置 content_type，但是参数名为 data
+    return JsonResponse(data=json_data)
+
 
 urlpatterns = [
+    path('', hello),   # 根路径不需要指定 /
     path('admin/', admin.site.urls),
+    path('hello_json/', hello_json),
+    path('hello_json_v2/', hello_json_v2),
     path('api/', include('api.api_urls'))  # 使用 include 引入 api 应用下的路由映射
 ]
