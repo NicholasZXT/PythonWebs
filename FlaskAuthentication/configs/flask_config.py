@@ -20,7 +20,7 @@ class DevelopmentConfig(BaseConfig):
         'passwd': parse.quote_plus('mysql2022'),
         'host': 'localhost',
         'port': 3306,
-        'db': 'patents'
+        'db': 'hello_flask'
     }
     SQLALCHEMY_DATABASE_URI = "mysql+pymysql://{user}:{passwd}@{host}:{port}/{db}".format(**mysql_conf)
 
