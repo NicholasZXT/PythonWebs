@@ -4,9 +4,14 @@ from flask import current_app, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_httpauth import HTTPTokenAuth
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired
-from werkzeug.http import HTTP_STATUS_CODES
+from flask_login import LoginManager
 
 db = SQLAlchemy()
+
+# Web应用的用户认证
+login_manager = LoginManager()
+
+# Web-API的接口认证
 auth = HTTPTokenAuth(scheme='Bearer')
 
 @auth.verify_token
@@ -25,16 +30,3 @@ def verify_token(token):
 @auth.error_handler
 def auth_error(status):
     return "Access Denied", status
-
-def generate_token(user):
-    expiration = current_app.config['TOKEN_EXPIRATION']
-    s = Serializer(secret_key=current_app.config['SECRET_KEY'], expires_in=expiration)
-    token = s.dumps({'user': user}).decode()
-    return token, expiration
-
-def api_abort(code, message=None, **kwargs):
-    if message is None:
-        message = HTTP_STATUS_CODES.get(code, '')
-    response = jsonify(code=code, message=message, **kwargs)
-    response.status_code = code
-    return response

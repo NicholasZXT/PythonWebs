@@ -9,7 +9,7 @@ def create_app(config_name: str = 'dev'):
     app = Flask(__name__)
     config_obj = config.get(config_name)
     app.config.from_object(config_obj)
-    app.register_blueprint(blueprint=bp1)
+    app.register_blueprint(blueprint=auth_bp)
     db.init_app(app)
     return app
 
