@@ -10,7 +10,7 @@ class Students(models.Model):
     grade = models.CharField(max_length=50, verbose_name='年级')
     grade_class = models.CharField(max_length=50, verbose_name='班级')
     # created_time = models.DateTimeField(auto_now_add=True)
-    created_date = models.DateField(auto_now_add=True, verbose_name='创建时间')
+    create_date = models.DateField(auto_now_add=True, verbose_name='创建时间')
 
     # 表的元数据信息通过一个内部类 Meta 来设置，这些元数据信息也是可选的
     class Meta:
@@ -33,7 +33,7 @@ class Teachers(models.Model):
     subject = models.CharField(max_length=50, verbose_name='学科')
     grade = models.CharField(max_length=50, verbose_name='年级')
     grade_class = models.CharField(max_length=50, verbose_name='班级')
-    created_date = models.DateField(auto_now_add=True, verbose_name='创建时间')
+    create_date = models.DateField(auto_now_add=True, verbose_name='创建时间')
 
     # 表的元数据信息通过一个内部类 Meta 来设置，这些元数据信息也是可选的
     class Meta:

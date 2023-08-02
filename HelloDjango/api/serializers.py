@@ -5,7 +5,7 @@ from .models import Students, Teachers
 
 # 第1种，最基本的 Serializer 类，需要手动定义序列化用到的字段，并且可以提供更加精细的验证空值，但是代码比较繁琐
 class StudentSerializer(serializers.Serializer):
-    nid = serializers.IntegerField(read_only=True)
+    sid = serializers.IntegerField(read_only=True)
     name = serializers.CharField(max_length=50, required=True, allow_null=False)
     gender = serializers.CharField(max_length=50, required=True, allow_null=False)
     grade = serializers.CharField(max_length=50, required=True, allow_null=False)
