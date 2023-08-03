@@ -1,4 +1,3 @@
-import logging
 from flask import Flask
 from configs.flask_config import config
 from extentions import db, auth, login_manager
@@ -20,7 +19,8 @@ if __name__ == '__main__':
     app = create_app()
     with app.app_context():
         # 必须要导入表定义才能创建
-        # from models import User
+        # 但是这里要求 views.__init__.py 文件中，必须使用 import * 的方式，否则 User 表不生效，原因未知
+        from FlaskAuthentication.models import User
         print("****** creating all tables... ******")
         db.create_all()
         print("****** creating all tables done. ******")
