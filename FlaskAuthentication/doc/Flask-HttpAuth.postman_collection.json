@@ -1,7 +1,7 @@
 {
 	"info": {
 		"_postman_id": "a91a8d80-6361-4331-ad65-3db553d2af4f",
-		"name": "Flask-REST-API Token验证",
+		"name": "Flask-HttpAuth",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
