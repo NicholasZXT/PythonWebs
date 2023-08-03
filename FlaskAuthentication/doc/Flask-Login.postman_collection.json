@@ -105,8 +105,11 @@
 		},
 		{
 			"name": "login_welcom",
+			"protocolProfileBehavior": {
+				"disableBodyPruning": true
+			},
 			"request": {
-				"method": "POST",
+				"method": "GET",
 				"header": [],
 				"body": {
 					"mode": "formdata",
@@ -124,12 +127,12 @@
 					]
 				},
 				"url": {
-					"raw": "{{base_ip}}/login",
+					"raw": "{{base_ip}}/login_welcome",
 					"host": [
 						"{{base_ip}}"
 					],
 					"path": [
-						"login"
+						"login_welcome"
 					]
 				}
 			},
