@@ -3,6 +3,7 @@ import os
 from flask import current_app, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_httpauth import HTTPTokenAuth
+# itsdangerous 的 TimedJSONWebSignatureSerializer 只在 2.0.1 及其之前的版本中有，2.x 开始的官方文档建议转向 authlib
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired
 from flask_login import LoginManager
 
