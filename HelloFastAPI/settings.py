@@ -1,6 +1,6 @@
 mysql_conf = {
     'user': 'root',
-    'passwd': 'mysql2020',
+    'passwd': 'mysql2022',
     'host': 'localhost',
     'port': 3306,
     'db': 'hello_fastapi'

@@ -11,8 +11,9 @@ def get_user(db: Session, uid: int):
     return user
 
 def create_user(db: Session, user_item: UserItem):
-    user = User(name=user_item.name, gender=user_item.gender, is_active=user_item.is_activate)
+    user = User(name=user_item.name, gender=user_item.gender)
     db.add(user)
     db.commit()
     db.refresh(user)
+    print("create_user: ", user)
     return user

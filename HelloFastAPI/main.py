@@ -8,7 +8,7 @@ create_db_tables()
 app = FastAPI()
 app.include_router(user_router)
 
-app.get(path='/', response_class=HTMLResponse)
+@app.get(path='/', response_class=HTMLResponse)
 def hello():
     hello_str = "<h1>Hello FastAPI !</h1>"
     return HTMLResponse(content=hello_str)
