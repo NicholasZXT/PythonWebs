@@ -9,8 +9,11 @@ class BaseConfig:
     SQLALCHEMY_TRACK_MODIFICATIONS = True
     # 用于生成token的KEY
     SECRET_KEY = 'flask-insecure-nv6-(i1-659xonvcxe&luz90!jsp0ag!y7lt0_8-01al#iilw2'
-    # 认证用户
-    AUTHORIZED_USER = {'yourself': 'f**k'}
+    # 认证用户，附带了用户的角色信息
+    AUTHORIZED_USERS = {
+        'admin': {'passwd': 'admin', 'roles': ['admin']},
+        'yourself': {'passwd': 'people', 'roles': ['others']},
+    }
     # 过期时间，单位s
     TOKEN_EXPIRATION = 60 * 5
 

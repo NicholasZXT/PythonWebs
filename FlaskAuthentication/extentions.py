@@ -17,16 +17,40 @@ auth = HTTPTokenAuth(scheme='Bearer')
 
 @auth.verify_token
 def verify_token(token):
+    """
+    此函数接收请求中附带的token字符串，然后返回验证结果.
+    可以返回下列两种结果之一：
+    1. True 或者 False，简单的表示当前token的验证是否通过，不过这样有个缺点，此时 HTTPTokenAuth.current_user() 方法就拿不到用户名了
+    2. 返回验证后的user object，最好是用户名的字符串，此时 HTTPTokenAuth.current_user() 就能拿到用户名了
+    注意，如果验证不通过，应当返回 False 或者 None
+    :param token:
+    :return:
+    """
     s = Serializer(secret_key=current_app.config['SECRET_KEY'])
     try:
         data = s.loads(token)
     except (BadSignature, SignatureExpired):
         return False
     user_name = data['user']
-    user = current_app.config['AUTHORIZED_USER'].get(user_name, None)
-    if user is None:
-        return False
-    return True
+    user_config = current_app.config['AUTHORIZED_USERS'].get(user_name, None)
+    if user_config is None:
+        return None
+    else:
+        # 为了配合下面的 get_user_roles 使用，这里必须要返回用户名，而不能返回 True
+        return user_name
+
+@auth.get_user_roles
+def get_user_roles(user):
+    """
+    获取用户的角色.
+    :param user: user 就是上面 HTTPTokenAuth.verify_token 回调函数的返回值
+    :return:
+    """
+    user_config = current_app.config['AUTHORIZED_USERS'].get(user, None)
+    if user_config is None:
+        return 'nobody'  # 任意用户
+    else:
+        return user_config['roles']
 
 @auth.error_handler
 def auth_error(status):
