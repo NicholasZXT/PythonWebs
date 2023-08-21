@@ -22,7 +22,8 @@ if __name__ == '__main__':
         # 但是这里要求 views.__init__.py 文件中，必须使用 import * 的方式，否则 User 表不生效，原因未知
         from FlaskAuthentication.models import User
         print("****** creating all tables... ******")
-        db.create_all()
+        # db.create_all()
         print("****** creating all tables done. ******")
     # print(app.url_map)
     app.run(host='localhost', port=8100)
+    # app.run(host='10.8.6.203', port=8100)

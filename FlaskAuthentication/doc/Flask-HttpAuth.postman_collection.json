@@ -48,7 +48,7 @@
 						},
 						{
 							"key": "passwd",
-							"value": "f**k",
+							"value": "normal",
 							"type": "default"
 						}
 					]
@@ -153,7 +153,7 @@
 					"bearer": [
 						{
 							"key": "token",
-							"value": "eyJhbGciOiJIUzUxMiIsImlhdCI6MTY5MDQ0MDUwNiwiZXhwIjoxNjkwNDQwODA2fQ.eyJ1c2VyIjoieW91cnNlbGYifQ.uqETMfcq543h9y3P3nVbiCSUOe2rLXWRk-iEf2pjOTtgqd1IvExXdP2FfQRV4k-DwN2F0c61KtwOLxGckDRWcg",
+							"value": "eyJhbGciOiJIUzUxMiIsImlhdCI6MTY5MjYwNzc2OSwiZXhwIjoxNjkyNjA4MDY5fQ.eyJ1c2VyIjoieW91cnNlbGYifQ.ldw2VKSQkaK68A7xnoqDM7Zenc9LHtizHQ9EBknLNSLgMIgDC0y7aN4GIsmnf46UhTsheX4Z-LxIVrtkiJp7JQ",
 							"type": "string"
 						}
 					]
@@ -167,6 +167,73 @@
 					],
 					"path": [
 						"test_token"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "请求admin-Token",
+			"request": {
+				"auth": {
+					"type": "noauth"
+				},
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "urlencoded",
+					"urlencoded": [
+						{
+							"key": "grant_type",
+							"value": "password",
+							"type": "default"
+						},
+						{
+							"key": "user",
+							"value": "admin",
+							"type": "default"
+						},
+						{
+							"key": "passwd",
+							"value": "admin",
+							"type": "default"
+						}
+					]
+				},
+				"url": {
+					"raw": "{{base_ip}}/get_token",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"get_token"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "验证admin-Token",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzUxMiIsImlhdCI6MTY5MjYwNzc5NCwiZXhwIjoxNjkyNjA4MDk0fQ.eyJ1c2VyIjoiYWRtaW4ifQ.xDCZyqloGGHSA6YQiIQssDuYwB6JJs1kFnGdlGPT4hHBFcwQjCKB_C8DBvB9k7rJflcckVJQXeVIyfR4WJP2nA",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_ip}}/test_admin_token",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"test_admin_token"
 					]
 				}
 			},

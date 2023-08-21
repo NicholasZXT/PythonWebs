@@ -34,9 +34,10 @@ def get_token():
         return api_abort(code=400, message='The grant type must be password')
     if user is None or passwd is None:
         return api_abort(code=400, message='Empty user or password is forbidden')
-    authorized_user = current_app.config['AUTHORIZED_USER']
-    user_passwd = authorized_user.get(user, None)
-    if user not in authorized_user or passwd != user_passwd:
+    authorized_users = current_app.config['AUTHORIZED_USERS']
+    user_config = authorized_users.get(user, {})
+    user_passwd = user_config.get('passwd', '')
+    if user not in authorized_users or passwd != user_passwd:
         return api_abort(code=400, message='Invalid user or password')
     token, expiration = generate_token(user)
     response = jsonify({
@@ -50,6 +51,13 @@ def get_token():
     # return "<h1>get_token</h1>"
 
 @auth_bp.route("/test_token", methods=['GET'])
-@auth.login_required
+@auth.login_required(role=['admin', 'others'])
 def test_token():
+    print(f"test_token current user: {auth.current_user()}")
     return "<h1>Congratulations for passing token authorization!</h1>"
+
+@auth_bp.route("/test_admin_token", methods=['GET'])
+@auth.login_required(role='admin')
+def test_admin_token():
+    print(f"test_admin_token current user: {auth.current_user()}")
+    return "<h1>Congratulations for passing Administration token authorization!</h1>"
