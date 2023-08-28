@@ -53,6 +53,7 @@ def get_token():
 @auth_bp.route("/test_token", methods=['GET'])
 @auth.login_required(role=['admin', 'others'])
 def test_token():
+    # auth.current_user() 的返回值就是 @auth.verify_token 装饰的函数返回值
     print(f"test_token current user: {auth.current_user()}")
     return "<h1>Congratulations for passing token authorization!</h1>"
 
@@ -61,3 +62,26 @@ def test_token():
 def test_admin_token():
     print(f"test_admin_token current user: {auth.current_user()}")
     return "<h1>Congratulations for passing Administration token authorization!</h1>"
+
+@auth_bp.route("/verify_token", methods=['GET'])
+@auth.login_required(role=['admin', 'others'])
+def verify_token():
+    """
+    提供一个验证token是否有效的接口。
+    token有效则返回token对应用户的 name 和 roles，否则返回空dict.
+    另外还限制此接口只能通过 localhost 来访问 —— 不过这个在使用Nginx做反向代理的情况下，还需配置Nginx传递客户端的真实IP地址
+    :return:
+    """
+    current_user = auth.current_user()
+    print(f"verify_token current user: {current_user}")
+    # 检查当前请求的源主机地址
+    remote_addr = request.remote_addr
+    remote_host = remote_addr.split(':')[0]
+    print(f"verify_token request remote host: {remote_host}")
+    if remote_host in {'localhost', '127.0.0.1'}:
+        return jsonify(current_user)
+    else:
+        code = 403
+        response = jsonify(code=code, message=HTTP_STATUS_CODES.get(code), detail='Access is forbidden from remote host')
+        response.status_code = code
+        return response

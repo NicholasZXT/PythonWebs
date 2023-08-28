@@ -15,7 +15,7 @@ class BaseConfig:
         'yourself': {'passwd': 'people', 'roles': ['others']},
     }
     # 过期时间，单位s
-    TOKEN_EXPIRATION = 60 * 5
+    TOKEN_EXPIRATION = 60 * 20
 
 class DevelopmentConfig(BaseConfig):
     mysql_conf = {

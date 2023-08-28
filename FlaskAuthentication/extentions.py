@@ -37,7 +37,10 @@ def verify_token(token):
         return None
     else:
         # 为了配合下面的 get_user_roles 使用，这里必须要返回用户名，而不能返回 True
-        return user_name
+        # return user_name
+        # 更近一步，返回的信息里带有 user 的 roles 信息，这样时为了方便 HTTPTokenAuth.current_user() 里拿到 user 的 roles 信息
+        user_roles = user_config['roles']
+        return {'user': user_name, 'roles': user_roles}
 
 @auth.get_user_roles
 def get_user_roles(user):
@@ -46,7 +49,11 @@ def get_user_roles(user):
     :param user: user 就是上面 HTTPTokenAuth.verify_token 回调函数的返回值
     :return:
     """
-    user_config = current_app.config['AUTHORIZED_USERS'].get(user, None)
+    # 如果上面只返回了user的name时
+    # user_config = current_app.config['AUTHORIZED_USERS'].get(user, None)
+    # 如果上面返回的是 user 的dict
+    user_name = user['user']
+    user_config = current_app.config['AUTHORIZED_USERS'].get(user_name, None)
     if user_config is None:
         return 'nobody'  # 任意用户
     else:
