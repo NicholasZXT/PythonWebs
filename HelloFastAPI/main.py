@@ -2,11 +2,13 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from app1 import user_router, create_db_tables
+from app_auth import auth_router
 
 create_db_tables()
 
 app = FastAPI()
-app.include_router(user_router)
+app.include_router(user_router, prefix="/user_app")
+app.include_router(auth_router, prefix="/auth_app")
 
 @app.get(path='/', response_class=HTMLResponse)
 def hello():

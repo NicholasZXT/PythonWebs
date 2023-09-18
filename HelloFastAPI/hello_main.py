@@ -4,8 +4,8 @@ from fastapi import FastAPI
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import Response, JSONResponse, PlainTextResponse, HTMLResponse
 
+# 这个App是单独的一个文件，用于展示fastAPI的返回内容使用，在 uvicorn_run.py 中启动此App
 app = FastAPI()
-
 
 '''
 返回响应：https://fastapi.tiangolo.com/zh/advanced/response-directly/
