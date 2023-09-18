@@ -4,9 +4,8 @@ from fastapi.responses import HTMLResponse
 from app1 import user_router, create_db_tables
 from app_auth import auth_router
 
-create_db_tables()
-
 app = FastAPI()
+create_db_tables()
 app.include_router(user_router, prefix="/user_app")
 app.include_router(auth_router, prefix="/auth_app")
 
