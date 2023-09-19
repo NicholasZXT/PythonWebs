@@ -22,13 +22,13 @@ def verify_password(plain_password, hashed_password):
 def generate_token(data: dict, expires_time: Union[timedelta, None] = None):
     to_encode = data.copy()
     if expires_time:
-        expire = datetime.utcnow() + expires_time
+        expire = datetime.now() + expires_time
     else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"expires_in": expire.strftime("%Y-%m-%d %H:%m:%S")})
+        expire = datetime.now() + timedelta(minutes=15)
+    to_encode.update({"expires_in": expire.strftime("%Y-%m-%d %H:%M:%S")})
     # 生成 token
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt, expire.strftime("%Y-%m-%d %H:%m:%S")
+    return encoded_jwt, expire.strftime("%Y-%m-%d %H:%M:%S")
 
 # ----------------------------------------------------------------------------
 # 下面是处理 token 认证的依赖。

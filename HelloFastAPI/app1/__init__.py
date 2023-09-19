@@ -1,1 +1,1 @@
-from .user_views import user_router, create_db_tables
+from .user_views import user_router
