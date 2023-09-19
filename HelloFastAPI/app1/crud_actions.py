@@ -1,6 +1,10 @@
+"""
+单独封装 ORM 查询操作，这个不是很必要
+"""
 from sqlalchemy.orm import Session
 from .models import User
 from .schemas import UserItem
+
 
 def list_users(db: Session):
     users = db.query(User).limit(10).all()
