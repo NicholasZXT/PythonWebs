@@ -3,21 +3,24 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestFormStrict
 from fastapi.responses import Response, JSONResponse, PlainTextResponse, HTMLResponse
 from datetime import datetime, timedelta
-from settings import AUTHORIZED_USERS, ACCESS_TOKEN_EXPIRE_SECONDES
+from settings import AUTHORIZED_USERS, ACCESS_TOKEN_EXPIRE_SECONDS
 from .schemas import Token, User
 from dependencies.auth_dep import oauth2_scheme, generate_token, get_password_hash, verify_password, \
     verify_token, get_user_roles, login_required_as_admin, login_required_as_other
 
 auth_router = APIRouter()
 
-@auth_router.get("/hello")
+@auth_router.get("/hello", tags=['hello'])
 async def hello_auth():
     html = "<h1>Hello FastAPI for OAuth Demo !</h1>"
     return HTMLResponse(content=html)
 
 # 下面这个视图函数的 URL 必须要在 OAuth2PasswordBearer 实例化时的 tokenUrl 里指定
-@auth_router.post("/get_token", response_model=Token)
+@auth_router.post("/get_token", response_model=Token, tags=['auth_app'])
 async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestFormStrict, Depends()]):
+    """
+    获取OAuth验证的Token
+    """
     username = form_data.username
     passwd = form_data.password
     grant_type = form_data.grant_type
@@ -34,35 +37,50 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestFormS
     # if username not in AUTHORIZED_USERS or passwd != user_passwd:
     if username not in AUTHORIZED_USERS or not verify_password(passwd, user_passwd_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user or password")
-    expire = timedelta(seconds=ACCESS_TOKEN_EXPIRE_SECONDES)
+    expire = timedelta(seconds=ACCESS_TOKEN_EXPIRE_SECONDS)
     token, expiration = generate_token({'username': username}, expires_time=expire)
-    return {'access_token': token, 'token_type': "Bearer", 'expires_in': str(ACCESS_TOKEN_EXPIRE_SECONDES)}
+    return {'access_token': token, 'token_type': "Bearer", 'expires_in': expiration}
 
 
-@auth_router.get("/show_token")
+@auth_router.get("/show_token", tags=['auth_app'])
 async def show_token(token: Annotated[str, Depends(oauth2_scheme)]):
+    """
+    显示当前用户的Token
+    """
     print("show_token: ", token)
     return {'token': token}
 
 
-@auth_router.get("/test_token", dependencies=[Depends(verify_token)])
+@auth_router.get("/test_token", dependencies=[Depends(verify_token)], tags=['auth_app'])
 async def test_token():
+    """
+    验证是否通过Token校验
+    """
     return HTMLResponse(content="<h1>Congratulations for passing token authorization!</h1>")
 
 
-@auth_router.get("/show_user_roles")
+@auth_router.get("/show_user_roles", tags=['auth_app'])
 async def show_user_roles(user: Annotated[User, Depends(verify_token)],
                           user_roles: Annotated[List[str], Depends(get_user_roles)]):
+    """
+    显示当前用户所属的roles
+    """
     return {'current_user': user.username, 'user_roles': user_roles}
 
 
-@auth_router.get("/test_admin_role", dependencies=[Depends(login_required_as_admin)])
+@auth_router.get("/test_admin_role", dependencies=[Depends(login_required_as_admin)], tags=['auth_app'])
 async def test_admin_roles(user: Annotated[User, Depends(verify_token)],
                           user_roles: Annotated[List[str], Depends(get_user_roles)]):
+    """
+    验证admin角色组
+    """
     return {'current_user': user.username, 'user_roles': user_roles, 'description': 'passed admin role authority'}
 
 
-@auth_router.get("/test_other_role", dependencies=[Depends(login_required_as_other)])
+@auth_router.get("/test_other_role", dependencies=[Depends(login_required_as_other)], tags=['auth_app'])
 async def test_other_roles(user: Annotated[User, Depends(verify_token)],
                           user_roles: Annotated[List[str], Depends(get_user_roles)]):
+    """
+    验证others角色组
+    """
     return {'current_user': user.username, 'user_roles': user_roles, 'description': 'passed others role authority'}
