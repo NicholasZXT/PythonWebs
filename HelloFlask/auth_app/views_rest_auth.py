@@ -2,7 +2,7 @@ from flask.blueprints import Blueprint
 from flask import request, current_app, jsonify
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired
 from werkzeug.http import HTTP_STATUS_CODES
-from extentions import auth
+from auth_app.exts import auth
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -18,6 +18,7 @@ def api_abort(code, message=None, **kwargs):
     response = jsonify(code=code, message=message, **kwargs)
     response.status_code = code
     return response
+
 
 @auth_bp.route("/", methods=['GET'])
 def hello():

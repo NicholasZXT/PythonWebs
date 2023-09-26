@@ -1,7 +1,8 @@
 from flask import Flask
-from configs.flask_config import config
-from extentions import db, auth, login_manager
-from views import *
+from auth_app.configs import config
+from auth_app.exts import db, auth, login_manager
+from auth_app.views_rest_auth import auth_bp
+from auth_app.views_login_auth import login_bp
 
 
 def create_app(config_name: str = 'dev'):
@@ -19,8 +20,7 @@ if __name__ == '__main__':
     app = create_app()
     with app.app_context():
         # 必须要导入表定义才能创建
-        # 但是这里要求 views.__init__.py 文件中，必须使用 import * 的方式，否则 User 表不生效，原因未知
-        from FlaskAuthentication.models import User
+        from auth_app.models import User
         print("****** creating all tables... ******")
         # db.create_all()
         print("****** creating all tables done. ******")
