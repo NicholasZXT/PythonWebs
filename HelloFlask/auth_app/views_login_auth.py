@@ -1,9 +1,9 @@
+from werkzeug.http import HTTP_STATUS_CODES
 from flask.blueprints import Blueprint
 from flask import request, current_app, jsonify, flash, redirect, url_for
 from flask_login import login_user, logout_user, login_required, current_user
-from FlaskAuthentication.models.users import User
-from FlaskAuthentication.extentions import db
-from werkzeug.http import HTTP_STATUS_CODES
+from auth_app.models import User
+from auth_app.exts import db
 
 login_bp = Blueprint('login_bp', __name__)
 
