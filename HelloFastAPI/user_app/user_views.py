@@ -6,7 +6,7 @@ from sqlalchemy import func
 from dependencies.database_dep import get_db
 from .models import User
 from .schemas import UserItem, UserResponse
-from app1 import crud_actions
+from user_app import crud_actions
 
 user_router = APIRouter(tags=['User-App'])
 

@@ -4,7 +4,7 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestFormStri
 from fastapi.responses import Response, JSONResponse, PlainTextResponse, HTMLResponse
 from datetime import datetime, timedelta
 from settings import AUTHORIZED_USERS, ACCESS_TOKEN_EXPIRE_SECONDS
-from .schemas import Token, User
+from .schemas import Token, AuthUser
 from dependencies.auth_dep import oauth2_scheme, generate_token, get_password_hash, verify_password, \
     verify_token, get_user_roles, login_required_as_admin, login_required_as_other
 
@@ -62,7 +62,7 @@ async def test_token():
 
 
 @auth_router.get("/show_user_roles", response_class=JSONResponse)
-async def show_user_roles(user: Annotated[User, Depends(verify_token)],
+async def show_user_roles(user: Annotated[AuthUser, Depends(verify_token)],
                           user_roles: Annotated[List[str], Depends(get_user_roles)]):
     """
     显示当前用户所属的roles
@@ -71,7 +71,7 @@ async def show_user_roles(user: Annotated[User, Depends(verify_token)],
 
 
 @auth_router.get("/test_admin_role", dependencies=[Depends(login_required_as_admin)], response_class=JSONResponse)
-async def test_admin_roles(user: Annotated[User, Depends(verify_token)],
+async def test_admin_roles(user: Annotated[AuthUser, Depends(verify_token)],
                           user_roles: Annotated[List[str], Depends(get_user_roles)]):
     """
     验证admin角色组
@@ -80,7 +80,7 @@ async def test_admin_roles(user: Annotated[User, Depends(verify_token)],
 
 
 @auth_router.get("/test_other_role", dependencies=[Depends(login_required_as_other)], response_class=JSONResponse)
-async def test_other_roles(user: Annotated[User, Depends(verify_token)],
+async def test_other_roles(user: Annotated[AuthUser, Depends(verify_token)],
                           user_roles: Annotated[List[str], Depends(get_user_roles)]):
     """
     验证others角色组
