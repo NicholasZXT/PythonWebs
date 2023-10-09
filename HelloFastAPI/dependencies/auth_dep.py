@@ -6,7 +6,9 @@ from jose import jwt, ExpiredSignatureError, JWTError  # 完成JWT验证的工�
 from passlib.context import CryptContext  # 用于对密码进行hash处理和校验 —— 这里其实不太需要
 
 from settings import SECRET_KEY, ALGORITHM, AUTHORIZED_USERS
-from app_auth.schemas import User
+# 下面在pycharm中会提示报错（因为HelloFlask中也有一个auth_app），但实际不影响
+# from HelloFastAPI.auth_app.schemas import AuthUser
+from auth_app.schemas import AuthUser
 
 # tokenUrl 必须指定验证获取token的视图函数
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth_app/get_token")
@@ -53,10 +55,10 @@ async def verify_token(token: Annotated[str, Depends(oauth2_scheme)]):
     username: str = payload.get("username")
     if username is None or username not in AUTHORIZED_USERS:
         raise credentials_exception
-    user = User(username=username)
+    user = AuthUser(username=username)
     return user
 
-async def get_user_roles(token_data: Annotated[User, Depends(verify_token)]):
+async def get_user_roles(token_data: Annotated[AuthUser, Depends(verify_token)]):
     username = token_data.username
     user_roles = AUTHORIZED_USERS.get(username)['roles']
     return user_roles

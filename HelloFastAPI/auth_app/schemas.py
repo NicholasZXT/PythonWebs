@@ -6,6 +6,6 @@ class Token(BaseModel):
     token_type: str
     expires_in: str
 
-class User(BaseModel):
+class AuthUser(BaseModel):
     username: str
     disabled: bool | None = None

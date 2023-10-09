@@ -1,8 +1,8 @@
 import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
-from app1 import user_router
-from app_auth import auth_router
+from user_app import user_router
+from auth_app import auth_router
 from dependencies.database_dep import create_db_tables
 
 # 用于自定义描述 一组 接口的文档，是一个 list of dict，每个dict必须有两个key：name 是 @app.get() 中的 tags= 参数的值，description 是描述
