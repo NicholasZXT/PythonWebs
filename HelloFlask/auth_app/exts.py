@@ -1,13 +1,11 @@
 # 所有扩展的依赖和对象的初始化都放到这里，以便进行模块拆分
 import os
 from flask import current_app, jsonify
-from flask_sqlalchemy import SQLAlchemy
 from flask_httpauth import HTTPTokenAuth
+from werkzeug.http import HTTP_STATUS_CODES
 # itsdangerous 的 TimedJSONWebSignatureSerializer 只在 2.0.1 及其之前的版本中有，2.x 开始的官方文档建议转向 authlib
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired
 from flask_login import LoginManager
-
-db = SQLAlchemy()
 
 # Web应用的用户认证
 login_manager = LoginManager()
@@ -63,12 +61,28 @@ def get_user_roles(user):
 def auth_error(status):
     return "Access Denied", status
 
+
+def generate_token(user):
+    expiration = current_app.config['TOKEN_EXPIRATION']
+    s = Serializer(secret_key=current_app.config['SECRET_KEY'], expires_in=expiration)
+    token = s.dumps({'user': user}).decode()
+    return token, expiration
+
+def api_abort(code, message=None, **kwargs):
+    if message is None:
+        message = HTTP_STATUS_CODES.get(code, '')
+    response = jsonify(code=code, message=message, **kwargs)
+    response.status_code = code
+    return response
+
+
+# -------------------------------------------------------------------------------------
 # 在 login_manager 中注册一个 user_loader 函数，用于配合 Flask-login 提供的 current_user 使用
 # 如果用户已登录，current_user 会调用此处返回加载的 User 类对象；
 # 如果用户未登录，则返回 Flask-login 内置的 AnonymousUserMixin 类对象
 @login_manager.user_loader
 def load_user(uid):
-    from FlaskAuthentication.models import User
+    from auth_app.models import User
     user = User.query.get(int(uid))
     print(f"@login_manager.user_loader get user [id={uid}, username={user.username}].")
     return user

@@ -7,8 +7,8 @@ import uvicorn
 if __name__ == "__main__":
     port = 8100
     # 第一种方式
-    uvicorn.run("hello:app", port=port, log_level="info")
+    uvicorn.run("hello_main:app", port=port, log_level="info")
     # 第二种方式
-    # config = uvicorn.Config("hello:app", port=port, log_level="info")
+    # config = uvicorn.Config("hello_main:app", port=port, log_level="info")
     # server = uvicorn.Server(config)
     # server.run()
