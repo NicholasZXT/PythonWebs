@@ -1,6 +1,7 @@
 from flask import Flask
-from auth_app.configs import config
-from auth_app.exts import db, auth, login_manager
+from configs import config
+from extensions import db
+from auth_app.exts import auth, login_manager
 from auth_app.views_rest_auth import auth_bp
 from auth_app.views_login_auth import login_bp
 

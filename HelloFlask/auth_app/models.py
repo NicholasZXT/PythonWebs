@@ -1,11 +1,11 @@
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from auth_app.exts import db
+from extensions import db
 
 
 class User(db.Model, UserMixin):
     """
-    Flask-login要求表示用户的类实现下面 4 个属性/方法：
+    Flask-Login要求表示用户的类实现下面 4 个属性/方法：
     1. is_authenticated
     2. is_active
     3. is_anonymous
@@ -16,7 +16,7 @@ class User(db.Model, UserMixin):
     __tablename__ = 'flask_login_users'
     __table_args__ = {
         'mysql_engine': 'InnoDB',
-        'comment': 'Flask用户表',
+        'comment': 'Flask-Login用户表',
         'extend_existing': True
     }
     uid = db.Column(db.BigInteger(), comment='UID', primary_key=True, autoincrement=True)
