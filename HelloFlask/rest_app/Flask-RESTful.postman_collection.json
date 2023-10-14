@@ -1,0 +1,176 @@
+{
+	"info": {
+		"_postman_id": "43814265-d61a-4e39-9bab-618575ad5741",
+		"name": "Flask-RESTful",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "GET请求解析",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_ip}}/rest/parser?arg=arg_value&array=a1&array=a2&size=20&index=2",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"rest",
+						"parser"
+					],
+					"query": [
+						{
+							"key": "arg",
+							"value": "arg_value"
+						},
+						{
+							"key": "array",
+							"value": "a1"
+						},
+						{
+							"key": "array",
+							"value": "a2"
+						},
+						{
+							"key": "size",
+							"value": "20"
+						},
+						{
+							"key": "index",
+							"value": "2"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "POST请求解析",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"boolean\": \"true\",\r\n    \"date\": \"2023-10-10\",\r\n    \"pos_int\": 20,\r\n    \"range_int\": 15\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_ip}}/rest/parser?arg=arg_value&array=a1&array=a2",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"rest",
+						"parser"
+					],
+					"query": [
+						{
+							"key": "arg",
+							"value": "arg_value"
+						},
+						{
+							"key": "array",
+							"value": "a1"
+						},
+						{
+							"key": "array",
+							"value": "a2"
+						},
+						{
+							"key": "boolean",
+							"value": "true",
+							"disabled": true
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Person-GET",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_ip}}/rest/person?name=hong",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"rest",
+						"person"
+					],
+					"query": [
+						{
+							"key": "name",
+							"value": "hong"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Person-POST",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"age\": 24,\r\n    \"birthday\": \"1999-12-12\",\r\n    \"address\": {\r\n        \"province\": \"Shanghai\",\r\n        \"city\": \"Shanghai\"\r\n    }\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_ip}}/rest/person?name=hong",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"rest",
+						"person"
+					],
+					"query": [
+						{
+							"key": "name",
+							"value": "hong"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Person-DELETE",
+			"request": {
+				"method": "DELETE",
+				"header": [],
+				"url": {
+					"raw": "{{base_ip}}/rest/person?name=hong",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"rest",
+						"person"
+					],
+					"query": [
+						{
+							"key": "name",
+							"value": "hong"
+						}
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
