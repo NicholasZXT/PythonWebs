@@ -1,6 +1,9 @@
 # 所有扩展的依赖和对象的初始化都放到这里，以便进行模块拆分
+import sys
 import os
-from flask import current_app, jsonify
+import logging
+from logging.handlers import TimedRotatingFileHandler
+from flask import current_app, jsonify, request
 from flask_httpauth import HTTPTokenAuth
 from werkzeug.http import HTTP_STATUS_CODES
 # itsdangerous 的 TimedJSONWebSignatureSerializer 只在 2.0.1 及其之前的版本中有，2.x 开始的官方文档建议转向 authlib
@@ -12,6 +15,34 @@ login_manager = LoginManager()
 
 # Web-API的接口认证
 auth = HTTPTokenAuth(scheme='Bearer')
+
+LOG_FORMAT = "%(levelname)s, %(asctime)s, %(message)s"
+LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+# 日志配置
+def getLogger(log_file: str, name: str = None):
+    name = name if name else __name__
+    logger = logging.getLogger(name)
+    logger.setLevel(logging.INFO)
+    formatter = logging.Formatter(fmt=LOG_FORMAT, datefmt=LOG_DATE_FORMAT)
+    # 控制台输出
+    console_handler = logging.StreamHandler()
+    # console_handler = logging.StreamHandler(stream=sys.stdout)
+    console_handler.setFormatter(formatter)
+    # 轮换文件输出
+    # 每隔 interval 轮换一次， when 为单位，M 表示分钟 —— 每分钟轮换一次日志文件
+    rotate_handler = TimedRotatingFileHandler(filename=log_file, when='M', interval=1, encoding='utf-8')
+    # 每天轮换一次日志文件
+    # rotate_handler = TimedRotatingFileHandler(filename=log_file, when='D', interval=1, encoding='utf-8')
+    # 每周一轮换一次文件
+    # rotate_handler = TimedRotatingFileHandler(filename=log_file, when='W0', encoding='utf-8')
+    rotate_handler.setFormatter(formatter)
+    logger.addHandler(console_handler)
+    logger.addHandler(rotate_handler)
+    return logger
+
+
+logger = getLogger('user_access_log', 'AuthLogging')
 
 @auth.verify_token
 def verify_token(token):
@@ -25,19 +56,24 @@ def verify_token(token):
     :return:
     """
     s = Serializer(secret_key=current_app.config['SECRET_KEY'])
+    host = request.host
+    access_url = request.url
     try:
         data = s.loads(token)
     except (BadSignature, SignatureExpired):
+        logger.warning(f"BadRequest, {None}, {host}, {access_url}")
         return False
     user_name = data['user']
     user_config = current_app.config['AUTHORIZED_USERS'].get(user_name, None)
     if user_config is None:
+        logger.warning(f"Unknown User, {user_name}, {host}, {access_url}")
         return None
     else:
         # 为了配合下面的 get_user_roles 使用，这里必须要返回用户名，而不能返回 True
         # return user_name
         # 更近一步，返回的信息里带有 user 的 roles 信息，这样时为了方便 HTTPTokenAuth.current_user() 里拿到 user 的 roles 信息
         user_roles = user_config['roles']
+        logger.info(f"Authorized User, {user_name}, {host}, {access_url}")
         return {'user': user_name, 'roles': user_roles}
 
 @auth.get_user_roles
