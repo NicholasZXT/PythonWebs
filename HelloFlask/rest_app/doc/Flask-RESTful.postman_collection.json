@@ -171,6 +171,62 @@
 				}
 			},
 			"response": []
+		},
+		{
+			"name": "classful-info",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_ip}}/prefix/base/info",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"prefix",
+						"base",
+						"info"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "classful-auto_info",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_ip}}/prefix/base/auto_info",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"prefix",
+						"base",
+						"auto_info"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "classful-get",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_ip}}/prefix/base",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"prefix",
+						"base"
+					]
+				}
+			},
+			"response": []
 		}
 	]
 }

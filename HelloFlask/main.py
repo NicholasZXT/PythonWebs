@@ -5,6 +5,7 @@ from auth_app.exts import auth, login_manager
 from auth_app.views_rest_auth import auth_bp
 from auth_app.views_login_auth import login_bp
 from rest_app.person_resource import rest_bp
+from rest_app.classful_views import ClassBaseViews
 
 
 def create_app(config_name: str = 'dev'):
@@ -16,6 +17,7 @@ def create_app(config_name: str = 'dev'):
     app.register_blueprint(blueprint=rest_bp)
     db.init_app(app)
     login_manager.init_app(app)
+    ClassBaseViews.register(app)
     return app
 
 
