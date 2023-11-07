@@ -51,29 +51,38 @@ def verify_token(token):
     可以返回下列两种结果之一：
     1. True 或者 False，简单的表示当前token的验证是否通过，不过这样有个缺点，此时 HTTPTokenAuth.current_user() 方法就拿不到用户名了
     2. 返回验证后的user object，最好是用户名的字符串，此时 HTTPTokenAuth.current_user() 就能拿到用户名了
-    注意，如果验证不通过，应当返回 False 或者 None
+    注意，如果验证不通过，应当返回 False 或者 None。
+    使用Nginx做反向代理时，还需要配置如下项目，才能拿到源主机的IP地址：
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header REMOTE-HOST $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     :param token:
     :return:
     """
     s = Serializer(secret_key=current_app.config['SECRET_KEY'])
+    # 尝试获取访问的源主机/IP地址
     host = request.host
     access_url = request.url
+    remote_addr = request.remote_addr
+    # 使用Nginx做反向代理时，只有这个能拿到代理前的源主机IP地址
+    forwarded = request.headers.get('x-forwarded-for', None)
     try:
         data = s.loads(token)
     except (BadSignature, SignatureExpired):
-        logger.warning(f"BadRequest, {None}, {host}, {access_url}")
+        logger.warning(f"BadRequest, {None}, {host}, {remote_addr}, {forwarded}, {access_url}")
         return False
     user_name = data['user']
     user_config = current_app.config['AUTHORIZED_USERS'].get(user_name, None)
     if user_config is None:
-        logger.warning(f"Unknown User, {user_name}, {host}, {access_url}")
+        logger.warning(f"Unknown User, {user_name}, {host}, {remote_addr}, {forwarded}, {access_url}")
         return None
     else:
         # 为了配合下面的 get_user_roles 使用，这里必须要返回用户名，而不能返回 True
         # return user_name
         # 更近一步，返回的信息里带有 user 的 roles 信息，这样时为了方便 HTTPTokenAuth.current_user() 里拿到 user 的 roles 信息
         user_roles = user_config['roles']
-        logger.info(f"Authorized User, {user_name}, {host}, {access_url}")
+        logger.info(f"Authorized User, {user_name}, {host}, {remote_addr}, {forwarded}, {access_url}")
         return {'user': user_name, 'roles': user_roles}
 
 @auth.get_user_roles

@@ -57,15 +57,24 @@ def verify_token():
     """
     提供一个验证token是否有效的接口。
     token有效则返回token对应用户的 name 和 roles，否则返回空dict.
-    另外还限制此接口只能通过 localhost 来访问 —— 不过这个在使用Nginx做反向代理的情况下，还需配置Nginx传递客户端的真实IP地址
+    另外还限制此接口只能通过 localhost 来访问 —— 不过这个在使用Nginx做反向代理的情况下，还需做如下配置Nginx传递客户端的真实IP地址：
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header REMOTE-HOST $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     :return:
     """
     current_user = auth.current_user()
     print(f"verify_token current user: {current_user}")
     # 检查当前请求的源主机地址
+    access_url = request.url
     remote_addr = request.remote_addr
     remote_host = remote_addr.split(':')[0]
-    print(f"verify_token request remote host: {remote_host}")
+    print(f"verify_token request remote_addr host: {remote_host}")
+    # 使用Nginx做反向代理时，只有这个能拿到代理前的源主机IP地址
+    forwarded = request.headers.get('x-forwarded-for', None)
+    print(f"verify_token request remote x-forwarded-for host: {forwarded}")
+    # if forwarded in {'localhost', '127.0.0.1'}:
     if remote_host in {'localhost', '127.0.0.1'}:
         return jsonify(current_user)
     else:
