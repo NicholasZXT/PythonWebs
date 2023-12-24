@@ -136,13 +136,17 @@ def P2_2_Query():
 
     with engine.begin() as conn:
         res = conn.execute(s1)
+        # Connection 对象的 execute 方法的返回值始终是一个 CursorResult 对象，代表底层的cursor
+        # CursorResult 和 LegacyCursorResult 对象代替了1.3版本中的 ResultProxy 对象
         print(type(res))
         # <class 'sqlalchemy.engine.cursor.CursorResult'>
+        # CursorResult 对象通过 Row 对象来封装每一行数据，.all(), .fetchall() 等方法返回的都是 Row 对象的列表或者单独的元素
         for row in res:
             print(row)
         # row 的类型
         print(type(row))
         # <class 'sqlalchemy.engine.row.Row'>
+        # Row 对象类似于namedtuple，支持通过 Row.attr 的方式来直接访问其中的值
 
     # 另一种访问 结果的方式
     with engine.begin() as conn:
