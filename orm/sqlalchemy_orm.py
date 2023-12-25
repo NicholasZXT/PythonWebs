@@ -11,9 +11,9 @@ from sqlalchemy.orm import sessionmaker, declarative_base, registry
 mysql_conf = {
     'host': 'localhost',
     'user': 'root',
-    'passwd': 'mysql@2018',
+    # 'passwd': 'mysql@2018',
     # 'passwd': 'mysql2020',
-    # 'passwd': 'mysql2022',
+    'passwd': 'mysql2022',
     'port': 3306,
     'database': 'crashcourse'
 }
@@ -30,6 +30,7 @@ def P1_Mapping():
 # 1. Declarative Mapping：新版风格
 # 2. Classical Mappings：旧版风格，从1.4版本开始，又被称为 Imperative Mappings
 # 两者的主要区别在于：Declarative Mapping 同时 定义表的元数据和业务对象，而 Classical Mappings 是分别定义表元数据和业务对象，然后手动映射
+# 两种方式创建的映射都是一样的
 
 # ------- 申明式定义(Declarative Mapping) ---------
 def P1_1_Declarative():
@@ -65,6 +66,7 @@ class UserV1(Base):
 # 上述定义的映射类，会生成一个 __table__ 属性，存放的是 Table 对象，记录了该表的元数据
 print(UserV1.__table__)
 print(UserV1.__table__.__class__)
+# <class 'sqlalchemy.sql.schema.Table'>
 # 上述的 Table 对象，又属于 MetaData 这个集合的一部分，它可以通过 Base 类的.metadata 属性访问
 print(UserV1.metadata)
 print(Base.metadata)
@@ -115,7 +117,10 @@ user_v2_table = Table(
     Column("uid", Integer, primary_key=True, autoincrement=True),
     Column("name", String(64), nullable=False),
     Column("gender", String(64), nullable=True),
-    Column("age", Integer, nullable=True)
+    Column("age", Integer, nullable=True),
+    comment="ORM User-V2",
+    extend_existing=True,
+    mysql_engine="InnoDB"
 )
 # 再定义一个表示表中每一行数据的业务对象（类似于Java的bean）
 class UserV2:
@@ -123,8 +128,9 @@ class UserV2:
     pass
 
 # 手动将表的元数据和业务对象映射起来
-mapper_registry.map_imperatively(UserV2, user_v2_table)
-
+user_v2_mapper = mapper_registry.map_imperatively(UserV2, user_v2_table)
+print(type(user_v2_mapper))
+# <class 'sqlalchemy.orm.mapper.Mapper'>
 # 创建表
 user_v2_table.create(bind=engine)
 print(metadata_obj.tables)
@@ -138,113 +144,175 @@ def P2_CRUD():
 Session = sessionmaker(bind=engine)
 session = Session()
 
-
+# 1.x 版本 和 2.x 版本中，ORM 插入记录的语法没有什么区别
 def P2_1_Add():
+    # Declarative 风格
     # 创建一个 UserV1 类的对象，对应于表中的一行记录
-    u1 = UserV1(name='Jane', gender='female', age=18, province='anhui')
+    u1 = UserV1(name='wendy', gender='female', age=18)
     print(u1.name)
     print(u1.gender)
     # 插入数据库
     session.add(u1)
-    session.add_all([UserV1(name='wendy', gender='female', age=22, province='hebei'),
-                     UserV1(name='daniel', gender='male', age=28, province='anhui')])
+    session.add_all([
+        UserV1(name='jane', gender='female', age=22),
+        UserV1(name='daniel', gender='male', age=28),
+        UserV1(name='Rose', gender='female', age=20)
+    ])
     # 提交变更
     session.commit()
 
+    # Classical 风格下，直接使用 UserV2 类就行了，虽然在定义的时候，这个类我们啥也没写——KEY
+    # 不过需要注意的是，UserV2对应的是另一个表
+    u2 = UserV2(name='wendy', gender='female', age=18)
+    print(u2.name)
+    print(u2.gender)
+    print(u2.age)
+    session.add(u2)
+    session.add_all([
+        UserV2(name='jane', gender='female', age=22),
+        UserV2(name='daniel', gender='male', age=28),
+        UserV2(name='Rose', gender='female', age=20)
+    ])
+    session.commit()
 
-def P2_2_Query():
-    # 使用产品表进行演示
-    products = db_tables['products']
-    # products 是一个 Table 对象，它是 Classical Mapping 的底层实现
-    print(products.__class__)
-    # 通过 .columns （可以缩写为 .c）属性获取所有的列
-    print(list(products.columns))
-    print(list(products.c))
-    # 获取单个列
-    print(products.c.prod_name)
-    print(products.c['prod_name'])
 
-    # Query 对象是使用SQLAlchemy-ORM进行查询的主要对象，它有如下常用的方法：
-    # .all(), .one(), first() 等返回指定数量结果
-    # .order_by(), .limit(), .offset()
-    # .count(), .distinct(), .group_by(),
-    # .filter(), .filter_by(), .where(), .having()
-    # .join(), .outerjoin()
-    # .union(), .union_all()
-    # .statement：返回Query对应的SQL语句形式
-    # .subguery()：返回当前Query对象对于的SQL语句，但是依旧封装为Query对象，通常用于子查询
-
-    # 这里传入的 products 是 Table 对象，不过通常传入的，应该是 Base 的子类
-    res1 = session.query(products).order_by(products.c.vend_id.desc())
-    # 打印SQL
-    print(res1)
-    print(res1.statement)
-    # 一定要在打印之后执行 all() 方法
-    for row in res1.all():
+# ORM 在1.x 和 2.x 版本最主要的区别，就是查询语法的变化
+def P2_2_Query_V1():
+    """
+    1.x 中，ORM查询主要是使用 session.query() 创建的 Query 对象，它有如下常用的方法：
+    .all(), .one(), first() 等返回指定数量结果
+    .order_by(), .limit(), .offset()
+    .count(), .distinct(), .group_by(),
+    .filter(), .filter_by(), .where(), .having()
+    .join(), .outerjoin()
+    .union(), .union_all()
+    .statement：返回Query对应的SQL语句形式
+    .subguery()：返回当前Query对象对于的SQL语句，但是依旧封装为Query对象，通常用于子查询
+    """
+    # 构建查询
+    q1 = session.query(UserV1).order_by(UserV1.age.desc())
+    # print(type(q1))
+    # <class 'sqlalchemy.orm.query.Query'>
+    # 直接print，打印的是底层的SQL
+    print(q1)
+    # 等价于
+    print(q1.statement)
+    # all() 方法才触发查询
+    for row in q1.all():
         print(row)
-    print(row.__class__)
+    # 返回的 row 是一个 UserV1 对象，而不是 Core 中的 Row 对象，这就是ORM的作用
+    print(type(row))
+    # <class '__main__.UserV1'>
+    print(row.name)
+    print(row.gender)
+    print(row.age)
+
+    # 但是如果查询时只指定了部分列，那么返回值也是 Row 对象
+    q2 = session.query(UserV1.name, UserV1.gender).order_by(UserV1.uid).limit(2)
+    print(q2.statement.compile(compile_kwargs={"literal_binds": True}))
+    for row in q2.all():
+        print(row)
+    print(type(row))
     # <class 'sqlalchemy.engine.row.Row'>
-    print(row[1])
-    print(row.vend_id)
-    print(row['vend_id'])
 
-    res2 = session.query(products).where(products.c.vend_id == '1003')
-    print(res2)
-    print(res2.statement)
-    # 打印实际包含参数的SQL语句
-    print(res2.statement.compile(compile_kwargs={"literal_binds": True}))
-    for row in res2.all():
-        print(row)
-
-    res3 = session.query(products.c.vend_id, func.sum(products.c.prod_price).label('prod_sum')).group_by(products.c.vend_id)
-    print(res3)
-    for row in res3.all():
-        print(row)
-    print(row.prod_sum)
-
+    # where 查询
+    q3 = session.query(UserV1).where(UserV1.age >= 20)
+    print(q3)  # 这样打印的SQL里，查询参数只是一个占位符
+    # 打印实际执行语句
+    print(q3.statement.compile(compile_kwargs={"literal_binds": True}))
     # 注意，对于 delete 的操作，上面的这种打印方式就不行了
+    for row in q3.all():
+        print(row)
+    print(type(row))
+    # <class '__main__.UserV1'>
+
+    # 聚合查询
+    q4 = session.query(UserV1.gender, func.sum(UserV1.age).label('age_sum'),
+                       func.count(UserV1.name).label('cnt'),
+                       func.count(UserV1.gender.distinct()).label('gender_distinct'))\
+        .group_by(UserV1.gender)
+    print(q4.statement.compile(compile_kwargs={"literal_binds": True}))
+    for row in q4.all():
+        print(row)
+
+    # ---------------------------------------------------
+    # 对于 Classical 风格映射执行查询，也是直接使用 UserV2 类，虽然 UserV2 类看起来只是一个普通的Python类
+    q5 = session.query(UserV2).order_by(UserV2.age).limit(2)
+    print(q5)
+    for row in q5.all():
+        # 由于 UserV2 中并没有设置 __repr__ 方法，所以这里打印显示的内容看不出啥
+        print(row)
+    # 由于选择了所有字段，所以返回的 row 是一个 UserV2 对象，也不是 Core 中的 CursorResult
+    print(type(row))
+    print(row.name)
+    print(row.gender)
+    print(row.age)
 
 
-# ---------------------------------------------------------
-# 从 1.4 版本起，将 Core 和 ORM 的查询方式进行了整合，倾向于统一使用 CORE 风格的API进行查询操作 —— 这也是 2.x 版本的最大改动之一
-def P2_2_Unify_Query():
-    # 从 1.4 版本起， select() 函数支持两种方式：
-    # 1. 传入 Table 对象进行查询 —— 这是 SQL Expression Language，也就是 Core 的方式
-    # 2. 传入 Base 类的子类对象进行查询 —— 这是 ORM 的方式
-
-    # UserV1 是 ORM 对象，可以直接访问对应的属性
-    s1 = select(UserV1).where(UserV1.name == 'daniel')
-    print(s1)
+def P2_2_Query_V2():
+    """
+    从 1.4 版本起，将 Core 和 ORM 的查询方式进行了整合，倾向于统一使用 CORE 风格的API进行查询操作 —— 这也是 2.x 版本的最大改动之一.
+    从 1.4 版本起， select() 函数支持两种方式：
+      1. 传入 Table 对象进行查询 —— Core 的方式
+      2. 传入 Base 类的子类对象进行查询 —— ORM 的方式
+    :return:
+    """
+    s1 = select(UserV1).where(UserV1.age >= 20)
     print(s1.compile(compile_kwargs={"literal_binds": True}))
     # 使用 session.execute() 执行查询
     res1 = session.execute(s1).all()
-    # print(res1.__class__)
+    print(type(res1))
+    # <class 'list'>
     for row1 in res1:
         print(row1)
-    # 返回的是 Row 对象
-    print(row1.__class__)
+    # 返回的是 Row 对象，它类似于一个元组
+    print(type(row1))
     # <class 'sqlalchemy.engine.row.Row'>
-    print(row1)  # 打印出来是一个元组，第一个元素是 User 对象
-    # (< User(name=daniel, gender=male, age=28, province='anhui') >,)
-    print(row1[0])
-    # <User(name=daniel, gender=male, age=28, province='anhui')>
-    print(row1[0].__class__)
-    # <class '__main__.UserV1'>
+    print(row1[0])  # 这样拿到的才是 User 对象
+    # <User(name=Rose, gender=female, age=20')>
+    print(row1[0].name)
 
-    # UserV2 是 Table 对象，访问属性时，需要通过 .c 来做一下中转
-    s2 = select(UserV2).where(UserV2.c.name == 'daniel')
-    print(s2)
-    print(s2.compile(compile_kwargs={"literal_binds": True}))
-    # 使用 Connection.execute() 执行查询
+    # 使用 connection.execute 也可以
     with engine.connect() as conn:
-        res2 = conn.execute(s2).all()
-        # print(res2.__class__)
+        res11 = conn.execute(s1)
+        print(type(res11))
+        # <class 'sqlalchemy.engine.cursor.LegacyCursorResult'>
+        for row11 in res11:
+            print(row11)
+    print(type(row11))
+    # <class 'sqlalchemy.engine.row.LegacyRow'>
+    # LegacyRow 是 Row 的子类，好像是为了兼容1.x版本的结果
+    print(row11.name)
+    print(row11.gender)
+
+    s2 = select(UserV2).where(UserV2.age >= 20)
+    print(s2.compile(compile_kwargs={"literal_binds": True}))
+    res2 = session.execute(s2).all()
     for row2 in res2:
         print(row2)
-    # 返回的是 LegacyRow
-    print(row2.__class__)
-    # <class 'sqlalchemy.engine.row.LegacyRow'>
-    print(row2)  # 打印出来 就直接是值
-    # (1, 'daniel', 'male', 26, 'anhui')
+    print(type(row2))
+    # <class 'sqlalchemy.engine.row.Row'>
+    print(row2[0])
+    print(row2[0].name)
+
+    # 这里是使用 Table 对象，所以需要使用 .c 属性来访问 age
+    s3 = select(user_v2_table).where(user_v2_table.c.age >= 20)
+    print(s3.compile(compile_kwargs={"literal_binds": True}))
+    res3 = session.execute(s3).all()
+    for row3 in res3:
+        print(row3)
+    print(type(row3))
+    # <class 'sqlalchemy.engine.row.Row'>
+    print(row3.name)
+
+    # 其他查询
+    s4 = select(UserV1.gender, func.sum(UserV1.age).label('age_sum'),
+                func.count(UserV1.name).label('cnt'),
+                func.count(UserV1.gender.distinct()).label('gender_distinct'))\
+        .group_by(UserV1.gender)
+    print(s4.compile(compile_kwargs={"literal_binds": True}))
+    res4 = session.execute(s4).all()
+    for row4 in res4:
+        print(row4)
 
 

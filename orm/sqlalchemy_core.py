@@ -16,8 +16,8 @@ mysql_conf = {
     'host': 'localhost',
     'user': 'root',
     # 'passwd': 'mysql@2018',
-    'passwd': 'mysql2020',
-    # 'passwd': 'mysql2022',
+    # 'passwd': 'mysql2020',
+    'passwd': 'mysql2022',
     'port': 3306,
     'database': 'crashcourse'
 }
