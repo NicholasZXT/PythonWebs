@@ -25,6 +25,7 @@ class StudentSerializer(serializers.Serializer):
 
 # 第2种，ModelSerializer，可以自动从对应的Model中读取设置字段，自动生成序列化的验证器，并且实现了简单的 .create() 和 .update() 方法
 class TeacherSerializer(serializers.ModelSerializer):
+    # 这种序列化器只需要定义下面的元数据信息
     class Meta:
         model = Teachers
         fields = '__all__'

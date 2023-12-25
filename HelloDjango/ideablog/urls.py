@@ -1,5 +1,4 @@
 """blog URL Configuration
-
 The `urlpatterns` list routes URLs to views. For more information please see:
     https://docs.djangoproject.com/en/4.1/topics/http/urls/
 Examples:
@@ -36,13 +35,14 @@ path(route, view, kwargs=None, name=None)
   kwargs: 允许你向视图函数或方法传递附加参数
   name: 路由别名，用于反向解析路由
 """
+import json
 from django.contrib import admin
 from django.urls import path, include
 from django.core.handlers.wsgi import WSGIRequest
 from django.http.response import HttpResponse, JsonResponse
 from django.views.decorators.http import require_http_methods, require_GET
-import json
 
+# -------------- 这里展示了一些简单请求 ----------------------
 @require_http_methods(request_method_list=['GET'])  # 这个视图装饰器是可选的，这里使用它来限制视图函数可以接受的请求类型
 def hello(request: WSGIRequest):
     # 视图函数必须要接受一个 request 参数，它是 WSGIRequest 对象
@@ -54,19 +54,20 @@ def hello(request: WSGIRequest):
 
 # 返回JSON数据
 @require_GET
-def hello_json(request):
+def hello_json(request: WSGIRequest):
     json_data = {'k1': 'v1', 'k2': 'v2'}
     # 使用 HttpResponse 封装时，需要手动 dumps
     json_data = json.dumps(json_data)
     return HttpResponse(content=json_data, content_type='application/json')
 
 @require_GET
-def hello_json_v2(request):
+def hello_json_v2(request: WSGIRequest):
     json_data = {'k1': 'v1', 'k2': 'v2'}
     # 使用 JsonResponse 时，则不需要手动 dumps，也不需要手动设置 content_type，但是参数名为 data
     return JsonResponse(data=json_data)
 
 
+# ------------ 所有请求的URL和视图函数的映射关系 ---------------
 urlpatterns = [
     path('', hello),   # 根路径不需要指定 /
     path('admin/', admin.site.urls),

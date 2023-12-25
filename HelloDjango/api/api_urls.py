@@ -1,10 +1,11 @@
 from django.urls import path
-from .views import get_student, list_student
+from .views import get_student, list_student, create_student
 from rest_framework.urlpatterns import format_suffix_patterns
 
 urlpatterns = [
     path('get_student/<int:sid>', get_student),
-    path('list_student', list_student)
+    path('list_student', list_student),
+    path('create_student', create_student)
 ]
 
 # 默认下，DRF 框架的 Response 对象会对接口返回的数据使用默认的HTML页面进行渲染，稍微封装一下，容易查看数据
