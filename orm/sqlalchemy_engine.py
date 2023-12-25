@@ -1,6 +1,6 @@
 """
 练习 SQL Alchemy 的 Engine，以 1.4 版本为例
-以下的查询表均来自《MySQL必知必会》附带的数据表，下载地址为:https://forta.com/books/0672327120/
+以下的查询表均来自《MySQL必知必会》附带的数据表，下载地址为:https://forta.com/books/0672327120/ ，内容在 tables.sql 中
 """
 import logging
 from urllib import parse
