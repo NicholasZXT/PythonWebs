@@ -1,6 +1,6 @@
-'''
+"""
 用于展示 DRF 框架序列化器的使用
-'''
+"""
 # import os
 # print("CWD: ", os.getcwd())
 # os.chdir('HelloDjango')
@@ -17,16 +17,21 @@ settings.configure()
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
 
+# 待序列化的简单Python类
 class Person:
     def __init__(self, name, gender):
         self.name = name
         self.gender = gender
 
     def __str__(self):
-        return f"{{name: {self.name}, gender: {self.gender}}}"
+        return f"Person<name: {self.name}, gender: {self.gender}>"
 
 
 class PersonSerializerV1(serializers.Serializer):
+    """
+    Person类的第 1 版序列化器，只是定义了需要进行序列化的字段及其类型；
+    没有实现任何父类方法，所以也就没有实现序列化的过程
+    """
     name = serializers.CharField(max_length=63)
     gender = serializers.CharField(max_length=15)
 
@@ -40,6 +45,8 @@ print(p1)
 s1 = PersonSerializerV1(instance=p1)
 print(s1.data)
 print(type(s1.data))
+# <class 'rest_framework.utils.serializer_helpers.ReturnDict'>
+
 # 序列化成 bytes 对象
 p1_bytes = JSONRenderer().render(s1.data)
 print(p1_bytes)
@@ -57,6 +64,7 @@ p1_ = JSONParser().parse(stream)
 # 上面几句相当于下面
 # p1_ = json.loads(p1_bytes)
 print(type(p1_))  # 是个dict
+
 # 使用 解析成 dict 的数据进行反序列化，注意，此时参数名是 data=
 s1_rev = PersonSerializerV1(data=p1_)
 # 不能一开始就访问 .data，会报错，必须要先调用 .is_valid() 方法检验数据
@@ -72,7 +80,7 @@ print(type(s1_rev.data))  # 类型是 <class 'rest_framework.utils.serializer_he
 print(s1_rev.validated_data)
 print(type(s1_rev.validated_data))   # 类型是 <class 'collections.OrderedDict'>
 
-# 由于 PersonSerializerV1 没有实现 .create() 方法，这里会 NotImplementedError
+# 由于 PersonSerializerV1 没有实现 .create() 方法，这里会抛出 NotImplementedError
 s1_rev_obj = s1_rev.save()
 
 # 对于 .is_valid() 为 False 的情况，错误信息存放在 .errors 中
@@ -90,6 +98,11 @@ print(s1_rev.error_messages)
 # ----------------------------------------------------------------------------------------------------------------------
 # 如果要反序列化获得 Person 对象，还需要实现 Serializer 子类中的 .create() 或者 .update() 方法
 class PersonSerializerV2(serializers.Serializer):
+    """
+    Person类的第 2 版序列化器：
+    1. 定义了需要进行序列化的字段及其类型——同第1版
+    2. 实现了 .create() 和 .update() 方法，也就是自定义了反序列化和更新的过程，这两个方法会在被 .save() 方法调用
+    """
     name = serializers.CharField(max_length=63)
     gender = serializers.CharField(max_length=15)
 
@@ -143,6 +156,12 @@ print(type(s3_update))
 # 上述的字段验证是在 Serializer 的 Field 里默认定义的，一般只能验证类型或者空值，如果要控制各个字段的验证逻辑，
 # 可以创建一个 .validate_<field_name> 的方法
 class PersonSerializerV3(serializers.Serializer):
+    """
+    Person类的第 3 版序列化器：
+    1. 定义了需要进行序列化的字段及其类型——同第1版
+    2. 实现了 .create() 和 .update() 方法，也就是自定义了反序列化和更新的过程——同第2版
+    3. 增加了字段验证功能
+    """
     name = serializers.CharField(max_length=63)
     gender = serializers.CharField(max_length=15)
     # 如果 required=False，那么下面的验证函数就不会被执行
