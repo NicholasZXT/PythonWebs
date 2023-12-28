@@ -32,26 +32,25 @@ ROOT_URLCONF = 'ideablog.urls'
 WSGI_APPLICATION = 'ideablog.wsgi.application'
 
 # Application definition
-
 INSTALLED_APPS = [
     # Django框架提供的app
-    'django.contrib.admin',
-    'django.contrib.auth',
-    'django.contrib.contenttypes',
-    'django.contrib.sessions',
-    'django.contrib.messages',
-    'django.contrib.staticfiles',
-    # DRF框架
+    'django.contrib.admin',            # Admin管理界面
+    'django.contrib.auth',             # 自带的认证系统
+    'django.contrib.contenttypes',     # 内容系统
+    'django.contrib.sessions',         # session管理
+    'django.contrib.messages',         # 消息系统
+    'django.contrib.staticfiles',      # 静态文件管理系统
+    # DRF框架提供的app，主要是用于展示接口测试的文档，一般为 8000 端口
     'rest_framework',
-
+    # -----------------------------------
     # 项目管理app
     'ideablog',
+    # 使用DRF开发的REST-API应用
+    'api',
     # 具体应用，为了和上面的项目管理App区别开，都显式带上了一个app后缀
     'blog_app',
     # 'sidebar_app',
     # 'comment_app',
-    # DRF的 RESTful 接口App
-    'api'
 ]
 # 中间件配置
 MIDDLEWARE = [
@@ -106,20 +105,16 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-# Internationalization
+# Internationalization，国际化相关的配置
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
 # LANGUAGE_CODE = 'en-us'
 LANGUAGE_CODE = 'zh-hans'
-
 # TIME_ZONE = 'UTC'
 TIME_ZONE = 'Asia/Shanghai'
-
 USE_I18N = True
-
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
+# Static files (CSS, JavaScript, Images)，静态文件相关配置
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 STATIC_URL = 'static/'
 
@@ -127,7 +122,7 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Django Rest Framework模块的配置
+# Django Rest-Framework模块的配置
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.

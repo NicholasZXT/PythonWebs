@@ -1,6 +1,6 @@
-from django.shortcuts import render
 from rest_framework import status
 from rest_framework.decorators import api_view
+from rest_framework.views import APIView
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.renderers import JSONRenderer
@@ -9,6 +9,13 @@ from .models import Students, Teachers
 from .serializers import StudentSerializer, TeacherSerializer
 
 # Create your views here.
+"""
+DRF对Django进行了如下的扩展：
+1. rest_framework.request.Request 是对  django.http.request.HttpRequest 的扩展，提供了更加方便的使用方式，特别是 Request.data
+2. rest_framework.response.Response 是对  django.http.response.HttpResponse 的扩展
+3. rest_framework.status 里定义了许多HTTP状态码的常量，比如 HTTP_404_NOT_FOUND = 404，方便使用
+4. rest_framework.decorators.api_view 提供了定义视图函数的简便方式；而 rest_framework.views.APIView 提供了class-based views封装
+"""
 
 @api_view(http_method_names=['GET'])
 # def get_student(request: Request, sid):
