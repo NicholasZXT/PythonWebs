@@ -180,9 +180,21 @@ class PersonSerializerV3(serializers.Serializer):
         用于自定义 gender 字段的验证逻辑，value 就是传入的验证的值
         """
         if value in {'male', 'female'}:
+            # 要么返回验证后的字段值
             return value
         else:
+            # 要么抛出下面的验证错误异常
             raise serializers.ValidationError("gender value must in {male, female}")
+
+    def validate(self, attrs):
+        """
+        validate方法，用于进行整个对象的数据验证，也就是可以同时访问多个字段
+        :param attrs: dict，里面包含了所有字段和值组成的dict
+        :return:
+        """
+        # 要么返回经过验证的字段值，要么抛出 serializers.ValidationError 异常
+        print(f"name: {attrs['name']}, gender: {attrs['gender']}")
+        return attrs
 
 
 s4_data = {'name': 'WangWang', 'gender': 'neutral'}
