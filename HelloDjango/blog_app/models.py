@@ -14,7 +14,8 @@ class Category(models.Model):
     # 定义字段
     # 默认下，如果用户没有定义主键，Django会使用类似下面的语句创建一个自增主键
     # id = models.BigAutoField(primary_key=True)
-    name = models.CharField(max_length=50, verbose_name='名称')
+    # db_comment 是字段的注释，从 4.2 版本开始才有
+    name = models.CharField(max_length=50, verbose_name='名称', db_comment="名称")
     status = models.PositiveIntegerField(default=STATUS_NORMAL, choices=STATUS_ITEM, verbose_name='状态')
     is_nav = models.BooleanField(default=False, verbose_name='是否为导航')
     owner = models.ForeignKey(User, verbose_name="作者", on_delete=models.DO_NOTHING)
@@ -25,8 +26,8 @@ class Category(models.Model):
         managed = True   # 是否交由 ORM 框架管理，默认为True
         # db_tablespace = 'dbbase'   # 数据库
         db_table = 'blog_category'           # 设置表名称，默认下Django会以全小写的 {app_name}_{model_class_name} 形式创建表
-        # db_table_comment = '存放文章类别'    # 设置表的注释, 4.2版本开始才有这个功能
-        verbose_name = '类别'                 # 此Model的文本表示，用于在 Admin 界面显示等
+        db_table_comment = '存放文章类别'      # 设置表的注释, 4.2版本开始才有这个功能
+        verbose_name = '类别'                 # 此Model的文本表示，用于在 Django Admin 界面显示等
         verbose_name_plural = verbose_name   # 复数形式，默认下会在 verbose_name 后面加上字符串 s 表示复数（比如在Admin界面显示时）
         ordering = ['name', '-status']       # 指定数据记录的排序字段，默认ASC，- 表示 DESC
         # 定义索引字段

@@ -20,8 +20,8 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ----------------------------
 -- Table structure for api_student
 -- ----------------------------
-DROP TABLE IF EXISTS `api_student`;
-CREATE TABLE `api_student`  (
+# DROP TABLE IF EXISTS `api_student`;
+CREATE TABLE IF NOT EXISTS `api_student`  (
   `sid` bigint NOT NULL AUTO_INCREMENT,
   `name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
   `gender` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
@@ -42,8 +42,8 @@ INSERT INTO `api_student` VALUES (103, '小红', '女', '4年级', '2班', '2023
 -- ----------------------------
 -- Table structure for api_teacher
 -- ----------------------------
-DROP TABLE IF EXISTS `api_teacher`;
-CREATE TABLE `api_teacher`  (
+# DROP TABLE IF EXISTS `api_teacher`;
+CREATE TABLE IF NOT EXISTS `api_teacher`  (
   `tid` bigint NOT NULL AUTO_INCREMENT,
   `name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,
   `gender` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL,

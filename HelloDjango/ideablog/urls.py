@@ -70,7 +70,7 @@ def hello_json_v2(request: WSGIRequest):
 # ------------ 所有请求的URL和视图函数的映射关系 ---------------
 urlpatterns = [
     path('', hello),   # 根路径不需要指定 /
-    path('admin/', admin.site.urls),
+    path('admin/', admin.site.urls),   # Django Admin 管理界面的URL路由
     path('hello_json/', hello_json),
     path('hello_json_v2/', hello_json_v2),
     path('api/', include('api.api_urls'))  # 使用 include 引入 api 应用下的路由映射
