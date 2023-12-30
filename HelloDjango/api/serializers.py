@@ -10,7 +10,14 @@ class StudentSerializer(serializers.Serializer):
     gender = serializers.CharField(max_length=50, required=True, allow_null=True)
     grade = serializers.CharField(max_length=50, required=True, allow_null=False)
     grade_class = serializers.CharField(max_length=50, required=False, allow_null=True)
-    create_date = serializers.DateField(read_only=True)
+    # 日期/日期时间字段可以通过 format 自定义输出格式
+    create_date = serializers.DateField(read_only=True, format='%Y-%m-%d')
+
+    def validate_gender(self, value):
+        if value in ['male', 'female']:
+            return value
+        else:
+            raise serializers.ValidationError('Invalid gender. gender value must in {male, female}')
 
     def create(self, validated_data):
         return Student.objects.create(**validated_data)
@@ -25,8 +32,17 @@ class StudentSerializer(serializers.Serializer):
 
 # 第2种，ModelSerializer，可以自动从对应的Model中读取设置字段，自动生成序列化的验证器，并且实现了简单的 .create() 和 .update() 方法
 class TeacherSerializer(serializers.ModelSerializer):
+    # 手动设置日期字段的序列化信息，主要是设置日期格式
+    create_date = serializers.DateField(read_only=True, format='%Y-%m-%d')
+
     # 这种序列化器只需要定义下面的元数据信息
     class Meta:
         model = Teacher
         fields = '__all__'
         read_only_fields = ('tid', 'create_date')
+
+    def validate_gender(self, value):
+        if value in ['male', 'female']:
+            return value
+        else:
+            raise serializers.ValidationError('Invalid gender. gender value must in {male, female}')
