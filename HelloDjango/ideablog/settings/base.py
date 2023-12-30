@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',         # session管理
     'django.contrib.messages',         # 消息系统
     'django.contrib.staticfiles',      # 静态文件管理系统
-    # DRF框架提供的app，主要是用于展示接口测试的文档，一般为 8000 端口
+    # DRF框架提供的app，展示接口测试的文档
     'rest_framework',
     # -----------------------------------
     # 项目管理app
@@ -48,7 +48,7 @@ INSTALLED_APPS = [
     # 使用DRF开发的REST-API应用
     'api',
     # 具体应用，为了和上面的项目管理App区别开，都显式带上了一个app后缀
-    'blog_app',
+    # 'blog_app',
     # 'sidebar_app',
     # 'comment_app',
 ]

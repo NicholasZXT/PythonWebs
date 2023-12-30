@@ -1,19 +1,19 @@
 from rest_framework import serializers
-from .models import Students, Teachers
+from .models import Student, Teacher
 
 # DRF 框架提供了多种序列化类
 
 # 第1种，最基本的 Serializer 类，需要手动定义序列化用到的字段，并且可以提供更加精细的验证空值，但是代码比较繁琐
 class StudentSerializer(serializers.Serializer):
-    sid = serializers.IntegerField(read_only=True)
+    sid = serializers.IntegerField(read_only=True)  # sid 字段设置为只读，这样就无法通过POST或PUT请求提交相关数据进行反序列化
     name = serializers.CharField(max_length=50, required=True, allow_null=False)
-    gender = serializers.CharField(max_length=50, required=True, allow_null=False)
+    gender = serializers.CharField(max_length=50, required=True, allow_null=True)
     grade = serializers.CharField(max_length=50, required=True, allow_null=False)
     grade_class = serializers.CharField(max_length=50, required=False, allow_null=True)
-    create_date = serializers.DateField()
+    create_date = serializers.DateField(read_only=True)
 
     def create(self, validated_data):
-        return Students.objects.create(**validated_data)
+        return Student.objects.create(**validated_data)
 
     def update(self, instance, validated_data):
         instance.name = validated_data.get('name', instance.name)
@@ -27,6 +27,6 @@ class StudentSerializer(serializers.Serializer):
 class TeacherSerializer(serializers.ModelSerializer):
     # 这种序列化器只需要定义下面的元数据信息
     class Meta:
-        model = Teachers
+        model = Teacher
         fields = '__all__'
         read_only_fields = ('tid', 'create_date')
