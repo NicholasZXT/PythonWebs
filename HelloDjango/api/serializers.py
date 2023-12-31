@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Student, Teacher
+from .models import Student, Teacher, Draft
 
 # DRF 框架提供了多种序列化类
 
@@ -46,3 +46,27 @@ class TeacherSerializer(serializers.ModelSerializer):
             return value
         else:
             raise serializers.ValidationError('Invalid gender. gender value must in {male, female}')
+
+class DraftSerializer(serializers.Serializer):
+    nid = serializers.IntegerField(read_only=True)
+    # author = serializers.CharField(read_only=True, max_length=50)
+    # 作者设置为登录用户的ID，由于 Draft 中 author 是一个外键对象，所以这里使用 author.id 来获取外键id
+    author = serializers.ReadOnlyField(source="author.id")
+    # 再设置一个计算字段，对应于方法名，获取作者的用户名 —— 这个字段在 Draft 表中并没有
+    author_name = serializers.SerializerMethodField(method_name='get_author_name')
+    status = serializers.ChoiceField(choices=Draft.STATUS_CHOICES, default='add')
+    content = serializers.CharField(max_length=255, allow_blank=True)
+    create_date = serializers.DateField(read_only=True)
+
+    def get_author_name(self, obj):
+        return obj.author.username
+
+    def create(self, validated_data):
+        return Draft.objects.create(**validated_data)
+
+    def update(self, instance, validated_data):
+        # read_only 的字段都不要在这里进行更新：id, create_date 字段自动设置；author 字段单独设置
+        instance.status = validated_data.get('status', instance.status)
+        instance.content = validated_data.get('content', instance.content)
+        instance.save()
+        return instance
