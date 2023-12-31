@@ -1,22 +1,24 @@
 from django.http.response import JsonResponse
+from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import get_user_model, authenticate
 from django.contrib.auth.models import Permission, User
-from django.contrib.contenttypes.models import ContentType
 from rest_framework import status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, authentication_classes
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
-from rest_framework.mixins import RetrieveModelMixin, ListModelMixin, CreateModelMixin, DestroyModelMixin
-from rest_framework.generics import GenericAPIView, ListCreateAPIView
-from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
+from rest_framework.mixins import RetrieveModelMixin, ListModelMixin, CreateModelMixin, DestroyModelMixin
+from rest_framework.generics import GenericAPIView, ListCreateAPIView
+from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
+from rest_framework.authentication import TokenAuthentication
+from rest_framework_simplejwt.authentication import JWTAuthentication
 from .models import Student, Teacher, Draft
 from .serializers import StudentSerializer, TeacherSerializer, DraftSerializer
-from .permissions import IsOwnerOrReadOnly
+from .custom_auth_permission import IsOwnerOrReadOnly
 
 # Create your views here.
 """
@@ -163,7 +165,7 @@ class TeacherViewSet(ReadOnlyModelViewSet):
     lookup_field = 'tid'
 
 
-# ================== DRF 用户认证 + 权限校验 ======================
+# ================== DRF 用户登录认证 + 权限鉴别 ======================
 
 @api_view(http_method_names=['GET'])
 def create_draft_user(request, *args, **kwargs):
@@ -193,7 +195,8 @@ class DraftOpenView(GenericAPIView, ListModelMixin, CreateModelMixin, DestroyMod
     queryset = Draft.objects.all()
     serializer_class = DraftSerializer
     lookup_field = 'nid'
-    # 没有设置权限类
+
+    # 没有设置用户身份验证的类，也没有设置权限鉴别类
 
     # 没有登录用户的情况下，下面的3个方法中，只有 GET 能看到数据，POST 和 DELETE 的按钮能看到，但是执行之后，会报未登录错误
     def get(self, request, *args, **kwargs):
@@ -205,7 +208,9 @@ class DraftOpenView(GenericAPIView, ListModelMixin, CreateModelMixin, DestroyMod
     def delete(self, request, *args, **kwargs):
         return self.destroy(request, *args, **kwargs)
 
-    # 下面自定义了 post 和 delete 内部调用的方法，在里面做了用户验证的逻辑
+    # 下面自定义了 post 和 delete 内部调用的方法，在里面做了用户验证的逻辑，但没有做权限鉴别的控制
+    # 这里用户的身份验证其实是使用Django自带的User用户的身份验证，一旦验证通过，Django就会在 request.user 中存放经过认证的用户
+    # 如果认证没有通过，那 request.user 里存放的就是 AnonymousUser 实例
     def perform_create(self, serializer):
         print(f"create draft with request.user: {self.request.user}")
         if self.request.user.is_anonymous:
@@ -229,11 +234,11 @@ class DraftAuthView(GenericAPIView, ListModelMixin, CreateModelMixin, DestroyMod
     serializer_class = DraftSerializer
     lookup_field = 'nid'
 
-    # 设置权限类，没有权限的用户只能读，不能改和删
+    # 设置权限鉴别类，没有权限的用户只能读，不能改和删
     # 因此GET方法能看到数据，而 POST 和 DELETE 的按钮在未登录的情况下是看不到的
     permission_classes = [IsAuthenticatedOrReadOnly]
 
-    # 其他的权限类有：
+    # 其他的权限鉴别类有：
     # IsAuthenticated，只允许经过验证的用户访问
     # AllowAny，允许任何用户访问
     # IsAdminUser，只允许管理员访问
@@ -256,8 +261,8 @@ class DraftOwnerView(GenericAPIView, ListModelMixin, CreateModelMixin, DestroyMo
     serializer_class = DraftSerializer
     lookup_field = 'nid'
 
-    # 使用自定义的权限类，只有用户本身可以编辑，其他人只能读
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    # 使用自定义的权限鉴别类，只有用户本身可以编辑，其他人只能读
+    permission_classes = [IsOwnerOrReadOnly]
 
     def get(self, request, *args, **kwargs):
         return self.list(request, *args, **kwargs)
@@ -277,3 +282,51 @@ def draft_view(request, format=None):
         'status': 'request was permitted'
     }
     return Response(content)
+
+# ================== DRF 用户Token认证 + 权限鉴别 ======================
+class DraftTokenView(ListCreateAPIView):
+    queryset = Draft.objects.all()
+    serializer_class = DraftSerializer
+    lookup_field = 'nid'
+    # 设置用户权限鉴别类
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    # 设置Token认证类
+    authentication_classes = [TokenAuthentication]
+
+    # DRF 提供了如下的几个身份认证的类
+    # + SessionAuthentication：基于Session的认证，使用Django的默认session后端进行认证，上面的几个视图类里没有配置 authentication_classess
+    #   时，就是使用的这个
+    # + SessionAuthentication：基于用户名和密码的基本身份认证
+    # + TokenAuthentication：就是这里使用的基于Token的身份认证
+
+
+# 视图函数的话，使用 authentication_classes 装饰器来引入 Token 验证类
+@api_view(['GET'])
+@authentication_classes((TokenAuthentication,))
+@permission_classes((IsAuthenticated,))
+def example_view(request, format=None):
+    content = {
+        'user': request.user,  # `django.contrib.auth.User` 实例。
+        'auth': request.auth,  # None
+    }
+    return JsonResponse(content)
+
+# ------ 使用 rest_framework_simplejwt 提供的JWT验证--------
+class DraftJwtView(GenericAPIView, ListModelMixin, CreateModelMixin, DestroyModelMixin):
+    queryset = Draft.objects.all()
+    serializer_class = DraftSerializer
+    lookup_field = 'nid'
+
+    # 设置用户权限鉴别类
+    permission_classes = [IsAuthenticatedOrReadOnly]
+    # 设置Token认证类
+    authentication_classes = [JWTAuthentication]
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
