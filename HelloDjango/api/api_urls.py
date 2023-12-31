@@ -1,6 +1,6 @@
 from django.urls import path, re_path
 from .views import get_student, list_student, create_student, TeacherApiView, TeacherGenericView, \
-    TeacherCompositeView, TeacherViewSet
+    TeacherCompositeView, TeacherViewSet, create_draft_user, DraftOpenView, DraftAuthView, DraftOwnerView
 from rest_framework.urlpatterns import format_suffix_patterns
 from rest_framework.routers import DefaultRouter
 
@@ -18,6 +18,11 @@ urlpatterns = [
     # 其他class-based view
     path('teacher/genericviews/<int:tid>', TeacherGenericView.as_view()),
     path('teacher/compositeviews', TeacherCompositeView.as_view()),
+    # Draft相关视图
+    path('create_draft_user', create_draft_user),
+    path('draft/open/<int:nid>', DraftOpenView.as_view()),
+    path('draft/auth/<int:nid>', DraftAuthView.as_view()),
+    path('draft/owner/<int:nid>', DraftOwnerView.as_view())
 ]
 
 # 默认下，DRF 框架的 Response 对象会对接口返回的数据使用默认的HTML页面进行渲染，稍微封装一下，容易查看数据

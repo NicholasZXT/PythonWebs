@@ -1,15 +1,22 @@
+from django.http.response import JsonResponse
+from django.contrib.auth import get_user_model, authenticate
+from django.contrib.auth.models import Permission, User
+from django.contrib.contenttypes.models import ContentType
 from rest_framework import status
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.views import APIView
-from rest_framework.mixins import RetrieveModelMixin, ListModelMixin, CreateModelMixin
+from rest_framework.mixins import RetrieveModelMixin, ListModelMixin, CreateModelMixin, DestroyModelMixin
 from rest_framework.generics import GenericAPIView, ListCreateAPIView
 from rest_framework.viewsets import ModelViewSet, ReadOnlyModelViewSet
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
-from .models import Student, Teacher
-from .serializers import StudentSerializer, TeacherSerializer
+from rest_framework.permissions import IsAuthenticatedOrReadOnly, IsAuthenticated
+from .models import Student, Teacher, Draft
+from .serializers import StudentSerializer, TeacherSerializer, DraftSerializer
+from .permissions import IsOwnerOrReadOnly
 
 # Create your views here.
 """
@@ -154,3 +161,119 @@ class TeacherViewSet(ReadOnlyModelViewSet):
     serializer_class = TeacherSerializer
     # GenericAPIView 里设置了一个默认的查询字段为 pk，这里需要重写
     lookup_field = 'tid'
+
+
+# ================== DRF 用户认证 + 权限校验 ======================
+
+@api_view(http_method_names=['GET'])
+def create_draft_user(request, *args, **kwargs):
+    # 创建一个专门查看 api_draft 的用户，并设置权限
+    User = get_user_model()
+    old_user = authenticate(username='draft_user', password='draft2023')
+    response_data = {'msg': 'nothing'}
+    if old_user is None:
+        username = 'draft_user'
+        message = f"old user for draft not exits, prepare to create new one with name '{username}' ..."
+        print(message)
+        response_data['msg'] = message
+        draft_user = User.objects.create_user(username=username, password='draft2023', email='nothing@email.com')
+        # draft_user.user_permissions.add('api.add_draft', 'api.view_draft', 'api.update_draft', 'api.delete_draft')
+        # 这里必须获取 Draft 表的所有权限
+        draft_permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(Draft)).all()
+        draft_user.user_permissions.add(*draft_permissions)
+        draft_user.save()
+    else:
+        message = f"old user for draft exists: {old_user.username}."
+        print(message)
+        response_data['msg'] = message
+    response = JsonResponse(data=response_data)
+    return response
+
+class DraftOpenView(GenericAPIView, ListModelMixin, CreateModelMixin, DestroyModelMixin):
+    queryset = Draft.objects.all()
+    serializer_class = DraftSerializer
+    lookup_field = 'nid'
+    # 没有设置权限类
+
+    # 没有登录用户的情况下，下面的3个方法中，只有 GET 能看到数据，POST 和 DELETE 的按钮能看到，但是执行之后，会报未登录错误
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
+
+    # 下面自定义了 post 和 delete 内部调用的方法，在里面做了用户验证的逻辑
+    def perform_create(self, serializer):
+        print(f"create draft with request.user: {self.request.user}")
+        if self.request.user.is_anonymous:
+            msg = f"request with anonymous user, not allowed to create."
+            print(msg)
+            # response = JsonResponse(data={'msg': msg}, status=401)
+            raise PermissionDenied(detail=msg)
+        serializer.save(author=self.request.user)
+
+    def perform_destroy(self, instance):
+        print(f"destroy draft with request.user: {self.request.user}")
+        if self.request.user.is_anonymous:
+            msg = f"request with anonymous user, not allowed to delete."
+            print(msg)
+            # response = JsonResponse(data={'msg': msg}, status=401)
+            raise PermissionDenied(detail=msg)
+        instance.delete()
+
+class DraftAuthView(GenericAPIView, ListModelMixin, CreateModelMixin, DestroyModelMixin):
+    queryset = Draft.objects.all()
+    serializer_class = DraftSerializer
+    lookup_field = 'nid'
+
+    # 设置权限类，没有权限的用户只能读，不能改和删
+    # 因此GET方法能看到数据，而 POST 和 DELETE 的按钮在未登录的情况下是看不到的
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    # 其他的权限类有：
+    # IsAuthenticated，只允许经过验证的用户访问
+    # AllowAny，允许任何用户访问
+    # IsAdminUser，只允许管理员访问
+    # DjangoModelPermissions，只有在用户经过身份验证并分配了相关 数据模型 权限时，才会获得授权访问相关模型
+    # DjangoModelPermissionsOrReadOnly，而前者类似，但是未知用户可以查看
+    # DjangoObjectPermissions，和 DjangoModelPermissions 类似，但是更加精细，可以设置 数据模型里每个对象 的权限
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
+
+
+class DraftOwnerView(GenericAPIView, ListModelMixin, CreateModelMixin, DestroyModelMixin):
+    queryset = Draft.objects.all()
+    serializer_class = DraftSerializer
+    lookup_field = 'nid'
+
+    # 使用自定义的权限类，只有用户本身可以编辑，其他人只能读
+    permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get(self, request, *args, **kwargs):
+        return self.list(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        return self.create(request, *args, **kwargs)
+
+    def delete(self, request, *args, **kwargs):
+        return self.destroy(request, *args, **kwargs)
+
+
+# 如果是视图函数，需要使用 permission_classes 装饰器来引入权限类
+@api_view(['GET'])
+@permission_classes((IsAuthenticated, ))
+def draft_view(request, format=None):
+    content = {
+        'status': 'request was permitted'
+    }
+    return Response(content)
