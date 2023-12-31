@@ -4,9 +4,9 @@ from datetime import datetime
 from flask.views import View, MethodView
 
 
-rest_bp = Blueprint('rest', __name__, url_prefix='/rest')
+restful_bp = Blueprint('rest', __name__, url_prefix='/rest')
 # 这里当然也可以使用 Flask 对象
-api = Api(rest_bp)
+api = Api(restful_bp)
 
 # Flask-restful 提供了一个 reqparse 类，用于实现参数 解析 和 验证 的功能 —— 主要是参数验证功能，参数解析的话Flask的request对象就可以完成
 # **********************************************************************************************************************

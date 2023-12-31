@@ -1,7 +1,7 @@
 {
 	"info": {
 		"_postman_id": "43814265-d61a-4e39-9bab-618575ad5741",
-		"name": "Flask-RESTful",
+		"name": "Flask-REST-API",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
