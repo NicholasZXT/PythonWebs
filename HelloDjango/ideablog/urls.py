@@ -74,5 +74,4 @@ urlpatterns = [
     path('hello_json/', hello_json),
     path('hello_json_v2/', hello_json_v2),
     path('api/', include('api.api_urls')),  # 使用 include 引入 api 应用下的路由映射
-    path('api-auth/', include('rest_framework.urls'))  # 引入 DRF 的用户登录界面，具体URL为 api-auth/login
 ]
