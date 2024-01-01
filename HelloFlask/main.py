@@ -4,6 +4,7 @@ from extensions import db
 from auth_app.exts import auth, login_manager
 from auth_app.views_rest_auth import auth_bp
 from auth_app.views_login_auth import login_bp
+from auth_app.views_jwt_auth import jwt_bp
 from rest_app.views_restful import restful_bp
 from rest_app.views_classful import ClassBasedViews
 from file_app import file_bp
@@ -19,6 +20,7 @@ def create_app(config_name: str = 'dev'):
     app.register_blueprint(blueprint=file_bp)
     db.init_app(app)
     login_manager.init_app(app)
+    jwt_bp.init_app(app)
     ClassBasedViews.register(app)
     return app
 

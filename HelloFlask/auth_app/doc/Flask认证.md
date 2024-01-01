@@ -17,3 +17,8 @@ Web开发里有通常有两种认证类型：
    + 此时视图函数一般返回的是JSON格式的数据，页面显示逻辑交给前端框架实现
    + 这种认证可以使用 *Flask-HttpAuth* 或者 *Flask-JWT-Extended* 插件实现
 
+在REST-API认证中，Flask-HttpAuth 或者 Flask-JWT-Extended 的区别如下：
++ Flask-HttpAuth 只提供了认证的**流程框架**，包含简单用户名/密码认证，token认证等多个方案，但是认证过程中的一些细节，比如token生成，token验证， 
+  用户提取等具体实现需要我们自己完成，繁琐一点，需要了解JWT的token生成过程，但是可定制化程度高
++ Flask-JWT-Extended 只提供了基于token的认证，在实现了token认证流程的基础上，还提供了token生成和验证的实现，用起来更方便一点
+
