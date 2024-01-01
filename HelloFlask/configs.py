@@ -27,6 +27,7 @@ class DevelopmentConfig(BaseConfig):
     }
     SQLALCHEMY_DATABASE_URI = "mysql+pymysql://{user}:{passwd}@{host}:{port}/{db}".format(**mysql_conf)
 
+
 config = {
     'dev': DevelopmentConfig
 }

@@ -1,49 +1,40 @@
 # 所有扩展的依赖和对象的初始化都放到这里，以便进行模块拆分
 import sys
 import os
-import logging
-from logging.handlers import TimedRotatingFileHandler
 from flask import current_app, jsonify, request
+from flask_login import LoginManager
 from flask_httpauth import HTTPTokenAuth
 from werkzeug.http import HTTP_STATUS_CODES
 # itsdangerous 的 TimedJSONWebSignatureSerializer 只在 2.0.1 及其之前的版本中有，2.x 开始的官方文档建议转向 authlib
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired
-from flask_login import LoginManager
+from HelloFlask.extensions import getLogger
+from auth_app.models import User
 
-# Web应用的用户认证
+# 日志配置
+logger = getLogger('user_access_log', 'AuthLogging')
+
+# Web-session的用户认证
 login_manager = LoginManager()
 
 # Web-API的接口认证
 auth = HTTPTokenAuth(scheme='Bearer')
 
-LOG_FORMAT = "%(levelname)s, %(asctime)s, %(message)s"
-LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
-
-# 日志配置
-def getLogger(log_file: str, name: str = None):
-    name = name if name else __name__
-    logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
-    formatter = logging.Formatter(fmt=LOG_FORMAT, datefmt=LOG_DATE_FORMAT)
-    # 控制台输出
-    console_handler = logging.StreamHandler()
-    # console_handler = logging.StreamHandler(stream=sys.stdout)
-    console_handler.setFormatter(formatter)
-    # 轮换文件输出
-    # 每隔 interval 轮换一次， when 为单位，M 表示分钟 —— 每分钟轮换一次日志文件
-    rotate_handler = TimedRotatingFileHandler(filename=log_file, when='M', interval=1, encoding='utf-8')
-    # 每天轮换一次日志文件
-    # rotate_handler = TimedRotatingFileHandler(filename=log_file, when='D', interval=1, encoding='utf-8')
-    # 每周一轮换一次文件
-    # rotate_handler = TimedRotatingFileHandler(filename=log_file, when='W0', encoding='utf-8')
-    rotate_handler.setFormatter(formatter)
-    logger.addHandler(console_handler)
-    logger.addHandler(rotate_handler)
-    return logger
+# --------------------- Flask-Login 的回调函数 ---------------------------------
+# 必须要在 login_manager 中注册一个 user_loader 函数，用于配合 Flask-Login 提供的 current_user 使用
+# 如果用户已登录，current_user 会调用此处返回加载的 User 类对象；
+# 如果用户未登录，则返回 Flask-Login 内置的 AnonymousUserMixin 类对象
+@login_manager.user_loader
+def load_user(uid):
+    user = User.query.get(int(uid))
+    print(f"@login_manager.user_loader get user [id={uid}, username={user.username}].")
+    return user
 
 
-logger = getLogger('user_access_log', 'AuthLogging')
+# 设置访问需要登录资源时，自动跳转的登录视图的端点值（包括蓝本名称的完整形式）
+# 如果不设置这个，访问需要登录的资源时，会返回 401 Unauthorized 的简单HTML页面
+login_manager.login_view = "login_bp.to_login"
 
+# -------------------- Flask-HttpAuth 的回调函数 --------------------------------
 @auth.verify_token
 def verify_token(token):
     """
@@ -67,14 +58,18 @@ def verify_token(token):
     remote_addr = request.remote_addr
     # 使用Nginx做反向代理时，只有这个能拿到代理前的源主机IP地址
     forwarded = request.headers.get('x-forwarded-for', None)
+    # 解析token的内容
     try:
         data = s.loads(token)
-    except (BadSignature, SignatureExpired):
+    except (BadSignature, SignatureExpired):  # 解析失败，或者签名过期
         logger.warning(f"BadRequest, {None}, {host}, {remote_addr}, {forwarded}, {access_url}")
         return False
+    # 解析Token成功，从解析后的data中获取用户名
     user_name = data['user']
+    # 根据用户名查询用户的配置，正常是要访问数据库的，这里简化了，直接从配置文件中读取提前设定的用户
     user_config = current_app.config['AUTHORIZED_USERS'].get(user_name, None)
     if user_config is None:
+        # 加了一个记录用户访问记录的功能
         logger.warning(f"Unknown User, {user_name}, {host}, {remote_addr}, {forwarded}, {access_url}")
         return None
     else:
@@ -82,6 +77,7 @@ def verify_token(token):
         # return user_name
         # 更近一步，返回的信息里带有 user 的 roles 信息，这样时为了方便 HTTPTokenAuth.current_user() 里拿到 user 的 roles 信息
         user_roles = user_config['roles']
+        # 加了一个记录用户访问记录的功能
         logger.info(f"Authorized User, {user_name}, {host}, {remote_addr}, {forwarded}, {access_url}")
         return {'user': user_name, 'roles': user_roles}
 
@@ -106,8 +102,8 @@ def get_user_roles(user):
 def auth_error(status):
     return "Access Denied", status
 
-
 def generate_token(user):
+    """使用 itsdangerous库 生成序列化的Token"""
     expiration = current_app.config['TOKEN_EXPIRATION']
     s = Serializer(secret_key=current_app.config['SECRET_KEY'], expires_in=expiration)
     token = s.dumps({'user': user}).decode()
@@ -119,19 +115,3 @@ def api_abort(code, message=None, **kwargs):
     response = jsonify(code=code, message=message, **kwargs)
     response.status_code = code
     return response
-
-
-# -------------------------------------------------------------------------------------
-# 在 login_manager 中注册一个 user_loader 函数，用于配合 Flask-login 提供的 current_user 使用
-# 如果用户已登录，current_user 会调用此处返回加载的 User 类对象；
-# 如果用户未登录，则返回 Flask-login 内置的 AnonymousUserMixin 类对象
-@login_manager.user_loader
-def load_user(uid):
-    from auth_app.models import User
-    user = User.query.get(int(uid))
-    print(f"@login_manager.user_loader get user [id={uid}, username={user.username}].")
-    return user
-
-# 设置访问需要登录资源时，自动跳转的登录视图的端点值（包括蓝本名称的完整形式）
-# 如果不设置这个，访问需要登录的资源时，会返回 401 Unauthorized 的简单HTML页面
-login_manager.login_view = "login_bp.to_login"
