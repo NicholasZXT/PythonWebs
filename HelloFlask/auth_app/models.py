@@ -5,7 +5,7 @@ from extensions import db
 
 class User(db.Model, UserMixin):
     """
-    Flask-Login要求表示用户的类实现下面 4 个属性/方法：
+    Flask-Login要求表示用户的类实现下面 4 个属性/方法（一般由 UserMixin 类引入）：
     1. is_authenticated
     2. is_active
     3. is_anonymous

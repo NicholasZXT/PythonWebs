@@ -13,6 +13,7 @@ def hello():
 
 @auth_bp.route("/get_token", methods=['POST'])
 def get_token():
+    """生成Token的视图函数"""
     # print(request.form)
     grant_type = request.form.get('grant_type')
     user = request.form.get('user')
