@@ -22,7 +22,7 @@ def dec_param(param=None):
 
 
 # 这里继承 FlaskView 之后，在 main.py 里通过 ClassBaseViews.register(app) 注册里面定义的视图函数
-class ClassBaseViews(FlaskView):
+class ClassBasedViews(FlaskView):
     # route_prefix 和 route_base 的作用一样，但是如果同时设定，那么 route_prefix 在 route_base 之前
     route_prefix = '/prefix'
     route_base = '/base'

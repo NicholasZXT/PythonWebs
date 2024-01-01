@@ -75,7 +75,7 @@ class ParserTest(Resource):
     def post(self):
         # POST 请求使用的是 parser_body 这个 parser
         args = parser_body.parse_args()
-        # 没有传入的haul，参数值是 None
+        # 没有传入的话，参数值是 None
         print('args.pos_int: ', args.pos_int)
         # date 如果有，是 datetime.datetime 类型
         print('args.date.__class__: ', type(args.date))
