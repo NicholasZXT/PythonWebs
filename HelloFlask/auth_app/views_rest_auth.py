@@ -40,7 +40,7 @@ def get_token():
     # return "<h1>get_token</h1>"
 
 @auth_bp.route("/test_token", methods=['GET'])
-@auth.login_required(role=['admin', 'others'])
+@auth.login_required(role=['admin', 'others'])   # 使用装饰器保护需要验证用户身份的视图函数，并提供了一些简单的基于用于角色的权限管理
 def test_token():
     # auth.current_user() 的返回值就是 @auth.verify_token 装饰的函数返回值
     print(f"test_token current user: {auth.current_user()}")
