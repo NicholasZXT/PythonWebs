@@ -14,7 +14,7 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{base_ip}}/",
+					"raw": "{{base_ip}}/auth_bp",
 					"host": [
 						"{{base_ip}}"
 					],
@@ -54,7 +54,7 @@
 					]
 				},
 				"url": {
-					"raw": "{{base_ip}}/get_token",
+					"raw": "{{base_ip}}/auth_bp/get_token",
 					"host": [
 						"{{base_ip}}"
 					],
@@ -94,7 +94,7 @@
 					]
 				},
 				"url": {
-					"raw": "{{base_ip}}/get_token",
+					"raw": "{{base_ip}}/auth_bp/get_token",
 					"host": [
 						"{{base_ip}}"
 					],
@@ -134,7 +134,7 @@
 					]
 				},
 				"url": {
-					"raw": "{{base_ip}}/get_token",
+					"raw": "{{base_ip}}/auth_bp/get_token",
 					"host": [
 						"{{base_ip}}"
 					],
@@ -161,7 +161,7 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{base_ip}}/test_token",
+					"raw": "{{base_ip}}/auth_bp/test_token",
 					"host": [
 						"{{base_ip}}"
 					],
@@ -201,7 +201,7 @@
 					]
 				},
 				"url": {
-					"raw": "{{base_ip}}/get_token",
+					"raw": "{{base_ip}}/auth_bp/get_token",
 					"host": [
 						"{{base_ip}}"
 					],
@@ -228,7 +228,7 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{base_ip}}/test_admin_token",
+					"raw": "{{base_ip}}/auth_bp/test_admin_token",
 					"host": [
 						"{{base_ip}}"
 					],

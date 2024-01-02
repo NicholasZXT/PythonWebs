@@ -5,7 +5,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from extensions import db
 from auth_app.models import User
 
-login_bp = Blueprint('login_bp', __name__)
+login_bp = Blueprint('login_bp', __name__, url_prefix='/login_bp')
 
 
 @login_bp.route('/in', methods=['GET'])
