@@ -5,6 +5,7 @@ from django.contrib.auth.models import User
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 # 自定义 权限控制类 需要继承 BasePermission 类
 # 然后根据需要重写 has_permission(self,request,view) 和 has_object_permission(self,request, view, obj) 方法
@@ -36,3 +37,13 @@ class MyTokenAuthentication(BaseAuthentication):
             raise AuthenticationFailed('No such user')
         # 验证成功，返回一个元祖
         return (user, None)
+
+
+# 对于 rest_framework_simplejwt ，也可以自定义 Token 格式，只需要继承 TokenObtainPairSerializer 类，然后重写其中的方法
+class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
+    @classmethod
+    def get_token(cls, user):
+        token = super(MyTokenObtainPairSerializer, cls).get_token(user)
+        # 添加额外信息
+        token['username'] = user.username
+        return token

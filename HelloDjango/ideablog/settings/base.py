@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',      # 静态文件管理系统
     # DRF框架提供的app，展示接口测试的文档
     'rest_framework',
-    'rest_framework.authtoken',  # DRF的token认证应用，但是这个一般用的不多
+    # 'rest_framework.authtoken',  # DRF提供的基于token身份认证应用，但是这个一般用的不多
     # -----------------------------------
     # 项目管理app
     'ideablog',
@@ -128,17 +128,17 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.
+
+    # 这里为了对比使用，把下面的 权限控制方案 和 身份认证方案 对应的类放到视图类引入，就不这里设置成全局的了
     # 设置DRF的全局 权限控制类
     'DEFAULT_PERMISSION_CLASSES': [
         # 'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly' #基于数据模型的权限控制
     ],
     # 设置DRF的全局 用户身份认证类
-    # 这里为了对比使用，把下面的身份认证方案对应的类放到视图类引入，就不这里设置成全局的了
     'DEFAULT_AUTHENTICATION_CLASSES': (
         # 'rest_framework.authentication.SessionAuthentication',
         # 'rest_framework.authentication.BasicAuthentication',
-        # 'rest_framework.authentication.TokenAuthentication',  # Token认证比较常用，但是一般不用DRF的
-
+        # 'rest_framework.authentication.TokenAuthentication',  # DRF提供的Token认证类，用的不多
         # 更常见的一个选择是，使用 rest_framework_simplejwt 提供的 JWT 身份验证类
         # 'rest_framework_simplejwt.authentication.JWTAuthentication',
     )
