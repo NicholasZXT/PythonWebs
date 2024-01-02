@@ -1,0 +1,110 @@
+{
+	"info": {
+		"_postman_id": "b207f84e-66ca-433d-998a-64852b77bcd6",
+		"name": "Flask-JWT",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Hello",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_ip}}/jwt_bp/",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"jwt_bp",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Login-mock",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"username\": \"admin\",\r\n    \"password\": \"admin\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_ip}}/jwt_bp/login_mock",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"jwt_bp",
+						"login_mock"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Refresh-Token",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDE2NjIxMCwianRpIjoiZGIyZmQ2OGUtNTJiYy00MDMwLWE3OTYtNmJhMzdjOGQxMWM0IiwidHlwZSI6InJlZnJlc2giLCJzdWIiOnsidXNlcm5hbWUiOiJhZG1pbiIsInVpZCI6MSwicm9sZXMiOlsiYWRtaW4iXX0sIm5iZiI6MTcwNDE2NjIxMCwiY3NyZiI6IjU3YzcwYzQ5LWJlNTktNDI1OS04NzcwLTM1YzZiYzNjOGQzZiIsImV4cCI6MTcwNDE5NTAxMCwiYXV0aF9iYWNrZW5kIjoiRmxhc2stSldUIn0.rEdQ4gIuACtvHENFwRyGNO1k44UED7edgiXrzNyhhvw",
+							"type": "string"
+						}
+					]
+				},
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "{{base_ip}}/jwt_bp/refresh",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"jwt_bp",
+						"refresh"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Current-User-mock",
+			"request": {
+				"auth": {
+					"type": "bearer",
+					"bearer": [
+						{
+							"key": "token",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDE2NTk0NSwianRpIjoiZmQwZWFkOTgtOGI0Yi00Y2IzLWFmNTctMGY3MDNlZDdlZDZiIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6eyJ1c2VybmFtZSI6ImFkbWluIiwidWlkIjoxLCJyb2xlcyI6WyJhZG1pbiJdfSwibmJmIjoxNzA0MTY1OTQ1LCJjc3JmIjoiYmNhOWY3OGUtMTRhNC00Y2M5LTllZjItZTFiYjcxYjNhYWM4IiwiZXhwIjoxNzA0MTY2MjQ1LCJhdXRoX2JhY2tlbmQiOiJGbGFzay1KV1QifQ.1LtTdNV0BhQDpDnb_t9Hyr2KKE-YVXAxIWs8wpE-l3Y",
+							"type": "string"
+						}
+					]
+				},
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_ip}}/jwt_bp/current_user_mock",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"jwt_bp",
+						"current_user_mock"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}

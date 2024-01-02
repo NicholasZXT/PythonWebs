@@ -126,35 +126,52 @@ def api_abort(code, message=None, **kwargs):
 # 相比于Flask-HttpAuth，Flask-JWT-Extended只提供基于token的认证，它不仅实现了认证的框架流程，还帮我们实现了上述token生成、token认证的过程
 # 使用起来更方便，因此 Flask-JWT-Extended 需要实现的hook函数比较少
 
-# 第一个要实现的hook函数是从用户对象中获取用户ID，用于区分用户，后续用来生成token
+# 第1个要实现的hook函数是从用户对象中获取用户唯一标识的信息
 # @jwt.user_identity_loader
-def get_user_id(user):
-    # 传入的参数user是我们自己定义的User模型对象，需要返回的是用户ID字段的值
-    return user.uid
+def get_user_identity(userdata):
+    """
+    根据用户传入的数据，提取用户唯一标识信息，比如用户ID，这个信息后续被写入JWT的token中，
+    存放在 JWT_IDENTITY_CLAIM参数（默认为sub）设置的 key 下。
+    get_jwt_identity() 方法读取的就是这里的返回值。
+    :param userdata: 传入的 userdata 可以是任何Python对象.
+      实际上，这里传入的 userdata 就是 create_access_token() 或者 create_refresh_token() 方法里 identity 参数接收的python对象。
+    :return: 返回能够标识用户唯一性的信息。
+      实际上，也可以返回一些附加信息，唯一的硬性要求是能够被序列化。
+    """
+    # 这里假设传入的参数userdata是我们自己定义的User模型对象，返回的是用户ID+用户名
+    return {'uid': userdata.uid, 'username': userdata.username}
 
-# 第2个hook函数用于数据库中获取当前用户的记录
+# 第2个hook函数用于从 JWT头信息 和 JWT payload 里，获取用户相关的信息
 # @jwt.user_lookup_loader
 def user_lookup_callback(jwt_header, jwt_data):
     """
-    这个回调函数必须接受两个参数，然后根据这两个参数附带的JWT信息，解析出用户信息并返回（可以是任何Python对象）.
+    这个回调函数必须接受两个参数，然后根据这两个参数附带的JWT信息，提取用户信息并返回（可以是任何Python对象）.
+    返回值实际上会被以 {'loader_user': data} 的形式，存入 g._jwt_extended_jwt_user 这个属性里。
     返回值后续可以通过两种方式访问到：
-      1. flask_jwt_extended.current_user 的属性
-      2. flask_jwt_extended.get_current_user() 方法
-    :param jwt_header: 第1个参数是一个dict，存放了JWT的 header 数据
-    :param jwt_data: 第2个参数也是一个dict，存放了JWT的 payload 数据
+      1. flask_jwt_extended.current_user 这个常量
+      2. flask_jwt_extended.get_current_user() 方法的返回值
+    :param jwt_header: 第1个参数是一个dict，存放了JWT的 header
+    :param jwt_data: 第2个参数也是一个dict，存放了JWT的 payload
+      上面 @jwt.user_identity_loader 设置的回调函数存入的信息就存放在payload里的 JWT_IDENTITY_CLAIM参数（默认为sub）设置的key里
     :return: 要么是包含用户信息的 任意Python对象，要么是 None
     """
-    identity = jwt_data["uid"]
-    return User.query.filter_by(id=identity).one_or_none()
+    # 默认下，identity信息是存放在 jwt_data 字典里的 JWT_IDENTITY_CLAIM参数（默认为sub）设置的 key 下
+    identity = jwt_data["sub"]
+    # 可以通过identity提供的用户标识从数据库中查询用户信息
+    # return User.query.filter_by(id=identity['uid']).one_or_none()
+    # 这里直接返回也可以
+    return identity
 
-# 下面是不需要访问数据库的版本，用于快速验证
+# ****** 下面是不需要访问数据库的版本，用于快速验证 *****
 @jwt.user_identity_loader
-def get_user_id_mock(user):
-    return user['username']
+def get_user_identity_mock(userdata):
+    # 由于视图函数login_mock里，create_access_token()的identity是一个dict，包含了我们想要的信息，这里直接原样返回就可以了
+    print(f"user_lookup_callback[mock] - userdata: {userdata}")
+    return userdata
 
-# 第2个hook函数用于数据库中获取当前用户的记录
 @jwt.user_lookup_loader
 def user_lookup_callback_mock(jwt_header, jwt_data):
-    identity = jwt_data["username"]
-    user_config = current_app.config['AUTHORIZED_USERS'].get(identity, None)
-    return user_config
+    identity = jwt_data["sub"]
+    print(f"user_lookup_callback[mock] - identity: {identity}")
+    # 这里也直接返回就可以了
+    return identity

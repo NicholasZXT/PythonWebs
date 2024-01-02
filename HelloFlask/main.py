@@ -1,7 +1,7 @@
 from flask import Flask
 from configs import config
 from extensions import db
-from auth_app.exts import auth, login_manager
+from auth_app.exts import auth, login_manager, jwt
 from auth_app.views_rest_auth import auth_bp
 from auth_app.views_login_auth import login_bp
 from auth_app.views_jwt_auth import jwt_bp
@@ -16,11 +16,12 @@ def create_app(config_name: str = 'dev'):
     app.config.from_object(config_obj)
     app.register_blueprint(blueprint=auth_bp)
     app.register_blueprint(blueprint=login_bp)
+    app.register_blueprint(blueprint=jwt_bp)
     app.register_blueprint(blueprint=restful_bp)
     app.register_blueprint(blueprint=file_bp)
     db.init_app(app)
     login_manager.init_app(app)
-    jwt_bp.init_app(app)
+    jwt.init_app(app)
     ClassBasedViews.register(app)
     return app
 

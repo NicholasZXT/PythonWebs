@@ -11,7 +11,7 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{base_ip}}/",
+					"raw": "{{base_ip}}/login_bp",
 					"host": [
 						"{{base_ip}}"
 					],
@@ -28,7 +28,7 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{base_ip}}/in",
+					"raw": "{{base_ip}}/login_bp/in",
 					"host": [
 						"{{base_ip}}"
 					],
@@ -60,7 +60,7 @@
 					]
 				},
 				"url": {
-					"raw": "{{base_ip}}/register",
+					"raw": "{{base_ip}}/login_bp/register",
 					"host": [
 						"{{base_ip}}"
 					],
@@ -92,7 +92,7 @@
 					]
 				},
 				"url": {
-					"raw": "{{base_ip}}/login",
+					"raw": "{{base_ip}}/login_bp/login",
 					"host": [
 						"{{base_ip}}"
 					],
@@ -127,7 +127,7 @@
 					]
 				},
 				"url": {
-					"raw": "{{base_ip}}/login_welcome",
+					"raw": "{{base_ip}}/login_bp/login_welcome",
 					"host": [
 						"{{base_ip}}"
 					],
@@ -162,7 +162,7 @@
 					]
 				},
 				"url": {
-					"raw": "{{base_ip}}/logout",
+					"raw": "{{base_ip}}/login_bp/logout",
 					"host": [
 						"{{base_ip}}"
 					],
