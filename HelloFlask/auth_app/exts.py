@@ -8,6 +8,8 @@ from werkzeug.http import HTTP_STATUS_CODES
 # itsdangerous 的 TimedJSONWebSignatureSerializer 只在 2.0.1 及其之前的版本中有，2.x 开始的官方文档建议转向 authlib
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired
 from flask_jwt_extended import JWTManager
+# from flask_principal import Principal, Identity
+from .principal import Principal, Identity, identity_loaded, RoleNeed
 from HelloFlask.extensions import getLogger
 from auth_app.models import User
 
@@ -22,6 +24,10 @@ auth = HTTPTokenAuth(scheme='Bearer')
 
 # Web-API的JWT认证
 jwt = JWTManager()
+
+# Flask-Principal扩展
+# principal = Principal()
+principal = Principal(use_sessions=False)  # 禁止使用session，此时不会自动添加任何identity_loader函数，必须要手动设置至少一个
 
 # --------------------- Flask-Login 的hook函数 ---------------------------------
 # 必须要在 login_manager 中注册一个 user_loader 函数，用于配合 Flask-Login 提供的 current_user 使用
@@ -175,3 +181,25 @@ def user_lookup_callback_mock(jwt_header, jwt_data):
     print(f"user_lookup_callback[mock] - identity: {identity}")
     # 这里也直接返回就可以了
     return identity
+
+# ----------------------- Flask-Principal 的hook函数 ----------------------------
+# @principal.identity_loader
+# def load_user_identity():
+#     pass
+
+@identity_loaded.connect
+def principal_identity_loaded(sender, identity: Identity):
+    """
+    在这个回调函数里根据用户ID，添加用户的权限
+    """
+    # print(f"principal_identity_loaded: prepare to add roles for {identity}")
+    current_app.logger.debug(f"principal_identity_loaded: prepare to add roles for {identity}")
+    authorized_users = current_app.config['AUTHORIZED_USERS']
+    user_config = authorized_users.get(identity.id, {})
+    if user_config:
+        for role in user_config['roles']:
+            role_need = RoleNeed(role)
+            # print(f"principal_identity_loaded: add RoleNeed '{role_need}' for identity: {identity}")
+            current_app.logger.debug(f"principal_identity_loaded: add RoleNeed '{role_need}' for identity: {identity}")
+            identity.provides.add(role_need)
+
