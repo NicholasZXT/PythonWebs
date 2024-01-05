@@ -58,6 +58,13 @@ def principal_logout():
 # 就会一直将 g.identity 设置成 AnonymousIdentity，导致后面一直无法通过校验。
 # 似乎一个解决办法是使用 @Principal.identity_loader 定义一个回调函数，在里面实现和HTTPTokenAuth.verity_token回调函数里同样的逻辑。
 
+# Flask-Security的做法似乎就是上面那样，它实例化 Principal 的时候：
+# 注册了一个 identity_loader 回调函数 _identity_loader()，该函数里面调用 Flask-Login 的代理对象current_user
+# --> 代理对象current_user 里面调用 login_manager._load_user() 方法获取用户
+# --> 调用login_manager._load_user_from_request, 这个方法是 Flask-Security设置的回调函数 _request_loader()
+# --> _request_loader()方法里，似乎是从请求头的token里解析用户，然后查询数据库用户的token信息？
+# 个人感觉 Flask-Security 对于 Flask-Login 的依赖过于深了。
+
 
 # ---------------------------- 细粒度的权限校验使用示例 ----------------------------
 # 示例来自Flask-Principal的 Granular Resource Protection 小节
