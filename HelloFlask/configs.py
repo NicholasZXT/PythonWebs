@@ -25,15 +25,36 @@ class BaseConfig:
     # 过期时间，单位s
     TOKEN_EXPIRATION = 60 * 20
 
+    # ------- Flask-Security配置 --------
+    SECURITY_PASSWORD_SALT = '146585145368132386173505678016728509634'
+    SECURITY_BLUEPRINT_NAME = 'security'
+    SECURITY_URL_PREFIX = '/security'
+    SECURITY_TOKEN_AUTHENTICATION_KEY = 'auth_token'
+    SECURITY_TOKEN_AUTHENTICATION_HEADER = 'Authentication-Token'
+    SECURITY_TOKEN_MAX_AGE = None
+    # Flask-Security登录/登出配置
+    SECURITY_LOGIN_URL = '/login'
+    SECURITY_LOGOUT_URL = '/logout'
+    SECURITY_UNAUTHORIZED_VIEW = '/'
+    SECURITY_VERIFY_URL = '/verify'
+    # Flask-Security 注册配置
+    SECURITY_REGISTER_URL = '/register'
+    SECURITY_REGISTERABLE = True
+    SECURITY_USERNAME_ENABLE = False
+    SECURITY_USERNAME_REQUIRED = False
+
+
 class DevelopmentConfig(BaseConfig):
     mysql_conf = {
         'user': 'root',
-        'passwd': parse.quote_plus('mysql2022'),
+        'passwd': parse.quote_plus('mysql2020'),
+        # 'passwd': parse.quote_plus('mysql2022'),
         'host': 'localhost',
         'port': 3306,
         'db': 'hello_flask'
     }
     SQLALCHEMY_DATABASE_URI = "mysql+pymysql://{user}:{passwd}@{host}:{port}/{db}".format(**mysql_conf)
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
 
 
 config = {
