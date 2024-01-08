@@ -8,7 +8,8 @@ from collections import namedtuple
 # from flask_principal import RoleNeed, ItemNeed, Permission, identity_changed
 from .principal import RoleNeed, UserNeed, ItemNeed, Permission, identity_changed, identity_loaded, Identity, AnonymousIdentity
 
-principal_bp = Blueprint('principal', __name__, url_prefix='/principal_bp')
+
+principal_bp = Blueprint('principal_bp', __name__, url_prefix='/principal_bp')
 
 # 设置一个需要用户含有 admin 角色的权限
 admin_permission = Permission(RoleNeed('admin'))

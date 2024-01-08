@@ -4,7 +4,8 @@ from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadSigna
 from werkzeug.http import HTTP_STATUS_CODES
 from auth_app.exts import auth, generate_token, api_abort
 
-auth_bp = Blueprint('auth', __name__, url_prefix='/auth_bp')
+
+auth_bp = Blueprint('rest_bp', __name__, url_prefix='/rest_bp')
 
 
 @auth_bp.route("/", methods=['GET'])
