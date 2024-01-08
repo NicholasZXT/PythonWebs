@@ -32,7 +32,7 @@ principal = Principal(use_sessions=False)  # 禁止使用session，此时不会�
 
 # Flask-Security扩展
 """
-个人感觉Flask-Security做的有点臃肿了，为了大二全，集成了一些不那么必要的内容。
+个人感觉Flask-Security做的有点臃肿了，为了大而全，集成了一些不那么必要的内容。
 下面 Security 对象在实例化的时候，主要会干下面几件事：
 1. 实例化一个 Flask-Login 对象 + Flask-Principal 对象，这两个姑且算是必要的
 2. 实例化一大堆Form相关的组件，这个感觉不是很有必要
