@@ -10,8 +10,9 @@ from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadSigna
 from flask_jwt_extended import JWTManager
 # from flask_principal import Principal, Identity
 from .principal import Principal, Identity, identity_loaded, RoleNeed
+from flask_security import Security
 from HelloFlask.extensions import getLogger
-from auth_app.models import User
+from auth_app.models import User, user_datastore
 
 # 日志配置
 logger = getLogger('user_access_log', 'AuthLogging')
@@ -28,6 +29,22 @@ jwt = JWTManager()
 # Flask-Principal扩展
 # principal = Principal()
 principal = Principal(use_sessions=False)  # 禁止使用session，此时不会自动添加任何identity_loader函数，必须要手动设置至少一个
+
+# Flask-Security扩展
+"""
+个人感觉Flask-Security做的有点臃肿了，为了大二全，集成了一些不那么必要的内容。
+下面 Security 对象在实例化的时候，主要会干下面几件事：
+1. 实例化一个 Flask-Login 对象 + Flask-Principal 对象，这两个姑且算是必要的
+2. 实例化一大堆Form相关的组件，这个感觉不是很有必要
+3. 实例化一些工具类，比如密码工具类
+4. 默认下（参数register_blueprint=True）会生成一个名称为 'security' 的 blueprint，里面定义了一些用于登录、登出、验证的视图函数，这些视图
+   函数都和对应的 Form 类结合在一起使用，并且返回了一个渲染好的 简单的 html 页面。
+   这个操作感觉也不是很必要，特别是现在前后端分离的趋势下，前端的Form基本不需要后端来渲染或者生成HTML代码了。
+5. 将Flask-Security的所有可配置属性，都注册成当前 Flask对象（app）的属性——这个操作感觉更没有必要
+"""
+# security = Security(datastore=user_datastore)
+security = Security(datastore=user_datastore, register_blueprint=False)
+
 
 # --------------------- Flask-Login 的hook函数 ---------------------------------
 # 必须要在 login_manager 中注册一个 user_loader 函数，用于配合 Flask-Login 提供的 current_user 使用

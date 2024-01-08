@@ -4,11 +4,12 @@ from configs import config
 from extensions import db
 from rest_app.views_restful import restful_bp
 from rest_app.views_classful import ClassBasedViews
-from auth_app.exts import auth, login_manager, jwt, principal
+from auth_app.exts import auth, login_manager, jwt, principal, security
 from auth_app.views_rest_auth import auth_bp
 from auth_app.views_login_auth import login_bp
 from auth_app.views_jwt_auth import jwt_bp
 from auth_app.views_principal import principal_bp
+from auth_app.views_security import security_bp
 from file_app import file_bp
 
 
@@ -16,17 +17,22 @@ def create_app(config_name: str = 'dev'):
     app = Flask(__name__)
     config_obj = config.get(config_name)
     app.config.from_object(config_obj)
+    # ------ 蓝图注册 ---------
     app.register_blueprint(blueprint=auth_bp)
     app.register_blueprint(blueprint=login_bp)
     app.register_blueprint(blueprint=jwt_bp)
     app.register_blueprint(blueprint=restful_bp)
     app.register_blueprint(blueprint=file_bp)
     app.register_blueprint(blueprint=principal_bp)
+    app.register_blueprint(blueprint=security_bp)
+    # ------ 初始化扩展 ---------
     db.init_app(app)
     ClassBasedViews.register(app)
     login_manager.init_app(app)
     jwt.init_app(app)
     principal.init_app(app)
+    # Flask-security初始化
+    security.init_app(app=app)
     return app
 
 
