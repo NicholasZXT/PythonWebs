@@ -11,8 +11,8 @@ mysql_conf = {
     'host': 'localhost',
     'user': 'root',
     # 'passwd': 'mysql@2018',
-    # 'passwd': 'mysql2020',
-    'passwd': 'mysql2022',
+    'passwd': 'mysql2020',
+    # 'passwd': 'mysql2022',
     'port': 3306,
     'database': 'crashcourse'
 }
@@ -21,7 +21,7 @@ db_url = 'mysql+pymysql://{user}:{passwd}@{host}:{port}/{database}'.format(**mys
 engine = create_engine(db_url)
 Session = sessionmaker(bind=engine)
 session = Session()
-# session.close()
+session.close()
 
 Base = declarative_base()
 
@@ -147,7 +147,8 @@ def P4_n_v_n():
     print("多对多关系")
 
 # 多对多关系的定义，则需要引入一个专门表示关联关系的三方表
-# ****** 第一种方式，采用 Core 的方式来定义关联表，此时关联表中，只有两个字段 ******
+# ****** 第一种方式，采用 Core 的方式来定义关联表 ******
+# 关联表会被SQLAlchemy自动接管，并不能存储额外的数据（也就是只有关联的两个表的主键），关联表是Core的Table对象，并不是ORM层的对象
 association_table_v1 = Table(
     "association_table_v1",
     Base.metadata,
@@ -160,8 +161,16 @@ class LeftV1(Base):
     __tablename__ = "left_table_v1"
     __table_args__ = {'mysql_engine': 'InnoDB', 'extend_existing': True}
     id = Column(Integer, primary_key=True)
-    # 使用 secondary 参数指定关联表
+    # 关联记录字段 —— 此字段不会在数据库中体现，它是一个动态查询字段
+    # 使用 secondary 参数指定上面定义的 多对多 关联表，注意，第一个参数填的是 RightV1 表, back_populates 指定的是 RightV1 中对应的关联记录字段
     right_records = relationship("RightV1", secondary=association_table_v1, back_populates="left_records")
+    # 关联代理，方便直接访问关联记录的 指定属性集合 —— 此字段也不会在数据库中体现，它是一个计算字段
+    # 第一个参数 target_collection 指定上面的 right_records 记录集合，第2个参数指定要访问的属性
+    right_records_id = association_proxy('right_records', 'id')
+
+    # 为了配合关联代理使用，还需要手动写一个构造方法
+    def __init__(self, id):
+        self.id = id
 
     def __repr__(self):
         return f"<LeftV1(id={self.id})>"
@@ -170,50 +179,63 @@ class RightV1(Base):
     __tablename__ = "right_table_v1"
     __table_args__ = {'mysql_engine': 'InnoDB', 'extend_existing': True}
     id = Column(Integer, primary_key=True)
+    # 关联记录字段
     left_records = relationship("LeftV1", secondary=association_table_v1, back_populates="right_records")
+    # 关联代理字段
+    left_records_id = association_proxy('left_records', 'id')
+
+    def __init__(self, id):
+        self.id = id
 
     def __repr__(self):
         return f"<RightV1(id={self.id})>"
 
-# ****** 第二种方式，采用 ORM 的方式来定义关联表，此时关联表中，可以增加一些额外信息的字段 ******
-class LeftV2(Base):
-    __tablename__ = "left_table_v2"
-    __table_args__ = {'mysql_engine': 'InnoDB', 'extend_existing': True}
-    id = Column(Integer, primary_key=True)
-    # 复数形式，但是要注意，back_populates 参数中关联的 Association.left_record 字段是单数的，原因见下面
-    right_associations = relationship("Association", back_populates="left_record")
-    # 上面的关联，拿到的是 Association 表的记录，并不是直接拿到的 RightV2 的记录，还需要下面的关联代理来简化访问
-    # 第一个参数 target_collection 指定上面的 Association 记录集合，第2个参数指定要访问的属性
-    right_records = association_proxy('right_associations', 'id')
+def run_2():
+    # 下面创建关联表之后，删除或者清空数据之前，要确保 外键检查配置是关闭的，否则删除时会一直卡住
+    # SHOW VARIABLES LIKE '%FOREIGN%'
+    # SET foreign_key_checks = 0; -- 关闭外键约束性检查
+    Base.metadata.create_all(bind=engine, tables=[LeftV1.__table__, RightV1.__table__, association_table_v1])
+    # 生成数据
+    l1 = LeftV1(id=1)
+    l2 = LeftV1(id=2)
+    r1 = RightV1(id=1)
+    r2 = RightV1(id=2)
+    l1.right_records.append(r1)
+    l1.right_records.append(r2)
+    l2.right_records.append(r1)
+    l2.right_records.append(r2)
+    session.add_all(instances=[l1, l2, r1, r2])
+    session.commit()
+    # session.rollback()
 
-    # 为了配合关联代理使用，还需要创建一个构造方法
-    def __init__(self, id):
-        self.id = id
+    # 查询
+    s1 = select(LeftV1).where(LeftV1.id == 1)
+    print(s1.compile(compile_kwargs={"literal_binds": True}))
+    res = session.execute(s1).all()
+    res_l1 = res[0][0]
+    # 这里可以直接访问到 l1 对应的所有 RightV2 记录
+    print(res_l1.right_records)
+    # 通过关联代理字段，直接访问 指定属性集合
+    print(res_l1.right_records_id)
 
-    def __repr__(self):
-        return f"<LeftV2(id={self.id})>"
+    s2 = select(RightV1).where(RightV1.id == 1)
+    res = session.execute(s2).all()
+    res_r2 = res[0][0]
+    # 这里也可以直接访问 r2 对应的所有 LeftV1 记录
+    print(res_r2.left_records)
+    print(res_r2.left_records_id)
 
-class RightV2(Base):
-    __tablename__ = "right_table_v2"
-    __table_args__ = {'mysql_engine': 'InnoDB', 'extend_existing': True}
-    id = Column(Integer, primary_key=True)
-    # 复数形式
-    left_associations = relationship("Association", back_populates="right_record")
-    # 关联代理
-    left_records = association_proxy('left_associations', 'id')
 
-    def __init__(self, id):
-        self.id = id
-
-    def __repr__(self):
-        return f"<RightV2(id={self.id})>"
-
+# ****** 第二种方式，采用 ORM 的方式来定义关联表 ******
+# 此时关联表是一个 ORM层对象，但是它不再被 SQLAlchemy 接管了，需要我们自己来维护，所以可以增加一些额外信息的字段
+# 自己维护的意思是，需要我们自己来执行 LeftV2 -- Association -- RightV2 的逐级关联访问，不能直接越过 Association 访问
 class Association(Base):
     __tablename__ = "association_table_v2"
     __table_args__ = {'mysql_engine': 'InnoDB', 'extend_existing': True}
+    # 和上面 Core 方式一样，分别需要定义两个外键
     left_id = Column(ForeignKey("left_table_v2.id"), primary_key=True)
     right_id = Column(ForeignKey("right_table_v2.id"), primary_key=True)
-    # 其他字段信息
+    # 增加的字段信息
     extra_data = Column(String(50))
     # 关联字段，注意，是单数形式，因为 Association 作为中间表，它和 LeftV2（或RightV2）之间是一对多的关系，
     # 并且它本身是 n 的这一方，每条记录只能对应一个 LeftV1 或者 RightV2 记录
@@ -224,8 +246,33 @@ class Association(Base):
     def __repr__(self):
         return f"<Association(left_id={self.left_id}, right_id={self.right_id}, extra_data={self.extra_data})>"
 
+class LeftV2(Base):
+    __tablename__ = "left_table_v2"
+    __table_args__ = {'mysql_engine': 'InnoDB', 'extend_existing': True}
+    id = Column(Integer, primary_key=True)
+    # 这里并没有使用 secondary 参数指定关联表，而是像上面定义 1 v n 的表那样进行定义关联
+    # 注意，这里定义的是和 关联表Association 的关系，而不是直接到 RightV2 的关联，所以 back_populates 参数指定的是 Association.left_record
+    # 复数形式，同时 cascade 参数设置删除时的级联影响，多对多中需要设置成 all, delete-orphan
+    right_associations = relationship("Association", back_populates="left_record", cascade="all,delete-orphan")
 
-def run_2():
+    def __repr__(self):
+        return f"<LeftV2(id={self.id})>"
+
+class RightV2(Base):
+    __tablename__ = "right_table_v2"
+    __table_args__ = {'mysql_engine': 'InnoDB', 'extend_existing': True}
+    id = Column(Integer, primary_key=True)
+    # 定义的是和中间表 Association 的关系，并且是复数形式
+    left_associations = relationship("Association", back_populates="right_record", cascade="all,delete-orphan")
+
+    def __repr__(self):
+        return f"<RightV2(id={self.id})>"
+
+
+def run_3():
+    # 下面创建关联表之后，删除或者清空数据之前，要确保 外键检查配置是关闭的，否则删除时会一直卡住
+    # SHOW VARIABLES LIKE '%FOREIGN%'
+    # SET foreign_key_checks = 0; -- 关闭外键约束性检查
     Base.metadata.create_all(bind=engine, tables=[LeftV2.__table__, RightV2.__table__, Association.__table__])
     # 生成数据
     l1 = LeftV2(id=1)
@@ -236,18 +283,41 @@ def run_2():
     a2 = Association(left_id=1, right_id=2, extra_data='a2')
     a3 = Association(left_id=2, right_id=1, extra_data='a3')
     a4 = Association(left_id=2, right_id=2, extra_data='a4')
-    session.add_all(instances=[l1, l2, r1, r2, a1, a2, a3, a4])
+    # 可以这样分别作为独立记录插入
+    # session.add_all(instances=[l1, l2, r1, r2, a1, a2, a3, a4])
+    # 也可以通过下面的关联方式插入
+    l1.right_associations.append(a1)
+    l1.right_associations.append(a2)
+    l2.right_associations.append(a3)
+    l2.right_associations.append(a4)
+    r1.left_associations.append(a1)
+    r1.left_associations.append(a3)
+    r2.left_associations.append(a2)
+    r2.left_associations.append(a4)
+    session.add_all(instances=[l1, l2, r1, r2])
     session.commit()
+    # session.rollback()
 
     # 查询
     s1 = select(LeftV2).where(LeftV2.id == 1)
     print(s1.compile(compile_kwargs={"literal_binds": True}))
-    r1 = session.execute(s1).all()
-    r1_l1 = r1[0][0]
+    res = session.execute(s1).all()
+    res_l1 = res[0][0]
+    print(res_l1)
     # 拿到的是 Association 的多条记录列表，
-    print(r1_l1.right_associations)
-    # 如果要进一步拿到对应的 多条 RightV2 记录，还需要进行遍历关联访问
-    for association in r1_l1.right_associations:
+    print(res_l1.right_associations)
+    # 如果要进一步拿到对应的 多条 RightV2 记录，还需要手动进行遍历关联访问
+    for association in res_l1.right_associations:
         print(association.right_record)
-    # 使用关联代理来直接访问 RightV2 记录里的某个属性列表
-    print(r1_l1.right_records)
+
+    s2 = select(RightV2).where(RightV2.id == 2)
+    print(s2.compile(compile_kwargs={"literal_binds": True}))
+    res = session.execute(s2).all()
+    res_r2 = res[0][0]
+    print(res_r2)
+    print(res_r2.left_associations)
+    for association in res_r2.left_associations:
+        print(association.left_record)
+
+if __name__ == '__main__':
+    pass
