@@ -12,9 +12,10 @@ from .principal import RoleNeed, UserNeed, ItemNeed, Permission, identity_change
 principal_bp = Blueprint('principal_bp', __name__, url_prefix='/principal_bp')
 
 # 设置一个需要用户含有 admin 角色的权限
+# 不同的权限对应于不同的 Permission 对象，如果要对各种权限进行组合，Permission 对象也提供了类似集合的交并差补方法来创建新的权限集合
 admin_permission = Permission(RoleNeed('admin'))
 
-# 这里使用 HttpAuth 来做token登录，下面的函数和 views_rest_auth.py 里的 get_token 一样
+# 这里使用 HttpAuth 来做token登录后的身份验证，下面的函数和 views_rest_auth.py 里的 get_token 一样
 @principal_bp.post('/login')
 def principal_login():
 	username = request.json.get('username')
@@ -25,14 +26,17 @@ def principal_login():
 	if username not in authorized_users or password != user_passwd:
 		return api_abort(code=400, message='Invalid user or password')
 	current_app.logger.info(f"principal_login: Username: {username} is LOGIN successfully ...")
-	identity = Identity(id=username)
+	# 一旦上面验证过用户的身份，就需要开发者手动创建一个该用户对应的 Identity 对象，auth_type参数用于记录身份校验的方式，传不传没啥影响
+	identity = Identity(id=username, auth_type='Bear-Token')
 	current_app.logger.info(f"principal_login: sending signal to identity_changed with identity: {identity}...")
+	# 然后调用 Flask-Principal 提供的 identity_changed 信号量的 send 方法，传入当前用户的身份标识 Identity，以便其它组件获取用户身份
 	identity_changed.send(current_app._get_current_object(), identity=identity)
 	return "<h1>Login Successfully</h1>", 200
 
 
+# 在需要保护的视图函数前，调用待校验的权限对象Permission的require装饰器，表示所有访问该视图函数的请求，都要经过此Permission的校验
 @principal_bp.get('/protected_view')
-@admin_permission.require(http_exception=403)
+@admin_permission.require(http_exception=403)  # 权限校验失败时的HTTP错误码
 def admin_index():
 	return "<h1>Only if you are an admin</h1>"
 
@@ -48,6 +52,7 @@ def principal_logout():
 	if username not in authorized_users or password != user_passwd:
 		return api_abort(code=400, message='Invalid user or password')
 	current_app.logger.info(f"Username: {username} is LOGOUT successfully ...")
+	# 用户登出时，也需要调用 identity_changed 信号量的 send() 方法，将用户切换成匿名用户身份标识 ------------------ KEY
 	identity_changed.send(current_app._get_current_object(), identity=AnonymousIdentity())
 	return "<h1>Logout Successfully</h1>", 200
 
