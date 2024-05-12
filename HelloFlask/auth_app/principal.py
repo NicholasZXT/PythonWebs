@@ -57,7 +57,9 @@ signals = Namespace()
 
 # 用于记录/通知用户身份变更的信号量
 # Principal会在 init_app() 方法里使用 .connect() 订阅此信号量，注册回调函数 ._on_identity_changed()
-# 而此信号量的 .send() 方法需要开发者来调用，因为用户身份变更的逻辑要开发者来实现
+# 而此信号量的 .send() 方法需要开发者来调用，因为用户身份变更的逻辑要开发者来实现，一般有下面两种情况：
+# 1. 用户首次登录会话时，验证过request里的username+password，确认用户身份后，创建一个该用户对应的 Identity 对象，然后调用此信号量的 send 方法
+# 2. 当前会话的后续请求过程中，每次请求从session里获取用户身份信息，如果有变更，则调用此信号量的 send 方法
 identity_changed = signals.signal('identity-changed', doc="""
 Signal sent when the identity for a request has been changed.
 
@@ -81,6 +83,7 @@ For example::
 # Principal只会在 Principal.set_identity() 方法里调用该信号量的 send() 方法，**不会调用该信号量的 connect() 方法注册任何操作**
 # 所以这个信号量不是给Principal内部使用的，而是提供给开发者使用的，方便开发者在得知用户身份加载之后，自定义一些操作
 # 如果开发者要自定义用户身份加载时的操作时，要使用此信号量的 @identity_loaded.connect 装饰器注册一个接收此信号量之后的回调函数
+# 常见的一个操作是，在回调函数里对用户所持有的角色/权限进行查询加载（如下面文档的例子里那样）
 identity_loaded = signals.signal('identity-loaded', doc="""
 Signal sent when the identity has been initialised for a request.
 
@@ -172,7 +175,9 @@ are.
 class PermissionDenied(RuntimeError):
     """Permission denied to the resource"""
 
-# Identity 对象是对用户身份和权限的抽象，它的 id 字段用于记录用户身份，provides 字段记录的是一系列的 Need set，表示该用户持有的权限
+# Identity 对象是对用户身份和权限的抽象，一般在用户登录的时候创建对应当前用户身份的Identity对象，并在后续会话的请求中从session中加载
+# id 字段用于存放用户身份的唯一标识，auth_type 用于验证用户身份的鉴权类型，不过在整个 Principal 权限校验过程中并不会使用这个值
+# provides 字段记录的是一系列的 Need set，表示该用户持有的权限
 class Identity(object):
     """Represent the user's identity.
 
@@ -195,7 +200,7 @@ class Identity(object):
         self.auth_type = auth_type
         self.provides = set()
 
-    # 个人感觉下面这个方法有点多余了。。。
+    # 个人感觉下面这个方法有点多余了，不过可能是留给开发者在视图函数中自己进行权限检查使用的？？
     def can(self, permission):
         """Whether the identity has access to the permission.
 
@@ -215,8 +220,9 @@ class AnonymousIdentity(Identity):
     def __init__(self):
         Identity.__init__(self, None)
 
-# 控制权限校验的上下文对象，它一般由 Permission.require 方法返回，返回的时候，它会持有调用它的 Permission 对象，然后从Flask g 全局对象
-# 中获取当前请求的用户对象 Identity，然后检查 Identity.provides 和 Permission.needs 是否有交集，有则表示有权限
+# 权限校验的上下文对象，它和表示某类权限的 Permission 对象绑定，一般由对应的 Permission.require 方法返回，只负责对该 Permission 进行校验
+# 返回的时候，它会持有所属的 Permission 对象，然后从Flask g 全局对象中获取当前请求的用户对象 Identity
+# 权限校验时，检查 Identity.provides 和 Permission.needs 是否有交集，有则表示有权限
 class IdentityContext(object):
     """The context of an identity for a permission.
 
@@ -227,10 +233,10 @@ class IdentityContext(object):
     permission is checked for provision in the identity, and if available the
     flow is continued (context manager) or the function is executed (decorator).
     """
-
+    # IdentityContext一般由 Permission.require() 方法创建，创建的时候，Permission对象会将自己传入构造方法里的 permission ------ KEY
     def __init__(self, permission, http_exception=None):
-        self.permission = permission
-        self.http_exception = http_exception
+        self.permission = permission  # 该IdentityContext所对应的Permission对象
+        self.http_exception = http_exception  # 权限校验失败时的 http 错误码，比如 404
         """The permission of this principal
         """
 
@@ -273,7 +279,7 @@ class IdentityContext(object):
 
 
 # 它是权限校验的主要入口对象，持有 Need 构成的权限set，一般使用 Permission.require 装饰需要保护的视图函数
-# .require() 会返回一个 IdentityContext 对象，该对象对视图函数进行包装，在每次请求前执行权限校验操作
+# .require()方法 会返回一个 IdentityContext 对象，该对象对视图函数进行包装，在每次请求前执行权限校验操作
 class Permission(object):
     """Represents needs, any of which must be present to access a resource
     :param needs: The needs for this permission
@@ -332,7 +338,8 @@ class Permission(object):
 
         :param http_exception: the HTTP exception code (403, 401 etc)
         """
-        # 这里返回 IdentityContext 对象时，把自己（self）也传进去了
+        # 这里返回 IdentityContext 对象时，把当前 Permission 对象自己（self）也传进去了
+        # IdentityContext 对象始终是和当前的 Permission 对象绑定的，只负责校验当前 Permission 对应的权限
         return IdentityContext(self, http_exception)
 
     def test(self, http_exception=None):
