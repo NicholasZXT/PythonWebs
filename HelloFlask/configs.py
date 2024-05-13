@@ -47,8 +47,8 @@ class BaseConfig:
 class DevelopmentConfig(BaseConfig):
     mysql_conf = {
         'user': 'root',
-        'passwd': parse.quote_plus('mysql2020'),
-        # 'passwd': parse.quote_plus('mysql2022'),
+        # 'passwd': parse.quote_plus('mysql2020'),
+        'passwd': parse.quote_plus('mysql2022'),
         'host': 'localhost',
         'port': 3306,
         'db': 'hello_flask'
