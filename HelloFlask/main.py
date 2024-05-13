@@ -40,7 +40,7 @@ if __name__ == '__main__':
     app = create_app()
     with app.app_context():
         # 必须要导入表定义才能创建
-        from auth_app.models import User
+        from auth_app.models import User, SecurityUser, SecurityRole
         print("****** creating all tables... ******")
         # db.create_all()
         print("****** creating all tables done. ******")

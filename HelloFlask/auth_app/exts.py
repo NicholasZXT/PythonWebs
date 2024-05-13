@@ -34,7 +34,7 @@ principal = Principal(use_sessions=False)  # 禁止使用session，此时不会�
 """
 个人感觉Flask-Security做的有点臃肿了，为了大而全，集成了一些不那么必要的内容。
 下面 Security 对象在实例化的时候，主要会干下面几件事：
-1. 实例化一个 Flask-Login 对象 + Flask-Principal 对象，这两个姑且算是必要的
+1. 实例化一个 Flask-Login 对象 + Flask-Principal 对象，这两个算是必要的
 2. 实例化一大堆Form相关的组件，这个感觉不是很有必要
 3. 实例化一些工具类，比如密码工具类
 4. 默认下（参数register_blueprint=True）会生成一个名称为 'security' 的 blueprint，里面定义了一些用于登录、登出、验证的视图函数，这些视图
