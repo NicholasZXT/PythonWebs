@@ -55,7 +55,12 @@ Flask-Security对于用户权限的管理，底层是通过下面4张表进行�
 2. datastore.py 中进一步定义了上面3个mixin类的子类：User(UserMixin), Role(RoleMixin), WebAuthn(WebAuthnMixin)，
    不过这3个子类都只是定义了各个 Model类 的字段，没有定义方法，只是作为**类型申明**，在datastore.py中用于类型提示
 有了上面 3 个表之后，Flask-Security 还提供了一个统一管理上面 3 个类（UserRole类不需要主动管理）的封装：DataStore + UserDatastore，
-位于 datastore.py 文件中，其中 DataStore用于抽象底层的具体数据库，UerDatastore 用于封装上面的3个类，实际使用中有如下几个实现：
+位于 datastore.py 文件中，其中 DataStore用于抽象底层的具体数据库，UerDatastore 用于封装上面的3个类，提供一些对 User/Role 进行 CRUD 的方法.
+
+从上面可以看出，Flask-Security 实现的RBAC粒度比较粗，权限只到Role这一层，因为它并没有提供一个 Permission 表来存储具体的权限，
+不像 Django 那样提供了 Permission表（还有对应的role_permission关联表），因此不能实现 Object级别（也就是记录级别）的权限控制。
+
+UerDatastore 有如下几个实现：
 1. SQLAlchemyUserDatastore：底层使用 Flask-SQLAlchemy 这个插件来管理表
 2. SQLAlchemySessionUserDatastore：用户直接提供 SQLAlchemy 的 session，不过内部还是使用上面的 SQLAlchemyUserDatastore 来管理表
 3. PeeweeUserDatastore：底层使用 Flask-Peewee 插件来管理表

@@ -41,6 +41,9 @@ principal = Principal(use_sessions=False)  # 禁止使用session，此时不会�
    函数都和对应的 Form 类结合在一起使用，并且返回了一个渲染好的 简单的 html 页面。
    这个操作感觉也不是很必要，特别是现在前后端分离的趋势下，前端的Form基本不需要后端来渲染或者生成HTML代码了。
 5. 将Flask-Security的所有可配置属性，都注册成当前 Flask对象（app）的属性——这个操作感觉更没有必要
+不过可以在实例化的时候，通过 register_blueprint=False 参数，禁止生成一个 'security' 的蓝图，这样一般就不会使用它附带定义的各种Form，然后
+只使用 flask_security.decorators 提供的各种装饰器进行用户认证+权限校验，使用 Security.datastore 提供的各种方法来对用户、角色进行 CRUD
+操作和检查，自定义的程度稍微高一点。
 """
 # security = Security(datastore=user_datastore)
 security = Security(datastore=user_datastore, register_blueprint=False)
