@@ -11,7 +11,7 @@ from flask_jwt_extended import JWTManager
 # from flask_principal import Principal, Identity
 from .principal import Principal, Identity, identity_loaded, RoleNeed
 from flask_security import Security
-from HelloFlask.extensions import getLogger
+from extensions import getLogger
 from auth_app.models import User, user_datastore
 
 # 日志配置

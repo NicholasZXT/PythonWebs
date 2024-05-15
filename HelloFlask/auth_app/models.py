@@ -84,15 +84,21 @@ fsqla.FsModels.set_db_info(appdb=db, user_table_name=user_table_name, role_table
 # 所以需要开发者专门定义一个类，来继承 db.Model，并混入相应的 Mixin 类
 # 这里由于自定义了 表名称，所以也需要设置一下，此外，还可以自定义表的各种全局属性（通过 __table_args__）
 class SecurityUser(db.Model, fsqla.FsUserMixin):
+    """用户表里，email字段被作为用户的唯一标识，创建用户时，这个字段是必须的"""
     __tablename__ = user_table_name
 
-
-class SecurityRole(db.Model, fsqla.FsRoleMixin):
+"""
+!!! Flask-Security 有个小小的bug，就是使用 flask_security.models.fsqla_v3 提供的 Mixin 类时，角色表的类名必须是 Role，因为
+FsUserMixin类的 roles() 方法在返回多对多的 relationship() 时，写死了角色表的名称为 'Role'，而 sqlalchemy 会使用这个名称去查找
+对应的 ORM类，所以这里不能自定义类名为 SecurityRole，不过表名称还是可以自定义的。
+"""
+# class SecurityRole(db.Model, fsqla.FsRoleMixin):
+class Role(db.Model, fsqla.FsRoleMixin):
     __tablename__ = role_table_name
 
 # 第3步：使用 SQLAlchemyUserDatastore 对上面的 User 和 Role 表进行管理，并传入Flask-SQLAlchemy的SQLAlchemy对象（通常叫 db）
 # 后面这个 user_datastore 对象会交给 Security 对象，Security对象也是通过此对象来对数据库里的 User, Role表进行 CRUD 操作
-user_datastore = SQLAlchemyUserDatastore(db=db, user_model=SecurityUser, role_model=SecurityRole)
+user_datastore = SQLAlchemyUserDatastore(db=db, user_model=SecurityUser, role_model=Role)
 # 如果是使用 SQLAlchemySessionUserDatastore，则需要 自己定义实现 User, Role 类的各个字段，并混入 core.py 中的 UserMixin，RoleMixin
 # 然后以下面的方式创建，而且第一个参数是 SQLAlchemy 的 session 对象，总之相对比较麻烦
 # user_datastore = SQLAlchemySessionUserDatastore(db_session, User, Role)
