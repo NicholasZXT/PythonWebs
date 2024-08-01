@@ -1,10 +1,10 @@
-from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_login import UserMixin
 from flask_security.datastore import SQLAlchemyUserDatastore
 from flask_security.models import fsqla_v3 as fsqla
 from extensions import db
 
-
+# ----------------- Flask-Login的Models --------------------
 class User(db.Model, UserMixin):
     """
     Flask-Login要求表示用户的类实现下面 4 个属性/方法（一般由 UserMixin 类引入）：
@@ -29,6 +29,7 @@ class User(db.Model, UserMixin):
     def get_id(self):
         return self.uid
 
+    # 自定义的方法，用于设置和校验用户密码
     def set_password(self, password):
         if isinstance(password, str) and len(password):
             self.password_hash = generate_password_hash(password, salt_length=4)

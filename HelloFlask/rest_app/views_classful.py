@@ -26,6 +26,7 @@ class ClassBasedViews(FlaskView):
     # route_prefix 和 route_base 的作用一样，但是如果同时设定，那么 route_prefix 在 route_base 之前
     route_prefix = '/prefix'
     route_base = '/base'
+    # 需要排除的方法，这些方法不会注册为视图函数
     excluded_methods = ['exclude_fun']
     # 统一设置装饰器，应用于每个视图函数上
     decorators = [dec, dec_param(param='hello')]

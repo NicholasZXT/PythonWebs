@@ -10,7 +10,7 @@ LOG_FORMAT = "%(levelname)s, %(asctime)s, %(message)s"
 LOG_DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
 
 # 日志配置
-def getLogger(log_file: str = 'flask.log', name: str = None):
+def getLogger(log_file: str = 'flask.log', name: str = None, write_file: bool = False):
     """ 滚动日志器 """
     name = name if name else __name__
     logger = logging.getLogger(name)
@@ -29,12 +29,13 @@ def getLogger(log_file: str = 'flask.log', name: str = None):
     # rotate_handler = TimedRotatingFileHandler(filename=log_file, when='W0', encoding='utf-8')
     rotate_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
-    logger.addHandler(rotate_handler)
+    if write_file:
+        logger.addHandler(rotate_handler)
     return logger
 
 
 if __name__ == '__main__':
-    logger = getLogger('test')
+    logger = getLogger('test.log')
     cnt = 1
     while cnt <= 50:
         logger.info(f"info log with count: {cnt}")

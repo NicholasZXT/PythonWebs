@@ -1,4 +1,4 @@
-# 所有扩展的依赖和对象的初始化都放到这里，以便进行模块拆分
+# auth_app所有扩展的依赖和对象的初始化都放到这里，以便进行模块拆分
 import sys
 import os
 from flask import current_app, jsonify, request
@@ -15,13 +15,13 @@ from extensions import getLogger
 from auth_app.models import User, user_datastore
 
 # 日志配置
-logger = getLogger('user_access_log', 'AuthLogging')
+logger = getLogger('auth_access.log', 'AuthLogging')
 
-# Web-session的用户认证
+# Web-Session的用户认证
 login_manager = LoginManager()
 
 # Web-API的接口认证
-auth = HTTPTokenAuth(scheme='Bearer')
+http_auth = HTTPTokenAuth(scheme='Bearer')
 
 # Web-API的JWT认证
 jwt = JWTManager()
@@ -40,8 +40,8 @@ principal = Principal(use_sessions=False)  # 禁止使用session，此时不会�
 4. 默认下（参数register_blueprint=True）会生成一个名称为 'security' 的 blueprint，里面定义了一些用于登录、登出、验证的视图函数，这些视图
    函数都和对应的 Form 类结合在一起使用，并且返回了一个渲染好的 简单的 html 页面。
    这个操作感觉也不是很必要，特别是现在前后端分离的趋势下，前端的Form基本不需要后端来渲染或者生成HTML代码了。
-5. 将Flask-Security的所有可配置属性，都注册成当前 Flask对象（app）的属性——这个操作感觉更没有必要
-不过可以在实例化的时候，通过 register_blueprint=False 参数，禁止生成一个 'security' 的蓝图，这样一般就不会使用它附带定义的各种Form，然后
+5. 将Flask-Security的所有可配置属性，都注册成当前 Flask对象（app）的属性 —— 这个操作感觉更没有必要
+在实例化的时候，可以通过 register_blueprint=False 参数，禁止生成一个 'security' 的蓝图，这样一般就不会使用它附带定义的各种Form，然后
 只使用 flask_security.decorators 提供的各种装饰器进行用户认证+权限校验，使用 Security.datastore 提供的各种方法来对用户、角色进行 CRUD
 操作和检查，自定义的程度稍微高一点。
 """
@@ -59,15 +59,15 @@ def load_user(uid):
     print(f"@login_manager.user_loader get user [id={uid}, username={user.username}].")
     return user
 
-
 # 设置访问需要登录资源时，自动跳转的登录视图的端点值（包括蓝本名称的完整形式）
 # 如果不设置这个，访问需要登录的资源时，会返回 401 Unauthorized 的简单HTML页面
 login_manager.login_view = "login_bp.to_login"
 
+
 # -------------------- Flask-HttpAuth 的hook函数 --------------------------------
 # Flask-HttpAuth 只是封装了各类认证方案（HTTPBasicAuth, HTTPTokenAuth等）的流程框架，但是流程中的具体细节，比如token生成，token验证
 # 等逻辑的实现，需要我们手动在下面的hook函数中实现
-@auth.verify_token
+@http_auth.verify_token
 def verify_token(token):
     """
     此函数接收请求中附带的token字符串，然后返回验证结果.
@@ -113,7 +113,7 @@ def verify_token(token):
         logger.info(f"Authorized User, {user_name}, {host}, {remote_addr}, {forwarded}, {access_url}")
         return {'user': user_name, 'roles': user_roles}
 
-@auth.get_user_roles
+@http_auth.get_user_roles
 def get_user_roles(user):
     """
     获取用户的角色.
@@ -130,7 +130,7 @@ def get_user_roles(user):
     else:
         return user_config['roles']
 
-@auth.error_handler
+@http_auth.error_handler
 def auth_error(status):
     return "Access Denied", status
 
