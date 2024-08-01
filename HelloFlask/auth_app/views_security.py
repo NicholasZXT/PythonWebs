@@ -4,6 +4,7 @@ from flask import request, current_app, jsonify
 from flask_security.decorators import http_auth_required, auth_required, auth_token_required
 from flask_security.decorators import roles_required, roles_accepted, permissions_accepted, permissions_required
 
+#  Flask-Security 扩展研究
 security_bp = Blueprint('security_bp', __name__, url_prefix='/security_bp')
 
 """
@@ -30,4 +31,4 @@ Flask-Security在结合到视图函数时，主要使用 decorators.py 中提供
 def security_hello():
     return "<h1>Hello Flask-Security !</h1>"
 
-
+# TODO 待深入研究使用

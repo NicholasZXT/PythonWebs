@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # --------------------------------------------------------
-# 此文件里 Flask-Principal v-0.4.0 的源码，用于研究其中的逻辑
+# 此文件是 Flask-Principal v-0.4.0 的源码，用于研究其中的逻辑
 # --------------------------------------------------------
 """
 flask_principal
@@ -27,10 +27,11 @@ PY3 = sys.version_info[0] == 3
    **一般会在登录视图函数里调用此方法**
 2. @Permission.require : 此装饰器用于保护需要校验权限的视图函数
 3. Permission.can() : 此方法用于开发者 在视图函数中 进行权限校验时使用，和上面的装饰器 可以二选一，方便开发者使用
-4. 信号量 @identity_loaded.connect : 此装饰器用于注册一个回调函数，在用户身份Identity加载之后的执行一些自定义操作。
-   **一般会在这里根据用户ID获取用户所有的权限（Needs），存入 Identity.provides 里面**。
-5. @Principal.identity_loader : 此装饰器用于注册 **每次请求前** 获取用户身份的回调函数。
+4. 信号量 @identity_loaded.connect : 此装饰器用于注册一个回调函数，在用户身份Identity **加载之后** 的执行一些自定义操作。
+   **一般会在这里实现 根据用户ID获取用户所持有权限（Needs）的逻辑，然后存入 Identity.provides 里面**。
+5. @Principal.identity_loader : 此装饰器用于注册 **每次请求前** 获取用户身份的回调函数（无参）。
    **从源码逻辑来看，如果初始化Principal对象时use_sessions=False，此时必须要设置一个获取用户身份的回调函数，否则就一直是匿名用户状态**
+6. @Principal.identity_saver : 此装饰器用于持久化已经获取的用户身份信息，供下次请求使用
 
 使用感想：
 Flask-Principal是一个很松散（loose）的框架，**扩展本身只是提供了一套RBAC的权限校验逻辑**，对于用户身份认证（Authentication providers）
@@ -52,7 +53,7 @@ PS. 这里研究完Flask-Principal的源码之后，再去看Flask-Principal官�
 而是只负责监听 Identity 的读取/变更，并将其存入Flask的全局对象 g 中. 
 """
 
-# Flask-Principal使用了Flask的信号量来做通信，记录用户身份的变化，这个信号量底层是由 Blinker 实现的
+# Flask-Principal使用了Flask的信号量来实现通信解耦，记录用户身份的变化，这个信号量底层是由 Blinker 实现的
 signals = Namespace()
 
 # 用于记录/通知用户身份变更的信号量
@@ -60,6 +61,7 @@ signals = Namespace()
 # 而此信号量的 .send() 方法需要开发者来调用，因为用户身份变更的逻辑要开发者来实现，一般有下面两种情况：
 # 1. 用户首次登录会话时，验证过request里的username+password，确认用户身份后，创建一个该用户对应的 Identity 对象，然后调用此信号量的 send 方法
 # 2. 当前会话的后续请求过程中，每次请求从session里获取用户身份信息，如果有变更，则调用此信号量的 send 方法
+# 调用 .send() 方法时传入的参数只能有2个：第1个sender参数必须是当前的 Flask 对象，第2个参数必须是 Identity 对象——也就是获取的用户身份
 identity_changed = signals.signal('identity-changed', doc="""
 Signal sent when the identity for a request has been changed.
 
@@ -81,9 +83,10 @@ For example::
 
 # 用于记录用户身份加载的信号量
 # Principal只会在 Principal.set_identity() 方法里调用该信号量的 send() 方法，**不会调用该信号量的 connect() 方法注册任何操作**
-# 所以这个信号量不是给Principal内部使用的，而是提供给开发者使用的，方便开发者在得知用户身份加载之后，自定义一些操作
+# 所以这个信号量不是给Principal内部使用的，而是 **提供给开发者使用的**，方便开发者在得知用户身份加载之后，自定义一些操作。
 # 如果开发者要自定义用户身份加载时的操作时，要使用此信号量的 @identity_loaded.connect 装饰器注册一个接收此信号量之后的回调函数
 # 常见的一个操作是，在回调函数里对用户所持有的角色/权限进行查询加载（如下面文档的例子里那样）
+# 使用 connect 装饰器方法注册的 回调函数，必须接受两个参数： 第1个位置参数sender是Flask对象，一般不用管；第2个参数就是获取的 Identity 对象
 identity_loaded = signals.signal('identity-loaded', doc="""
 Signal sent when the identity has been initialised for a request.
 
@@ -114,7 +117,7 @@ For example::
 """
 Need, Identity, Permission 和 IdentityContext 这4个对象在Flask-Principal中是一起工作的，负责对用户具体操作权限的检查。
 除了Identity，其他3个对象和 Principal 对象并不交互。
-大致的使用逻辑为：
+一般使用逻辑为：
 1. 使用一系列的表示权限的 Need 对象，来实例化一个 Permission 对象，存入 Permission.needs 属性里
   1.1 这个Permission对象就表示了一个待校验的权限集合，后续的校验都是从Permission对象发起
   1.2 各种类型的Permission对象之间，可以很容易的通过类似于set的交、并、补、差运算，得到新的Permission对象
@@ -132,8 +135,8 @@ Need, Identity, Permission 和 IdentityContext 这4个对象在Flask-Principal�
 # Need 是某种操作权限的描述，它是最细粒度的权限对象，作者使用了元组来描述操作权限。
 # 一般有两种操作权限：
 # 1. 一种是像下面Need一样，只需要记录两个信息的权限对象，表示Identity需要属于该角色（类似用户组）才能通过权限校验。
-#    method记录的是角色的分组类型，比如下面的 UserNeed, RoleNeed等，value就是该类型中具体某个角色——不过我觉得method这个命名不太恰当
-# 2. 另一种是下面 ItemNeed 一样，需要3个元素的元组描述，表示object级别的操作权限，也就是Identity对某个表中某行记录进行操作（CRUD）的权限
+#    method记录的是角色的分组类型，比如下面的 UserNeed, RoleNeed等，value就是该类型中具体某个角色 —— 不过我觉得method这个命名不太恰当
+# 2. 另一种是下面 ItemNeed 一样，需要3个元素的元组描述，表示object级别的操作权限，也就是Identity对某个表中某行记录进行CRUD操作的权限
 Need = namedtuple('Need', ['method', 'value'])
 """A required need
 
@@ -220,8 +223,8 @@ class AnonymousIdentity(Identity):
     def __init__(self):
         Identity.__init__(self, None)
 
-# 权限校验的上下文对象，它和表示某类权限的 Permission 对象绑定，一般由对应的 Permission.require 方法返回，只负责对该 Permission 进行校验
-# 返回的时候，它会持有所属的 Permission 对象，然后从Flask g 全局对象中获取当前请求的用户对象 Identity
+# 权限校验的上下文对象，它和表示某类权限的 Permission 对象绑定，一般由对应的 Permission.require装饰器 返回，只负责对当前 Permission 进行校验
+# 返回时，它会持有当前的 Permission 对象，然后从Flask g 全局对象中获取当前请求的用户对象 Identity
 # 权限校验时，检查 Identity.provides 和 Permission.needs 是否有交集，有则表示有权限
 class IdentityContext(object):
     """The context of an identity for a permission.
@@ -237,21 +240,18 @@ class IdentityContext(object):
     def __init__(self, permission, http_exception=None):
         self.permission = permission  # 该IdentityContext所对应的Permission对象
         self.http_exception = http_exception  # 权限校验失败时的 http 错误码，比如 404
-        """The permission of this principal
-        """
+        """ The permission of this principal """
 
     @property
     def identity(self):
-        """The identity of this principal
-        """
+        """ The identity of this principal """
         # 这里通过Flask全局对象 g 获取 用户身份 Identity 对象，它有两个地方可以存入：
         # 1. 由 Principal 对象在 ._on_before_request() 方法中存入的
         # 2. 由 Principal 对象在 ._on_identity_changed() 方法中存入，此方法是 Principal在订阅信号量identity_changed时设置的回调函数
         return g.identity
 
     def can(self):
-        """Whether the identity has access to the permission
-        """
+        """ Whether the identity has access to the permission """
         # print(f"IdentityContext.can(): self.identity - {self.identity}...")
         current_app.logger.debug(f"IdentityContext.can(): self.identity - {self.identity}...")
         return self.identity.can(self.permission)
@@ -279,7 +279,7 @@ class IdentityContext(object):
 
 
 # 它是权限校验的主要入口对象，持有 Need 构成的权限set，一般使用 Permission.require 装饰需要保护的视图函数
-# .require()方法 会返回一个 IdentityContext 对象，该对象对视图函数进行包装，在每次请求前执行权限校验操作
+# .require()方法 会返回一个 IdentityContext 对象，对视图函数进行包装，在每次请求前执行权限校验操作
 class Permission(object):
     """Represents needs, any of which must be present to access a resource
     :param needs: The needs for this permission
@@ -481,13 +481,15 @@ class Principal(object):
         # 订阅 identity_change信号量，注册的回调函数是 ._on_identity_changed，里面会向Flask全局对象g中存入获取到的用户身份Identity
         # 并向 identity_loaded信号量 发送消息，通知用户自定义的函数
         # 一般来说，会在登录的视图函数里调用这个信号量的 .send() 方法，告知Flask-Principal用户身份已更新 --------------------- KEY
+        # 此信号量的 sender （第2个参数）指定为 app，也就是当前的 Flask 对象
         identity_changed.connect(self._on_identity_changed, app)
         # ----------------------------------------------------------------------------------------------
         # 有个问题是：这里的回调函数即使更新了 g.identity，每次请求也会被上面的 self._on_before_request() 再次更新，
         # 因此 self.identity_loaders 里必须要有一个加载用户身份的回调函数，否则就会一直是 g.identity = AnonymousIdentity 的状态
         # ----------------------------------------------------------------------------------------------
 
-        print(f"Principal.init_app: use_sessions is {self.use_sessions}...")
+        # print(f"Principal.init_app: use_sessions is {self.use_sessions}...")
+        current_app.logger.debug(f"Principal.init_app -> final action: use_sessions is {self.use_sessions}...")
         if self.use_sessions:
             self.identity_loader(session_identity_loader)
             self.identity_saver(session_identity_saver)
@@ -545,7 +547,7 @@ class Principal(object):
     def _set_thread_identity(self, identity):
         # 在这里向Flask全局对象 g 中存入的获取到的用户身份Identity
         g.identity = identity
-        # 这个向信号量发送信息的方法里，第一个参数是发送者——这是Flask建议的固定写法，第二个参数是要发送的内容
+        # 这个向信号量发送信息的方法里，第一个参数是发送者——这是Flask建议的固定写法，第二个参数是要发送的内容——这里是表示用户身份的 Identity 对象
         # 这里向信号量发送消息，主要是为了通知并触发用户自定义的操作，Principal本身不会通过 .connect() 订阅这个信号量 ------- KEY
         identity_loaded.send(current_app._get_current_object(), identity=identity)
 
@@ -564,14 +566,15 @@ class Principal(object):
         # print(f"Principal._on_before_request: Identity reset to AnonymousIdentity...")
         current_app.logger.debug(f"Principal._on_before_request: Identity reset to AnonymousIdentity...")
         # current_app.logger.debug(f"Principal._on_before_request: session: {session}")
+        # 依次遍历 self.identity_loaders 里由 Principal.identity_loader 装饰器函数注册的 用户加载回调方法
         # ----------------------------------------------------------------------------------------------
         # 这里的一个问题是：如果没有设置任何 identity_loader 回调函数，也就是 self.identity_loaders 为空
         # 那么下面就不会再次设置 g.identity，会导致一直处于 AnonymousIdentity 的状态。
         # ----------------------------------------------------------------------------------------------
         for loader in self.identity_loaders:
-            current_app.logger.debug(f"Principal._on_before_request: execute loader: {loader}...")
+            current_app.logger.debug(f"Principal._on_before_request -> execute loader: {loader}...")
             identity = loader()
-            current_app.logger.debug(f"Principal._on_before_request: loader get identity: {identity}...")
+            current_app.logger.debug(f"Principal._on_before_request -> loader get identity: {identity}...")
             if identity is not None:
                 self.set_identity(identity)
                 return

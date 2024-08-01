@@ -55,7 +55,7 @@
 
 Django中的用户认证和鉴权系统联系的比较紧密，所以就一起介绍了。
 
-这部分主要涉及到`django.contrib.auth.models`包中如下的3个对象，均为是`django.db.models.Model`的子类：
+这部分主要涉及到`django.contrib.auth.models`包中如下的3个对象，均是`django.db.models.Model`的子类：
 
 + `User`，记录了用户信息和权限信息，一些重要字段如下：
   + `id`：用户ID

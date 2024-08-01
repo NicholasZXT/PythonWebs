@@ -5,6 +5,8 @@ from flask_login import login_user, logout_user, login_required, current_user
 from extensions import db
 from auth_app.models import User
 
+#  Flask-Login 扩展研究
+# 这里并不需要从 exts.py 里引入 login_manager 对象
 login_bp = Blueprint('login_bp', __name__, url_prefix='/login_bp')
 
 

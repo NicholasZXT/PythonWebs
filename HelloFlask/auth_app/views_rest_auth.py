@@ -2,9 +2,10 @@ from flask.blueprints import Blueprint
 from flask import request, current_app, jsonify
 from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired
 from werkzeug.http import HTTP_STATUS_CODES
-from auth_app.exts import auth, generate_token, api_abort
+from auth_app.exts import http_auth, generate_token, api_abort
 
-
+#  Flask-HttpAuth 扩展研究
+# 源码中，重点看基类 HTTPAuth 的 login_required装饰器 和 authorize方法
 auth_bp = Blueprint('rest_bp', __name__, url_prefix='/rest_bp')
 
 
@@ -41,20 +42,20 @@ def get_token():
     # return "<h1>get_token</h1>"
 
 @auth_bp.route("/test_token", methods=['GET'])
-@auth.login_required(role=['admin', 'others'])   # 使用装饰器保护需要验证用户身份的视图函数，并提供了一些简单的基于用于角色的权限管理
+@http_auth.login_required(role=['admin', 'others'])   # 使用装饰器保护需要验证用户身份的视图函数，并提供了一些简单的基于用于角色的权限管理
 def test_token():
-    # auth.current_user() 的返回值就是 @auth.verify_token 装饰的函数返回值
-    print(f"test_token current user: {auth.current_user()}")
+    # http_auth.current_user() 的返回值就是 @http_auth.verify_token 装饰的函数返回值
+    print(f"test_token current user: {http_auth.current_user()}")
     return "<h1>Congratulations for passing token authorization!</h1>"
 
 @auth_bp.route("/test_admin_token", methods=['GET'])
-@auth.login_required(role='admin')
+@http_auth.login_required(role='admin')
 def test_admin_token():
-    print(f"test_admin_token current user: {auth.current_user()}")
+    print(f"test_admin_token current user: {http_auth.current_user()}")
     return "<h1>Congratulations for passing Administration token authorization!</h1>"
 
 @auth_bp.route("/verify_token", methods=['GET'])
-@auth.login_required(role=['admin', 'others'])
+@http_auth.login_required(role=['admin', 'others'])
 def verify_token():
     """
     提供一个验证token是否有效的接口。
@@ -66,7 +67,7 @@ def verify_token():
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     :return:
     """
-    current_user = auth.current_user()
+    current_user = http_auth.current_user()
     print(f"verify_token current user: {current_user}")
     # 检查当前请求的源主机地址
     access_url = request.url

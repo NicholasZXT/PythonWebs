@@ -1,10 +1,12 @@
 from flask.blueprints import Blueprint
 from flask import request, current_app, jsonify
-from flask_jwt_extended import create_access_token, create_refresh_token, jwt_required, get_jwt, get_jwt_identity,  \
-	get_current_user, current_user
+from flask_jwt_extended import create_access_token, create_refresh_token  # Flask-JWT 自带了token生成的函数，比较方便
+from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity, get_current_user, current_user
 from extensions import db
 from auth_app.models import User
 
+# Flask-JWT 扩展研究，它也不需要从 exts.py 里引入 JWTManager 实例对象
+# 源码里重点关注 jwt_required 装饰器
 jwt_bp = Blueprint('jwt_bp', __name__, url_prefix='/jwt_bp')
 
 
@@ -15,9 +17,7 @@ def hello():
 
 # @jwt_bp.route("/login", methods=["POST"])
 def login():
-	"""
-	根据 用户名+密码，验证用户身份，获取访问接口的token
-	"""
+	""" 根据 用户名+密码，验证用户身份，获取访问接口的token，这是访问数据库的版本 """
 	username = request.json.get("username", None)
 	password = request.json.get("password", None)
 	if username is None or password is None:
@@ -31,7 +31,7 @@ def login():
 	if user.validate_password(password):
 		# 创建token，identity是代表用户身份的参数，这里使用了用户名
 		# 自定义的信息可以通过 additional_claims 参数传入
-		other_info = {'auth_backend': 'Flask-JWT'}
+		other_info = {'auth_backend': 'Flask-JWT', 'roles': 'User-Role'}
 		# ------------------------------------------------------------------
 		# 下面两个方法里identity参数传入的都是 User 对象，实际上 identity参数的值，
 		# 会被传递给 @jwt.user_identity_loader 装饰器设置的回调函数作为参数
@@ -62,7 +62,7 @@ def login_mock():
 		return f"user [{username}] is not found !", 403
 	# 验证用户密码
 	if password == user_passwd:
-		other_info = {'auth_backend': 'Flask-JWT'}
+		other_info = {'auth_backend': 'Flask-JWT', 'roles': 'User-Role'}
 		# 这里的identity是一个字典，存放了用户名和角色组
 		userdata = {'username': username, 'uid': user_config['uid'], 'roles': user_config['roles']}
 		print(f"login[mock] - identity: {userdata}")
@@ -80,7 +80,7 @@ def refresh():
 	identity = get_jwt_identity()
 	# 再次获取附加信息
 	# other_info = get_jwt()
-	other_info = {'auth_backend': 'Flask-JWT'}
+	other_info = {'auth_backend': 'Flask-JWT', 'roles': 'User-Role'}
 	access_token = create_access_token(identity=identity, additional_claims=other_info)
 	return jsonify(access_token=access_token)
 

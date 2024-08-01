@@ -1,14 +1,13 @@
 from flask.blueprints import Blueprint
 from flask import request, current_app, jsonify
 from werkzeug.http import HTTP_STATUS_CODES
-from auth_app.exts import auth, generate_token, api_abort
 from functools import partial
 from collections import namedtuple
-
 # from flask_principal import RoleNeed, ItemNeed, Permission, identity_changed
 from .principal import RoleNeed, UserNeed, ItemNeed, Permission, identity_changed, identity_loaded, Identity, AnonymousIdentity
+from auth_app.exts import api_abort
 
-
+# Flask-Principal 扩展研究，详细说明见拷贝出来的 principal.py 源码文件
 principal_bp = Blueprint('principal_bp', __name__, url_prefix='/principal_bp')
 
 # 设置一个需要用户含有 admin 角色的权限
