@@ -27,8 +27,11 @@ http_auth = HTTPTokenAuth(scheme='Bearer')
 jwt = JWTManager()
 
 # Flask-Principal扩展
+# 默认下，会提供一个使用 Flask 全局对象 session 存取用户身份的 identity_loader/identity_saver 函数，实现一个简单的跨请求的用户身份功能
 # principal = Principal()
-principal = Principal(use_sessions=False)  # 禁止使用session，此时不会自动添加任何identity_loader函数，必须要手动设置至少一个
+# 禁止使用session，此时不会自动添加任何 identity_loader/identity_saver 函数，必须手动设置一个
+# 对于 REST-API 开发来说，一般不会跨请求保持状态（这里是用户身份信息），此时可以选择禁止使用 session
+principal = Principal(use_sessions=False)
 
 # Flask-Security扩展
 """
@@ -203,6 +206,9 @@ def user_lookup_callback_mock(jwt_header, jwt_data):
     return identity
 
 # ----------------------- Flask-Principal 的hook函数 ----------------------------
+# 注册用户身份加载的函数，有两种使用场景：
+# 1. 跨请求保持用户身份：使用某个持久化存储来加载用户身份，此时也需要注册一个对应的 identity_saver 函数实现存入
+# 2. REST-API：此时不需要跨请求，但是用户身份需要每次都从 request 的 JWT-Token 里解析
 # @principal.identity_loader
 # def load_user_identity():
 #     pass
