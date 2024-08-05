@@ -6,10 +6,12 @@ from flask_login import LoginManager
 from flask_httpauth import HTTPTokenAuth
 from werkzeug.http import HTTP_STATUS_CODES
 # itsdangerous 的 TimedJSONWebSignatureSerializer 只在 2.0.1 及其之前的版本中有，2.x 开始的官方文档建议转向 authlib
-from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired
+# from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
+from itsdangerous import URLSafeTimedSerializer as Serializer
+from itsdangerous import BadSignature, SignatureExpired
 from flask_jwt_extended import JWTManager
 # from flask_principal import Principal, Identity
-from .principal import Principal, Identity, identity_loaded, RoleNeed
+from auth_app.principal import Principal, Identity, identity_loaded, RoleNeed
 from flask_security import Security
 from extensions import getLogger
 from auth_app.models import User, user_datastore
@@ -70,6 +72,17 @@ login_manager.login_view = "login_bp.to_login"
 # -------------------- Flask-HttpAuth 的hook函数 --------------------------------
 # Flask-HttpAuth 只是封装了各类认证方案（HTTPBasicAuth, HTTPTokenAuth等）的流程框架，但是流程中的具体细节，比如token生成，token验证
 # 等逻辑的实现，需要我们手动在下面的hook函数中实现
+def generate_token(user):
+    """使用 itsdangerous库 生成序列化的Token"""
+    expiration = current_app.config['TOKEN_EXPIRATION']
+    # 使用旧版的 TimedJSONWebSignatureSerializer 实现
+    # s = Serializer(secret_key=current_app.config['SECRET_KEY'], expires_in=expiration)
+    # token = s.dumps({'user': user}).decode()
+    # 使用 URLSafeTimedSerializer 实现，过期时间的检查放在了解析时设置
+    s = Serializer(secret_key=current_app.config['SECRET_KEY'])
+    token = s.dumps({'user': user})
+    return token, expiration
+
 @http_auth.verify_token
 def verify_token(token):
     """
@@ -86,6 +99,7 @@ def verify_token(token):
     :param token:
     :return:
     """
+    expiration = current_app.config['TOKEN_EXPIRATION']
     s = Serializer(secret_key=current_app.config['SECRET_KEY'])
     # 尝试获取访问的源主机/IP地址
     host = request.host
@@ -94,8 +108,15 @@ def verify_token(token):
     # 使用Nginx做反向代理时，只有这个能拿到代理前的源主机IP地址
     forwarded = request.headers.get('x-forwarded-for', None)
     # 解析token的内容
+    # 使用旧版的 TimedJSONWebSignatureSerializer 实现
+    # try:
+    #     data = s.loads(token)
+    # except (BadSignature, SignatureExpired):  # 解析失败，或者签名过期
+    #     logger.warning(f"BadRequest, {None}, {host}, {remote_addr}, {forwarded}, {access_url}")
+    #     return False
+    # 使用 URLSafeTimedSerializer 实现，过期时间的检查放在了解析时
     try:
-        data = s.loads(token)
+        data = s.loads(token, max_age=expiration)
     except (BadSignature, SignatureExpired):  # 解析失败，或者签名过期
         logger.warning(f"BadRequest, {None}, {host}, {remote_addr}, {forwarded}, {access_url}")
         return False
@@ -136,13 +157,6 @@ def get_user_roles(user):
 @http_auth.error_handler
 def auth_error(status):
     return "Access Denied", status
-
-def generate_token(user):
-    """使用 itsdangerous库 生成序列化的Token"""
-    expiration = current_app.config['TOKEN_EXPIRATION']
-    s = Serializer(secret_key=current_app.config['SECRET_KEY'], expires_in=expiration)
-    token = s.dumps({'user': user}).decode()
-    return token, expiration
 
 def api_abort(code, message=None, **kwargs):
     if message is None:
