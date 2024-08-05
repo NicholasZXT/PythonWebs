@@ -1,6 +1,5 @@
 from flask.blueprints import Blueprint
 from flask import request, current_app, jsonify
-from itsdangerous import TimedJSONWebSignatureSerializer as Serializer, BadSignature, SignatureExpired
 from werkzeug.http import HTTP_STATUS_CODES
 from auth_app.exts import http_auth, generate_token, api_abort
 

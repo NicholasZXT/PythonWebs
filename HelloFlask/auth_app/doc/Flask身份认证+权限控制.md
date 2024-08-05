@@ -1,4 +1,6 @@
 
+# 身份认证
+
 有关用户身份认证的参考资料：
 + [For a REST API, can I use authentication mechanism provided by flask-login or do I explicitly have to use token based authentication like JWT?](https://stackoverflow.com/questions/65520316/for-a-rest-api-can-i-use-authentication-mechanism-provided-by-flask-login-or-do)
 + [Flask-HttpAuth and Flask-Login](https://stackoverflow.com/questions/26163767/flask-httpauth-and-flask-login)
@@ -23,14 +25,54 @@ Web开发里有通常有两种身份认证类型：
 + Flask-JWT-Extended 只提供了基于token的认证，在实现了token认证流程的基础上，还提供了token生成和验证的实现，用起来更方便一点，
   但是它**并不提供用户角色权限管理的功能**
 
+-------
+# 权限控制
 
 Flask有如下常用的ACL或者RBAC的扩展：
 + [Flask-Security](https://pythonhosted.org/Flask-Security/): 2020.4后就没有commit了，**不再维护**，但是历史版本比较多，有正式版
 + [**Flask-Security-Too**](https://flask-security-too.readthedocs.io/en/stable/): **Flask-Security的接替者（3.0.0版本开始），使用比较广泛**。   
-  这是一个比较重的插件，它会依赖不少其他的Flask-插件，包括下面的Flask-Principal。
+  + 这是一个比较重的插件，它会依赖不少其他的Flask-插件，包括下面的Flask-Principal。
+  + 这个插件在PyPI上名称为 `Flask-Security`，但是在 conda-forge 里名称是 `flask-security-too`，不过导包时名称都一样。
 + [Flask-Principal](https://pythonhosted.org/Flask-Principal/): 2015年后就没有commit了，没有到正式版。   
   **它的开发者Mattupstate也是Flask-Security的开发者**，这也是为什么它会被Flask-Security使用的原因（即使是在新版本中也是如此）。    
   虽然这个库很久不更新了，但是这个库的设计理念似乎挺好的，而且就一个500行不到的源码文件，可以研究一下。
 + [**Flask-Authorize**](https://flask-authorize.readthedocs.io/en/latest/): **没到正式版**，但是仓库一直有人维护，似乎比较小众
 + [~~Flask-ACL~~](https://mikeboers.github.io/Flask-ACL/): 没有版本信息，没找到GitHub仓库，文档内容很简单
 + [~~Flask-RBAC~~](https://flask-rbac.readthedocs.io/en/latest/): 2020.11后就没有更新版本，但是有commit，没到正式版
+
+
+------
+# JWT相关的库
+
+## itsdangerous
+
+[官网地址](https://itsdangerous.palletsprojects.com/en/2.2.x/), 此package属于 Pallet 项目（Flask项目同属）。
+
+itsdangerous库用于生成可靠签名和验证签名，提供了两个层次的抽象：
++ `Signer`, 用于对指定字符串生成`bytes`的哈希摘要，一般不会直接使用这个层次的对象
++ `Serializer`, 对`Signer`进行了一层封装，可以对一般性的数据进行序列化生成签名，**一般使用这个层次的接口即可**。
+
+提供的主要API如下：
++ `Signer`, 最基本的摘要类
++ `TimestampSigner`, 带时间戳的摘要类
++ `Serializer`, 最基本的序列化类
++ `TimedSerializer`, 带时间戳的序列化类
++ URL相关的两个类：
+  + `URLSafeSerializer`
+  + `URLSafeTimedSerializer`
++ 常用的验证异常：
+  + `BadData`
+  + `BadSignature`
+  + `BadTimeSignature`
+  + `SignatureExpired`
+
+注意，2.0.1 及其之前的版本里还有`JSONWebSignatureSerializer`和`TimedJSONWebSignatureSerializer`，但是后面被取消了，
+官方文档推荐使用 `authlib` 之类的专用JWT package 实现类似功能。
+
+------
+## Authlib
+
+官网地址 [Authlib: Python Authentication](https://docs.authlib.org/en/latest/).
+
+
+
