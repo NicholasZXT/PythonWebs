@@ -4,7 +4,7 @@ from configs import config
 from extensions import db
 from rest_app.views_restful import restful_bp
 from rest_app.views_classful import ClassBasedViews
-from auth_app.exts import auth, login_manager, jwt, principal, security
+from auth_app.exts import login_manager, jwt, principal, security
 from auth_app.views_rest_auth import auth_bp
 from auth_app.views_login_auth import login_bp
 from auth_app.views_jwt_auth import jwt_bp
