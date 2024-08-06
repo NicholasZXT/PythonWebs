@@ -1,3 +1,4 @@
+import sys
 import logging
 from flask import Flask
 from configs import config
@@ -49,6 +50,11 @@ if __name__ == '__main__':
     app.logger.setLevel(logging.DEBUG)
     app.run(host='localhost', port=8100)
     # app.run(host='10.8.6.203', port=8200)
+
+    # test_flask_security = True
+    test_flask_security = False
+    if not test_flask_security:
+        sys.exit()
 
     # 测试 Flask-Security 使用
     with app.app_context():

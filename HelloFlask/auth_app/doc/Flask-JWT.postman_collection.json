@@ -1,6 +1,6 @@
 {
 	"info": {
-		"_postman_id": "b207f84e-66ca-433d-998a-64852b77bcd6",
+		"_postman_id": "31f067e2-d098-4200-8453-2b75fa14886f",
 		"name": "Flask-JWT",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
@@ -58,7 +58,7 @@
 					"bearer": [
 						{
 							"key": "token",
-							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDE2NjIxMCwianRpIjoiZGIyZmQ2OGUtNTJiYy00MDMwLWE3OTYtNmJhMzdjOGQxMWM0IiwidHlwZSI6InJlZnJlc2giLCJzdWIiOnsidXNlcm5hbWUiOiJhZG1pbiIsInVpZCI6MSwicm9sZXMiOlsiYWRtaW4iXX0sIm5iZiI6MTcwNDE2NjIxMCwiY3NyZiI6IjU3YzcwYzQ5LWJlNTktNDI1OS04NzcwLTM1YzZiYzNjOGQzZiIsImV4cCI6MTcwNDE5NTAxMCwiYXV0aF9iYWNrZW5kIjoiRmxhc2stSldUIn0.rEdQ4gIuACtvHENFwRyGNO1k44UED7edgiXrzNyhhvw",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcyMjkzNTQ3NCwianRpIjoiZTMxZWY2MzItNzIwOS00NjNlLTliZDMtMDUwMDFlOGUyNzJiIiwidHlwZSI6InJlZnJlc2giLCJzdWIiOnsidXNlcm5hbWUiOiJhZG1pbiIsInVpZCI6MSwicm9sZXMiOlsiYWRtaW4iXX0sIm5iZiI6MTcyMjkzNTQ3NCwiY3NyZiI6IjY1ZGEyYzQ4LWRhZDUtNDBkNy1iOGQxLTFhMjliNWFlOWVhOSIsImV4cCI6MTcyMjk2NDI3NCwiYXV0aF9iYWNrZW5kIjoiRmxhc2stSldUIiwicm9sZXMiOiJVc2VyLVJvbGUifQ.JAwvVK83rGPiEc8hMIJWr1xaTTl4wHoerfZ_tFrQreI",
 							"type": "string"
 						}
 					]
@@ -66,27 +66,27 @@
 				"method": "POST",
 				"header": [],
 				"url": {
-					"raw": "{{base_ip}}/jwt_bp/refresh",
+					"raw": "{{base_ip}}/jwt_bp/refresh_token",
 					"host": [
 						"{{base_ip}}"
 					],
 					"path": [
 						"jwt_bp",
-						"refresh"
+						"refresh_token"
 					]
 				}
 			},
 			"response": []
 		},
 		{
-			"name": "Current-User-mock",
+			"name": "Current-User",
 			"request": {
 				"auth": {
 					"type": "bearer",
 					"bearer": [
 						{
 							"key": "token",
-							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcwNDE2NTk0NSwianRpIjoiZmQwZWFkOTgtOGI0Yi00Y2IzLWFmNTctMGY3MDNlZDdlZDZiIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6eyJ1c2VybmFtZSI6ImFkbWluIiwidWlkIjoxLCJyb2xlcyI6WyJhZG1pbiJdfSwibmJmIjoxNzA0MTY1OTQ1LCJjc3JmIjoiYmNhOWY3OGUtMTRhNC00Y2M5LTllZjItZTFiYjcxYjNhYWM4IiwiZXhwIjoxNzA0MTY2MjQ1LCJhdXRoX2JhY2tlbmQiOiJGbGFzay1KV1QifQ.1LtTdNV0BhQDpDnb_t9Hyr2KKE-YVXAxIWs8wpE-l3Y",
+							"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTcyMjkzNTU2OCwianRpIjoiODdiNDFjZGMtMGFjYi00ZTdlLWJhY2YtZWE3NDBjM2JkOWQxIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6eyJ1c2VybmFtZSI6ImFkbWluIiwidWlkIjoxLCJyb2xlcyI6WyJhZG1pbiJdfSwibmJmIjoxNzIyOTM1NTY4LCJjc3JmIjoiY2FhOWQ3ZGQtMWZkMi00ZjE3LWJlYjMtNzlhMTc0MWEzYTI5IiwiZXhwIjoxNzIyOTM1NTgzLCJhdXRoX2JhY2tlbmQiOiJGbGFzay1KV1QiLCJyb2xlcyI6IlVzZXItUm9sZSJ9.TJxDvl-LusBwS640ixW51rS09mEiEyVrD-0eWw0MWPg",
 							"type": "string"
 						}
 					]
@@ -94,13 +94,13 @@
 				"method": "GET",
 				"header": [],
 				"url": {
-					"raw": "{{base_ip}}/jwt_bp/current_user_mock",
+					"raw": "{{base_ip}}/jwt_bp/current_user",
 					"host": [
 						"{{base_ip}}"
 					],
 					"path": [
 						"jwt_bp",
-						"current_user_mock"
+						"current_user"
 					]
 				}
 			},
