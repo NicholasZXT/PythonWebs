@@ -20,16 +20,16 @@ def getLogger(log_file: str = 'flask.log', name: str = None, write_file: bool = 
     console_handler = logging.StreamHandler()
     # console_handler = logging.StreamHandler(stream=sys.stdout)
     console_handler.setFormatter(formatter)
-    # 轮换文件输出
-    # 每隔 interval 轮换一次， when 为单位，M 表示分钟 —— 每分钟轮换一次日志文件
-    rotate_handler = TimedRotatingFileHandler(filename=log_file, when='M', interval=1, encoding='utf-8')
-    # 每天轮换一次日志文件
-    # rotate_handler = TimedRotatingFileHandler(filename=log_file, when='D', interval=1, encoding='utf-8')
-    # 每周一轮换一次文件
-    # rotate_handler = TimedRotatingFileHandler(filename=log_file, when='W0', encoding='utf-8')
-    rotate_handler.setFormatter(formatter)
     logger.addHandler(console_handler)
     if write_file:
+        # 轮换文件输出
+        # 每隔 interval 轮换一次， when 为单位，M 表示分钟 —— 每分钟轮换一次日志文件
+        rotate_handler = TimedRotatingFileHandler(filename=log_file, when='M', interval=1, encoding='utf-8')
+        # 每天轮换一次日志文件
+        # rotate_handler = TimedRotatingFileHandler(filename=log_file, when='D', interval=1, encoding='utf-8')
+        # 每周一轮换一次文件
+        # rotate_handler = TimedRotatingFileHandler(filename=log_file, when='W0', encoding='utf-8')
+        rotate_handler.setFormatter(formatter)
         logger.addHandler(rotate_handler)
     return logger
 

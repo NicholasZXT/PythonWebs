@@ -1,5 +1,5 @@
 from functools import wraps
-from flask_classful import FlaskView, route
+from rest_app.flask_classful import FlaskView, route
 
 
 def dec(fun):

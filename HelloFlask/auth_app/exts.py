@@ -26,6 +26,9 @@ login_manager = LoginManager()
 http_auth = HTTPTokenAuth(scheme='Bearer')
 
 # Web-API的JWT认证
+# JWTManager实例化的时候并不会做太多的操作，主要做两件事：
+# 1. 向 app.config 里设置一些JWT用到的配置常量
+# 2. 注册一些 error_handler_callback
 jwt = JWTManager()
 
 # Flask-Principal扩展
@@ -53,6 +56,7 @@ principal = Principal(use_sessions=False)
 # security = Security(datastore=user_datastore)
 security = Security(datastore=user_datastore, register_blueprint=False)
 
+# ====================================== 各个扩展的hook函数 ======================================
 
 # --------------------- Flask-Login 的hook函数 ---------------------------------
 # 必须要在 login_manager 中注册一个 user_loader 函数，用于配合 Flask-Login 提供的 current_user 使用
@@ -166,9 +170,35 @@ def api_abort(code, message=None, **kwargs):
     return response
 
 # -------------------- Flask-JWT-Extended 的hook函数 --------------------------------
-# 相比于Flask-HttpAuth，Flask-JWT-Extended只提供基于token的认证，它不仅实现了认证的框架流程，还帮我们实现了上述token生成、token认证的过程
-# 使用起来更方便，因此 Flask-JWT-Extended 需要实现的hook函数比较少
-
+# 相比于Flask-HttpAuth，Flask-JWT-Extended只提供基于token的认证，它不仅实现了认证的框架流程，
+# 还实现了上述token生成、token认证的过程，使用起来更方便，因此 Flask-JWT-Extended 需要实现的hook函数比较少
+# JWT需要关注的几个装饰器方法如下：
+"""
+@jwt.user_identity_loader 注册一个回调函数，用于从用户信息中提取用户唯一标识
+ + 被装饰函数必须接受1个参数，该参数就是使用 create_access_token/create_fresh_token 时 identity= 的参数值
+ + 返回值必须是可序列化的值，默认实现下，直接使用传入的 identity 参数值
+ + 被装饰函数里，一般实现从 identity 对象中提取用户唯一标识符的逻辑
+@jwt.unauthorized_loader 注册回调函数，用于处理无效JWT的情况
+ + 被装饰函数必须接受1个参数，该参数是一个字符串，解释了为什么JWT无效
+ + 返回值必须是一个 Flask Response
+@jwt.user_lookup_loader 注册一个回调函数，用于将JWT信息转换成用户数据
+ + 被装饰函数必须接受2个参数，第1个是JWT的header，第2个是JWT的payload，两者均为 dict
+ + 返回值可以通过 current_user 或者 get_current_user() 访问
+@jwt.user_lookup_error_loader 注册一个错误处理的回调函数，在 @jwt.user_lookup_loader 失败时调用
+ + 参数和 @jwt.user_lookup_loader 的一样
+ + 返回值必须是一个 Flask Response
+@jwt.additional_claims_loader 注册一个回调函数，用于在创建JWT时附加额外的信息
+ + 被装饰函数必须接受1个参数，该参数就是使用 create_access_token/create_fresh_token 时 identity= 的参数值
+ + 返回值是一个dict，该附加信息会被添加到JWT里
+ + 也可以使用 create_access_token/create_fresh_token 的 additional_claims= 参数设置附加信息
+@jwt.token_verification_loader 注册自定义JWT验证的函数
+ + 被装饰函数必须接受2个参数，第1个是JWT的header，第2个是JWT的payload，两者均为 dict
+ + 返回值必须为True/False
+@jwt.token_verification_failed_loader 注册自定义JWT验证失败的回调函数
+ + 被装饰函数必须接受2个参数，第1个是JWT的header，第2个是JWT的payload，两者均为 dict
+ + 返回值必须为 Flask Response
+当然，上述各个装饰器方法都设置了默认实现，在 default_callbacks.py 文件里
+"""
 # 第1个要实现的hook函数是从用户对象中获取用户唯一标识的信息
 # @jwt.user_identity_loader
 def get_user_identity(userdata):
