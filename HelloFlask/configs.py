@@ -20,7 +20,7 @@ class BaseConfig:
     # 认证用户，附带了用户的角色信息
     AUTHORIZED_USERS = {
         'admin': {'passwd': 'admin', 'uid': 1, 'username': 'admin', 'roles': ['admin']},
-        'yourself': {'passwd': 'people', 'uid': 2, 'username': 'yourself', 'roles': ['others']},
+        'yourself': {'passwd': 'people', 'uid': 2, 'username': 'yourself', 'roles': ['normal']},
     }
     # 过期时间，单位s
     TOKEN_EXPIRATION = 60 * 20
@@ -55,7 +55,6 @@ class DevelopmentConfig(BaseConfig):
     }
     SQLALCHEMY_DATABASE_URI = "mysql+pymysql://{user}:{passwd}@{host}:{port}/{db}".format(**mysql_conf)
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-
 
 config = {
     'dev': DevelopmentConfig
