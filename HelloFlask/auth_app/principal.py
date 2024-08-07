@@ -508,7 +508,7 @@ class Principal(object):
         # ----------------------------------------------------------------------------------------------
 
         # print(f"Principal.init_app: use_sessions is {self.use_sessions}...")
-        current_app.logger.debug(f"Principal.init_app -> final action: use_sessions is {self.use_sessions}...")
+        # current_app.logger.debug(f"Principal.init_app -> final action: use_sessions is {self.use_sessions}...")
         if self.use_sessions:
             self.identity_loader(session_identity_loader)
             self.identity_saver(session_identity_saver)

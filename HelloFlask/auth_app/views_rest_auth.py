@@ -41,7 +41,7 @@ def get_token():
     # return "<h1>get_token</h1>"
 
 @auth_bp.route("/test_token", methods=['GET'])
-@http_auth.login_required(role=['admin', 'others'])   # 使用装饰器保护需要验证用户身份的视图函数，并提供了一些简单的基于用于角色的权限管理
+@http_auth.login_required(role=['admin', 'normal'])   # 使用装饰器保护需要验证用户身份的视图函数，并提供了一些简单的基于用于角色的权限管理
 def test_token():
     # http_auth.current_user() 的返回值就是 @http_auth.verify_token 装饰的函数返回值
     print(f"test_token current user: {http_auth.current_user()}")
@@ -54,7 +54,7 @@ def test_admin_token():
     return "<h1>Congratulations for passing Administration token authorization!</h1>"
 
 @auth_bp.route("/verify_token", methods=['GET'])
-@http_auth.login_required(role=['admin', 'others'])
+@http_auth.login_required(role=['admin', 'normal'])
 def verify_token():
     """
     提供一个验证token是否有效的接口。

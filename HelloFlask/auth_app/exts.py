@@ -10,8 +10,8 @@ from werkzeug.http import HTTP_STATUS_CODES
 from itsdangerous import URLSafeTimedSerializer as Serializer
 from itsdangerous import BadSignature, SignatureExpired
 from flask_jwt_extended import JWTManager
-# from flask_principal import Principal, Identity
-from auth_app.principal import Principal, Identity, identity_loaded, RoleNeed
+# from flask_principal import Principal, identity_loaded, identity_changed, Identity, AnonymousIdentity, RoleNeed
+from auth_app.principal import Principal, identity_loaded, identity_changed, Identity, AnonymousIdentity, RoleNeed
 from flask_security import Security
 from extensions import getLogger
 from auth_app.models import User, user_datastore
@@ -253,23 +253,37 @@ def user_lookup_callback_mock(jwt_header, jwt_data):
 # 注册用户身份加载的函数，有两种使用场景：
 # 1. 跨请求保持用户身份：使用某个持久化存储来加载用户身份，此时也需要注册一个对应的 identity_saver 函数实现存入
 # 2. REST-API：此时不需要跨请求，但是用户身份需要每次都从 request 的 JWT-Token 里解析
-# @principal.identity_loader
-# def load_user_identity():
-#     pass
+# 这里简单实现了一个REST-API下的跨请求保存用户身份的功能，直接在内存里存放已登录用户的信息，未考虑线程安全 —— 仅供演示
+LOGGED_USER = None  # 存放已登录用户的 uid，只保存一个，后续登录的会挤掉上一个用户
+@principal.identity_loader
+def user_identity_loading():
+    global LOGGED_USER
+    if LOGGED_USER:
+        return Identity(id=LOGGED_USER)
+    else:  # 没有拿到登录用户时，需要返回None
+        return None
+
+@principal.identity_saver
+def user_identity_saving(identity: Identity):
+    global LOGGED_USER
+    if LOGGED_USER is not None:
+        current_app.logger.warning(f"Overwrite logged user: {LOGGED_USER}...")
+    LOGGED_USER = identity.id
+    current_app.logger.debug(f"LOGGED_USER: {LOGGED_USER}...")
+
 
 @identity_loaded.connect
 def principal_identity_loaded(sender, identity: Identity):
-    """
-    在这个回调函数里根据用户ID，添加用户的权限
-    """
+    """ 在这个回调函数里根据用户ID，添加用户的角色"""
     # print(f"principal_identity_loaded: prepare to add roles for {identity}")
-    current_app.logger.debug(f"principal_identity_loaded: prepare to add roles for {identity}")
+    current_app.logger.debug(f"principal_identity_loaded: prepare to add roles for {identity}.")
     authorized_users = current_app.config['AUTHORIZED_USERS']
     user_config = authorized_users.get(identity.id, {})
-    if user_config:
-        for role in user_config['roles']:
-            role_need = RoleNeed(role)
-            # print(f"principal_identity_loaded: add RoleNeed '{role_need}' for identity: {identity}")
-            current_app.logger.debug(f"principal_identity_loaded: add RoleNeed '{role_need}' for identity: {identity}")
-            identity.provides.add(role_need)
+    if not user_config:
+        return None
+    for role in user_config['roles']:
+        role_need = RoleNeed(role)
+        # print(f"principal_identity_loaded: RoleNeed '{role_need}' was added to identity: {identity}.")
+        current_app.logger.debug(f"principal_identity_loaded: RoleNeed '{role_need}' is added to identity: {identity}.")
+        identity.provides.add(role_need)
 
