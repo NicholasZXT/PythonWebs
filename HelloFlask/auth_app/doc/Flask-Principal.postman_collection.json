@@ -1,0 +1,186 @@
+{
+	"info": {
+		"_postman_id": "654a89f4-8d3a-4c1a-a0fa-e608db4d7011",
+		"name": "Flask-Principal",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Hello",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_ip}}/principal_bp/",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"principal_bp",
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Login",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"username\": \"admin\",\n    \"password\": \"admin\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_ip}}/principal_bp/login",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"principal_bp",
+						"login"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Logout",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"username\": \"admin\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_ip}}/principal_bp/logout",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"principal_bp",
+						"logout"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Hello-admin",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_ip}}/principal_bp/hello/admin",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"principal_bp",
+						"hello",
+						"admin"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Hello-normal",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_ip}}/principal_bp/hello/normal",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"principal_bp",
+						"hello",
+						"normal"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Hello-all",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_ip}}/principal_bp/hello/all",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"principal_bp",
+						"hello",
+						"all"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "List-article",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{base_ip}}/principal_bp/article/list",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"principal_bp",
+						"article",
+						"list"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "Update-article",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n    \"content\": \"new-contents\"\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_ip}}/principal_bp/article/update/1",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"principal_bp",
+						"article",
+						"update",
+						"1"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
