@@ -51,12 +51,13 @@ Flask-Security对于用户权限的管理，底层是通过下面4张表进行�
 + WebAuth 表，记录WebAuth的信息
 + UserRole 表，用于管理 User 和 Role 之间多对多关系的关联表，一般不需要开发者手动管理
 其中表里的有些字段和方法是必须要有的，因此Flask-Security在如下两个地方提供了模板：
-1. core.py 中定义了 UserMixin, RoleMixin, WebAuthnMixin ，定义并实现了上面这些表的 Model 需要提供的一些方法.
+1. core.py 中定义了 UserMixin, RoleMixin, WebAuthnMixin，定义并实现了上面这些表的 Model 需要提供的一些方法.
    其中 UserMixin 是继承的 Flask-Login 的 UserMixin 类
 2. datastore.py 中进一步定义了上面3个mixin类的子类：User(UserMixin), Role(RoleMixin), WebAuthn(WebAuthnMixin)，
    不过这3个子类都只是定义了各个 Model类 的字段，没有定义方法，只是作为**类型申明**，在datastore.py中用于类型提示
 有了上面 3 个表之后，Flask-Security 还提供了一个统一管理上面 3 个类（UserRole类不需要主动管理）的封装：DataStore + UserDatastore，
-位于 datastore.py 文件中，其中 DataStore用于抽象底层的具体数据库，UerDatastore 用于封装上面的3个类，提供一些对 User/Role 进行 CRUD 的方法.
+位于 datastore.py 文件中，其中 DataStore用于抽象底层的具体数据库，UerDatastore 用于封装上面的3个类，
+提供一些对 User/Role 进行 CRUD 的方法.
 
 从上面可以看出，Flask-Security 实现的RBAC粒度比较粗，权限只到Role这一层，因为它并没有提供一个 Permission 表来存储具体的权限，
 不像 Django 那样提供了 Permission表（还有对应的role_permission关联表），因此不能实现 Object级别（也就是记录级别）的权限控制。

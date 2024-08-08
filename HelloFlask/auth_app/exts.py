@@ -12,9 +12,9 @@ from itsdangerous import BadSignature, SignatureExpired
 from flask_jwt_extended import JWTManager
 # from flask_principal import Principal, identity_loaded, identity_changed, Identity, AnonymousIdentity, RoleNeed
 from auth_app.principal import Principal, identity_loaded, identity_changed, Identity, AnonymousIdentity, RoleNeed
-from flask_security import Security
 from extensions import getLogger
-from auth_app.models import User, user_datastore
+from auth_app.models import User
+# Flask-Security扩展内部会实例化Flask-Login, Flask-Principal等扩展，和手动创建的实例可能有冲突，因此单独研究
 
 # 日志配置
 logger = getLogger('auth_access.log', 'AuthLogging')
@@ -37,24 +37,6 @@ jwt = JWTManager()
 # 禁止使用session，此时不会自动添加任何 identity_loader/identity_saver 函数，必须手动设置一个
 # 对于 REST-API 开发来说，一般不会跨请求保持状态（这里是用户身份信息），此时可以选择禁止使用 session
 principal = Principal(use_sessions=False)
-
-# Flask-Security扩展
-"""
-个人感觉Flask-Security做的有点臃肿了，为了大而全，集成了一些不那么必要的内容。
-下面 Security 对象在实例化的时候，主要会干下面几件事：
-1. 实例化一个 Flask-Login 对象 + Flask-Principal 对象，这两个算是必要的
-2. 实例化一大堆Form相关的组件，这个感觉不是很有必要
-3. 实例化一些工具类，比如密码工具类
-4. 默认下（参数register_blueprint=True）会生成一个名称为 'security' 的 blueprint，里面定义了一些用于登录、登出、验证的视图函数，这些视图
-   函数都和对应的 Form 类结合在一起使用，并且返回了一个渲染好的 简单的 html 页面。
-   这个操作感觉也不是很必要，特别是现在前后端分离的趋势下，前端的Form基本不需要后端来渲染或者生成HTML代码了。
-5. 将Flask-Security的所有可配置属性，都注册成当前 Flask对象（app）的属性 —— 这个操作感觉更没有必要
-在实例化的时候，可以通过 register_blueprint=False 参数，禁止生成一个 'security' 的蓝图，这样一般就不会使用它附带定义的各种Form，然后
-只使用 flask_security.decorators 提供的各种装饰器进行用户认证+权限校验，使用 Security.datastore 提供的各种方法来对用户、角色进行 CRUD
-操作和检查，自定义的程度稍微高一点。
-"""
-# security = Security(datastore=user_datastore)
-security = Security(datastore=user_datastore, register_blueprint=False)
 
 # ====================================== 各个扩展的hook函数 ======================================
 
