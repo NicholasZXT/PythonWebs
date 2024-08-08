@@ -260,7 +260,7 @@ class IdentityContext(object):
     def can(self):
         """ Whether the identity has access to the permission """
         # print(f"IdentityContext.can(): self.identity - {self.identity}...")
-        current_app.logger.debug(f"IdentityContext.can(): self.identity - {self.identity}...")
+        current_app.logger.debug(f"IdentityContext.can -> self.identity is: {self.identity}...")
         return self.identity.can(self.permission)
         # Identity.can(permission) 里调用的是 return permission.allows(self)，所以我感觉 Identity.can() 方法有点多余
         # 下面这个逻辑似乎更直接一点？
@@ -586,7 +586,7 @@ class Principal(object):
         # 这个操作要特别注意，这意味着 g.identity 变量中存放的用户Identity信息仅在当前请求中有效，不能跨请求使用 ----- KEY
         g.identity = AnonymousIdentity()
         # print(f"Principal._on_before_request: Identity reset to AnonymousIdentity...")
-        current_app.logger.debug(f"Principal._on_before_request: Identity reset to AnonymousIdentity...")
+        current_app.logger.debug(f"Principal._on_before_request -> Identity reset to AnonymousIdentity...")
         # current_app.logger.debug(f"Principal._on_before_request: session: {session}")
         # 依次遍历 self.identity_loaders 里由 Principal.identity_loader 装饰器函数注册的 用户加载回调方法
         # ----------------------------------------------------------------------------------------------
@@ -595,7 +595,7 @@ class Principal(object):
         # 最重要的一点是：identity_loader 函数中，绝对不能尝试从 g.identity 里获取用户身份，因为上面会重置为 AnonymousIdentity()
         # ----------------------------------------------------------------------------------------------
         for loader in self.identity_loaders:
-            current_app.logger.debug(f"Principal._on_before_request -> execute loader: {loader}...")
+            # current_app.logger.debug(f"Principal._on_before_request -> execute loader: {loader}...")
             identity = loader()
             current_app.logger.debug(f"Principal._on_before_request -> loader get identity: {identity}...")
             if identity is not None:

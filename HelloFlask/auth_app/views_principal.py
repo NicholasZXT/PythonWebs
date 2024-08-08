@@ -3,7 +3,7 @@ from flask import request, current_app, g, jsonify
 from werkzeug.http import HTTP_STATUS_CODES
 from functools import partial
 from collections import namedtuple
-# from flask_principal import RoleNeed, ItemNeed, Permission, identity_changed
+# from flask_principal import RoleNeed, UserNeed, ItemNeed, Permission, identity_changed, identity_loaded, Identity, AnonymousIdentity
 from auth_app.principal import RoleNeed, UserNeed, ItemNeed, Permission, identity_changed, identity_loaded, Identity, AnonymousIdentity
 from auth_app.exts import api_abort
 
@@ -105,6 +105,14 @@ ArticleReadNeed = partial(ArticleNeed, 'Article', 'read')  # 固定前两个参�
 ArticleUpdateNeed = partial(ArticleNeed, 'Article', 'update')  # 固定前两个参数
 # a2 = ArticleReadNeed('article-2')   # 这里就可以省略参数名了
 # print(a2)
+# t1 = {
+# 	ArticleNeed(type='Article', method='update', value=1),
+# 	ArticleNeed(type='Article', method='update', value=2),
+# 	ArticleNeed(type='Article', method='update', value=3)
+# }
+# t2 = {ArticleNeed(type='Article', method='update', value=1)}
+# t1.intersection(t2)
+# t2.intersection(t1)
 # ---------------
 # 模拟数据
 UserArticleMockData = [
@@ -144,11 +152,20 @@ def read_article():
 	return jsonify(result)
 
 @principal_bp.post('/article/update/<article_id>')
-@role_permission.require(http_exception=403)
+@role_permission.require(http_exception=403)  # 这里先校验 role 权限，下面再校验细粒度权限
 def update_article(article_id):
 	content = request.json.get('content', '')
-	# 初始化一个Permission，并传入需要校验的Need
-	permission = Permission(role_permission, ArticleUpdateNeed(article_id))
+	# article_id 必须要转成整数，否则校验的时候会有问题
+	article_id = int(article_id)
+	# 初始化一个Permission，并传入需要校验的Need，这里不需要校验 role_permission，上面的装饰器里已经校验过了
+	# permission = Permission(ArticleUpdateNeed(article_id)).union(role_permission)
+	permission = Permission(ArticleUpdateNeed(article_id))
+	# 调试语句
+	# identity = g.identity
+	# current_app.logger.info(f"update_article -> identity to check: {identity}.")
+	# current_app.logger.info(f"update_article -> permission to check: {permission}.")
+	# print('permission.allows(identity): ', permission.allows(identity))
+	# permission.allows(identity)
 	# 然后使用 permission.can() 方法进行细粒度的权限校验
 	if permission.can():
 		return f"you can update article[{article_id}] with new content: {content}."

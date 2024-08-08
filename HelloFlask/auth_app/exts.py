@@ -267,23 +267,23 @@ def user_identity_loading():
 def user_identity_saving(identity: Identity):
     global LOGGED_USER
     if LOGGED_USER is not None:
-        current_app.logger.warning(f"Overwrite logged user: {LOGGED_USER}...")
+        current_app.logger.warning(f"user_identity_saving -> Overwrite logged user: {LOGGED_USER}...")
     LOGGED_USER = identity.id
-    current_app.logger.debug(f"LOGGED_USER: {LOGGED_USER}...")
+    current_app.logger.debug(f"user_identity_saving -> LOGGED_USER: {LOGGED_USER}...")
 
 
 @identity_loaded.connect
 def principal_identity_loaded(sender, identity: Identity):
     """ 在这个回调函数里根据用户ID，添加用户的角色"""
     # print(f"principal_identity_loaded: prepare to add roles for {identity}")
-    current_app.logger.debug(f"principal_identity_loaded: prepare to add roles for {identity}.")
+    current_app.logger.debug(f"principal_identity_loaded -> prepare to add roles for {identity}.")
     authorized_users = current_app.config['AUTHORIZED_USERS']
     user_config = authorized_users.get(identity.id, {})
     if not user_config:
         return None
     for role in user_config['roles']:
         role_need = RoleNeed(role)
-        # print(f"principal_identity_loaded: RoleNeed '{role_need}' was added to identity: {identity}.")
-        current_app.logger.debug(f"principal_identity_loaded: RoleNeed '{role_need}' is added to identity: {identity}.")
+        # print(f"principal_identity_loaded -> RoleNeed '{role_need}' was added to identity: {identity}.")
+        current_app.logger.debug(f"principal_identity_loaded -> RoleNeed '{role_need}' is added to identity: {identity}.")
         identity.provides.add(role_need)
 
