@@ -5,14 +5,14 @@ from auth_app.exts import http_auth, generate_token, api_abort
 
 #  Flask-HttpAuth 扩展研究
 # 源码中，重点看基类 HTTPAuth 的 login_required装饰器 和 authorize方法
-auth_bp = Blueprint('rest_bp', __name__, url_prefix='/rest_bp')
+http_auth_bp = Blueprint('http_auth_bp', __name__, url_prefix='/http_auth_bp')
 
 
-@auth_bp.route("/", methods=['GET'])
+@http_auth_bp.route("/", methods=['GET'])
 def hello():
     return "<h1>Hello Flask for Authentication!</h1>"
 
-@auth_bp.route("/get_token", methods=['POST'])
+@http_auth_bp.route("/get_token", methods=['POST'])
 def get_token():
     """生成Token的视图函数"""
     # print(request.form)
@@ -40,20 +40,20 @@ def get_token():
     return response
     # return "<h1>get_token</h1>"
 
-@auth_bp.route("/test_token", methods=['GET'])
+@http_auth_bp.route("/test_token", methods=['GET'])
 @http_auth.login_required(role=['admin', 'normal'])   # 使用装饰器保护需要验证用户身份的视图函数，并提供了一些简单的基于用于角色的权限管理
 def test_token():
     # http_auth.current_user() 的返回值就是 @http_auth.verify_token 装饰的函数返回值
     print(f"test_token current user: {http_auth.current_user()}")
     return "<h1>Congratulations for passing token authorization!</h1>"
 
-@auth_bp.route("/test_admin_token", methods=['GET'])
+@http_auth_bp.route("/test_admin_token", methods=['GET'])
 @http_auth.login_required(role='admin')
 def test_admin_token():
     print(f"test_admin_token current user: {http_auth.current_user()}")
     return "<h1>Congratulations for passing Administration token authorization!</h1>"
 
-@auth_bp.route("/verify_token", methods=['GET'])
+@http_auth_bp.route("/verify_token", methods=['GET'])
 @http_auth.login_required(role=['admin', 'normal'])
 def verify_token():
     """

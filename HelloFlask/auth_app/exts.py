@@ -39,6 +39,13 @@ jwt = JWTManager()
 principal = Principal(use_sessions=False)
 
 # ====================================== 各个扩展的hook函数 ======================================
+def api_abort(code, message=None, **kwargs):
+    """视图函数的统一错误响应返回函数"""
+    if message is None:
+        message = HTTP_STATUS_CODES.get(code, '')
+    response = jsonify(code=code, message=message, **kwargs)
+    response.status_code = code
+    return response
 
 # --------------------- Flask-Login 的hook函数 ---------------------------------
 # 必须要在 login_manager 中注册一个 user_loader 函数，用于配合 Flask-Login 提供的 current_user 使用
@@ -143,13 +150,6 @@ def get_user_roles(user):
 @http_auth.error_handler
 def auth_error(status):
     return "Access Denied", status
-
-def api_abort(code, message=None, **kwargs):
-    if message is None:
-        message = HTTP_STATUS_CODES.get(code, '')
-    response = jsonify(code=code, message=message, **kwargs)
-    response.status_code = code
-    return response
 
 # -------------------- Flask-JWT-Extended 的hook函数 --------------------------------
 # 相比于Flask-HttpAuth，Flask-JWT-Extended只提供基于token的认证，它不仅实现了认证的框架流程，
