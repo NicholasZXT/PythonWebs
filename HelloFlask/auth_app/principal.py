@@ -579,6 +579,11 @@ class Principal(object):
         current_app.logger.debug(f"Principal._on_identity_changed: Identity changed to {identity}...")
         self.set_identity(identity)
 
+    # 个人感觉这个方法注册成整个APP的 before_request 回调函数的设计不是很灵活，
+    # 主要限制点在于内部调用各个 identity_loaders 获取用户身份的操作固定在这里了，
+    # 在开发REST-API时，如果不借助其他存储，那么每次请求的用户身份都要从JWT里获取，因此 identity_loader 回调函数里就需要做
+    # 解析Token的操作，但是常用JWT框架（Flask-JWT或者Flask-HttpAuth）里解析Token的时机都是放在视图函数上的装饰器里，
+    # 这些装饰器都在 before_request 回调函数之后，时机太迟了
     def _on_before_request(self):
         if self._is_static_route():
             return
