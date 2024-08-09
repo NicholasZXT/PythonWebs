@@ -1,6 +1,7 @@
 # auth_app所有扩展的依赖和对象的初始化都放到这里，以便进行模块拆分
 import sys
 import os
+from functools import wraps
 from flask import current_app, jsonify, request
 from flask_login import LoginManager
 from flask_httpauth import HTTPTokenAuth
@@ -9,7 +10,7 @@ from werkzeug.http import HTTP_STATUS_CODES
 # from itsdangerous import TimedJSONWebSignatureSerializer as Serializer
 from itsdangerous import URLSafeTimedSerializer as Serializer
 from itsdangerous import BadSignature, SignatureExpired
-from flask_jwt_extended import JWTManager
+from flask_jwt_extended import JWTManager, get_current_user
 # from flask_principal import Principal, identity_loaded, identity_changed, Identity, AnonymousIdentity, RoleNeed
 from auth_app.principal import Principal, identity_loaded, identity_changed, Identity, AnonymousIdentity, RoleNeed
 from extensions import getLogger
@@ -156,18 +157,19 @@ def auth_error(status):
 # 还实现了上述token生成、token认证的过程，使用起来更方便，因此 Flask-JWT-Extended 需要实现的hook函数比较少
 # JWT需要关注的几个装饰器方法如下：
 """
-@jwt.user_identity_loader 注册一个回调函数，用于从用户信息中提取用户唯一标识
- + 被装饰函数必须接受1个参数，该参数就是使用 create_access_token/create_fresh_token 时 identity= 的参数值
+@jwt.user_identity_loader 注册一个回调函数，用于 **创建JWT时** 从用户信息中提取用户唯一标识
+ + 被装饰函数必须接受1个参数，该参数就是使用 create_access_token/create_fresh_token 时设置的 identity= 的参数值
  + 返回值必须是可序列化的值，默认实现下，直接使用传入的 identity 参数值
  + 被装饰函数里，一般实现从 identity 对象中提取用户唯一标识符的逻辑
-@jwt.unauthorized_loader 注册回调函数，用于处理无效JWT的情况
- + 被装饰函数必须接受1个参数，该参数是一个字符串，解释了为什么JWT无效
- + 返回值必须是一个 Flask Response
-@jwt.user_lookup_loader 注册一个回调函数，用于将JWT信息转换成用户数据
+@jwt.user_lookup_loader 注册一个回调函数，用于 **从请求中解析JWT时** 将其中的信息转换成用户数据
  + 被装饰函数必须接受2个参数，第1个是JWT的header，第2个是JWT的payload，两者均为 dict
- + 返回值可以通过 current_user 或者 get_current_user() 访问
+ + 返回值可以是任何Python对象，可以通过 current_user 或者 get_current_user() 访问
+ + 通常在这里实现的逻辑是借助SQLAlchemy从数据库中查询token(JWT payload)中指定的用户
 @jwt.user_lookup_error_loader 注册一个错误处理的回调函数，在 @jwt.user_lookup_loader 失败时调用
  + 参数和 @jwt.user_lookup_loader 的一样
+ + 返回值必须是一个 Flask Response
+@jwt.unauthorized_loader 注册回调函数，用于处理请求中不含JWT的情况
+ + 被装饰函数必须接受1个参数，该参数是一个字符串，解释了为什么JWT无效
  + 返回值必须是一个 Flask Response
 @jwt.additional_claims_loader 注册一个回调函数，用于在创建JWT时附加额外的信息
  + 被装饰函数必须接受1个参数，该参数就是使用 create_access_token/create_fresh_token 时 identity= 的参数值
@@ -185,22 +187,24 @@ def auth_error(status):
 # @jwt.user_identity_loader
 def get_user_identity(userdata):
     """
+    创建JWT时使用.
     根据用户传入的数据，提取用户唯一标识信息，比如用户ID，这个信息后续被写入JWT的token中，
     存放在 JWT_IDENTITY_CLAIM参数（默认为sub）设置的 key 下。
     get_jwt_identity() 方法读取的就是这里的返回值。
     :param userdata: 传入的 userdata 可以是任何Python对象.
-      实际上，这里传入的 userdata 就是 create_access_token() 或者 create_refresh_token() 方法里 identity 参数接收的python对象。
+      实际上，这里传入的 userdata 就是 create_access_token()/create_refresh_token() 方法里 identity 参数的python对象。
     :return: 返回能够标识用户唯一性的信息。
       实际上，也可以返回一些附加信息，唯一的硬性要求是能够被序列化。
     """
     # 这里假设传入的参数userdata是我们自己定义的User模型对象，返回的是用户ID+用户名
     return {'uid': userdata.uid, 'username': userdata.username}
 
-# 第2个hook函数用于从 JWT头信息 和 JWT payload 里，获取用户相关的信息
+# 第2个hook函数用于从 JWT-header 和 JWT-payload 里，获取用户相关的信息
 # @jwt.user_lookup_loader
 def user_lookup_callback(jwt_header, jwt_data):
     """
-    这个回调函数必须接受两个参数，然后根据这两个参数附带的JWT信息，提取用户信息并返回（可以是任何Python对象）.
+    解析JWT时使用.
+    此回调函数必须接受2个参数，然后根据这2个参数附带的JWT信息，提取用户信息并返回（可以是任何Python对象）.
     返回值实际上会被以 {'loader_user': data} 的形式，存入 g._jwt_extended_jwt_user 这个属性里。
     返回值后续可以通过两种方式访问到：
       1. flask_jwt_extended.current_user 这个常量
@@ -221,22 +225,22 @@ def user_lookup_callback(jwt_header, jwt_data):
 @jwt.user_identity_loader
 def get_user_identity_mock(userdata):
     # 由于视图函数login_mock里，create_access_token()的identity是一个dict，包含了我们想要的信息，这里直接原样返回就可以了
-    print(f"user_lookup_callback[mock] - userdata: {userdata}")
+    print(f"user_lookup_callback[mock] -> userdata: {userdata}")
     return userdata
 
 @jwt.user_lookup_loader
 def user_lookup_callback_mock(jwt_header, jwt_data):
-    identity = jwt_data["sub"]
-    print(f"user_lookup_callback[mock] - identity: {identity}")
+    userdata = jwt_data["sub"]
+    print(f"user_lookup_callback[mock] -> userdata: {userdata}")
     # 这里也直接返回就可以了
-    return identity
+    return userdata
 
 # ----------------------- Flask-Principal 的hook函数 ----------------------------
 # 注册用户身份加载的函数，有两种使用场景：
 # 1. 跨请求保持用户身份：使用某个持久化存储来加载用户身份，此时也需要注册一个对应的 identity_saver 函数实现存入
 # 2. REST-API：此时不需要跨请求，但是用户身份需要每次都从 request 的 JWT-Token 里解析
 # 这里简单实现了一个REST-API下的跨请求保存用户身份的功能，直接在内存里存放已登录用户的信息，未考虑线程安全 —— 仅供演示
-LOGGED_USER = None  # 存放已登录用户的 uid，只保存一个，后续登录的会挤掉上一个用户
+LOGGED_USER = None  # 存放已登录用户的 username，只保存一个，后续登录的会挤掉上一个用户
 @principal.identity_loader
 def user_identity_loading():
     global LOGGED_USER
@@ -260,6 +264,7 @@ def principal_identity_loaded(sender, identity: Identity):
     # print(f"principal_identity_loaded: prepare to add roles for {identity}")
     current_app.logger.debug(f"principal_identity_loaded -> prepare to add roles for {identity}.")
     authorized_users = current_app.config['AUTHORIZED_USERS']
+    # 这里 identity.id 是 username
     user_config = authorized_users.get(identity.id, {})
     if not user_config:
         return None
@@ -269,3 +274,19 @@ def principal_identity_loaded(sender, identity: Identity):
         current_app.logger.debug(f"principal_identity_loaded -> RoleNeed '{role_need}' is added to identity: {identity}.")
         identity.provides.add(role_need)
 
+
+def principal_jwt_verify(fn):
+    """
+    Flask-Principle搭配Flask-JWT使用的装饰器，用在 @jwt_required 之后，
+    获取解析的用户并设置Principal需要使用的identity.
+    """
+    @wraps(fn)
+    def wrapper(*args, **kwargs):
+        current_user = get_current_user()
+        if current_user:
+            identity = Identity(id=current_user)
+            # 这里通过闭包使用了上面初始化的 Principal 对象，需要注意
+            principal.set_identity(identity=identity)
+        # return current_app.ensure_sync(fn)(*args, **kwargs)
+        return fn(*args, **kwargs)
+    return wrapper

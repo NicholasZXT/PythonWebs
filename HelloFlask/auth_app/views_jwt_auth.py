@@ -4,6 +4,7 @@ from flask_jwt_extended import create_access_token, create_refresh_token  # Flas
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity, get_current_user, current_user
 from extensions import db
 from auth_app.models import User
+from auth_app.exts import api_abort
 
 # Flask-JWT 扩展研究，它也不需要从 exts.py 里引入 JWTManager 实例对象
 jwt_bp = Blueprint('jwt_bp', __name__, url_prefix='/jwt_bp')
@@ -20,8 +21,10 @@ create_access_token()/create_refresh_token() 函数, 生成访问/刷新 token, 
   + expires_delta: token过期时间，为 datetime.timedelta 类型，
     分别由 JWT_REFRESH_TOKEN_EXPIRES 和 JWT_ACCESS_TOKEN_EXPIRES 变量配置
   + additional_claims: token的附加信息
-get_current_user()函数/get_jwt_identity() 函数/current_user常量，获取JWT里解析的当前用户
-get_jwt() 函数，获取JWT的payload
+get_jwt() 函数，获取解析后JWT的payload，实际是读取 g._jwt_extended_jwt 的值，最重要的函数.
+get_jwt_header() 函数，获取解析后JWT的payload，实际是读取 g._jwt_extended_jwt_header 的值.
+get_jwt_identity() 函数，获取解析后JWT的identity，实际是读取 g._jwt_extended_jwt['sub'] 的值
+get_current_user()函数 / current_user常量，获取JWT里解析的当前用户，实际是读取 g._jwt_extended_jwt_user["loaded_user"] 的值
 """
 
 # ---------------------------------------------------------------------------------------------
@@ -83,24 +86,24 @@ def login_mock():
 	username = request.json.get("username", None)
 	password = request.json.get("password", None)
 	if username is None or password is None:
-		return f"empty username or password is not allowed !", 403
+		return api_abort(code=403, message=f"empty username or password is not allowed !")
 	# 这里不从数据库查询了
 	authorized_users = current_app.config['AUTHORIZED_USERS']
 	user_config = authorized_users.get(username, None)
 	if user_config is None:
-		return f"user [{username}] is not found !", 403
+		return api_abort(code=403, message=f"user [{username}] is not found !")
 	user_passwd = user_config.get('passwd', None)
 	# 验证用户密码
 	if password == user_passwd:
 		# 这里的identity是一个字典，存放了用户名和角色组
 		userdata = {'username': username, 'uid': user_config['uid'], 'roles': user_config['roles']}
-		print(f"login[mock] - identity: {userdata}")
-		other_info = {'auth_backend': 'Flask-JWT', 'roles': 'User-Role'}
+		print(f"login[mock] -> identity: {userdata}")
+		other_info = {'auth_backend': 'Flask-JWT', 'role_info': 'User-Role'}
 		access_token = create_access_token(identity=userdata, additional_claims=other_info)
 		refresh_token = create_refresh_token(identity=userdata, additional_claims=other_info)
 		return jsonify(access_token=access_token, refresh_token=refresh_token)
 	else:
-		return f"wrong password!", 403
+		return api_abort(code=403, message="invalid password !")
 
 
 @jwt_bp.route("/refresh_token", methods=["POST"])
@@ -109,20 +112,49 @@ def refresh_token():
 	"""专门用来刷新 access_token 的接口，这个接口只能通过 refresh_token 来访问"""
 	identity = get_jwt_identity()
 	# 再次获取附加信息
-	# other_info = get_jwt()
-	other_info = {'auth_backend': 'Flask-JWT', 'roles': 'User-Role'}
+	# other_info = {'auth_backend': 'Flask-JWT', 'role_info': 'User-Role'}
+	jwt_data = get_jwt()
+	other_info = {'auth_backend': jwt_data.get('auth_backend', ''), 'role_info': jwt_data.get('role_info', '')}
 	access_token = create_access_token(identity=identity, additional_claims=other_info)
 	return jsonify(access_token=access_token)
 
 
 @jwt_bp.route("/current_user", methods=["GET"])
 @jwt_required(refresh=False)
-def protected_view():
-	# 获取当前用户的信息，也就是  @jwt.user_identity_loader 设置的回调函数返回值
+def show_current_user():
+	# 获取当前用户的信息，也就是 @jwt.user_identity_loader 设置的回调函数返回值
 	identity = get_jwt_identity()
-	print(f"protected_view - identity: {identity}")
+	print(f"show_current_user -> identity: {identity}")
 	# token里的附加信息通过如下方式获取
-	other_info = get_jwt()
-	# 这里拿到的 other_info 还附加了其他的一些字段
+	jwt_data = get_jwt()
+	other_info = {'auth_backend': jwt_data.get('auth_backend', ''), 'role_info': jwt_data.get('role_info', '')}
 	res = {'uid': identity['uid'], 'username': identity['username'], 'other_info': other_info}
 	return jsonify(res), 200
+
+
+# -------------- 配合 Flask-Principal 使用 ---------------
+@jwt_bp.route("/login_principal", methods=["POST"])
+def login_principal():
+	""""""
+	username = request.json.get("username", None)
+	password = request.json.get("password", None)
+	if username is None or password is None:
+		return api_abort(code=403, message=f"empty username or password is not allowed !")
+	# 这里不从数据库查询了
+	authorized_users = current_app.config['AUTHORIZED_USERS']
+	user_config = authorized_users.get(username, None)
+	if user_config is None:
+		return api_abort(code=403, message=f"user [{username}] is not found !")
+	user_passwd = user_config.get('passwd', None)
+	# 验证用户密码
+	if password == user_passwd:
+		# 这里的identity是一个字典，存放了用户名和角色组
+		userdata = {'username': username, 'uid': user_config['uid'], 'roles': user_config['roles']}
+		print(f"login[mock] -> identity: {userdata}")
+		other_info = {'auth_backend': 'Flask-JWT', 'role_info': 'User-Role'}
+		# TODO
+		access_token = create_access_token(identity=userdata, additional_claims=other_info)
+		refresh_token = create_refresh_token(identity=userdata, additional_claims=other_info)
+		return jsonify(access_token=access_token, refresh_token=refresh_token)
+	else:
+		return api_abort(code=403, message="invalid password !")
