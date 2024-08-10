@@ -158,7 +158,8 @@ def auth_error(status):
 # JWT需要关注的几个装饰器方法如下：
 """
 @jwt.user_identity_loader 注册一个回调函数，用于 **创建JWT时** 从用户信息中提取用户唯一标识
- + 被装饰函数必须接受1个参数，该参数就是使用 create_access_token/create_fresh_token 时设置的 identity= 的参数值
+ + 被装饰函数必须接受1个参数，该参数就是使用 create_access_token()/create_fresh_token() 时设置的 identity= 的参数值
+ + 每次调用 create_access_token()/create_fresh_token() 时都会调用此回调函数
  + 返回值必须是可序列化的值，默认实现下，直接使用传入的 identity 参数值
  + 被装饰函数里，一般实现从 identity 对象中提取用户唯一标识符的逻辑
 @jwt.user_lookup_loader 注册一个回调函数，用于 **从请求中解析JWT时** 将其中的信息转换成用户数据
@@ -172,9 +173,9 @@ def auth_error(status):
  + 被装饰函数必须接受1个参数，该参数是一个字符串，解释了为什么JWT无效
  + 返回值必须是一个 Flask Response
 @jwt.additional_claims_loader 注册一个回调函数，用于在创建JWT时附加额外的信息
- + 被装饰函数必须接受1个参数，该参数就是使用 create_access_token/create_fresh_token 时 identity= 的参数值
+ + 被装饰函数必须接受1个参数，该参数就是使用 create_access_token()/create_fresh_token() 时 identity= 的参数值
  + 返回值是一个dict，该附加信息会被添加到JWT里
- + 也可以使用 create_access_token/create_fresh_token 的 additional_claims= 参数设置附加信息
+ + 也可以使用 create_access_token()/create_fresh_token() 的 additional_claims= 参数设置附加信息
 @jwt.token_verification_loader 注册自定义JWT验证的函数
  + 被装饰函数必须接受2个参数，第1个是JWT的header，第2个是JWT的payload，两者均为 dict
  + 返回值必须为True/False
@@ -225,7 +226,7 @@ def user_lookup_callback(jwt_header, jwt_data):
 @jwt.user_identity_loader
 def get_user_identity_mock(userdata):
     # 由于视图函数login_mock里，create_access_token()的identity是一个dict，包含了我们想要的信息，这里直接原样返回就可以了
-    print(f"user_lookup_callback[mock] -> userdata: {userdata}")
+    print(f"user_identity_loader_callback[mock] -> userdata: {userdata}")
     return userdata
 
 @jwt.user_lookup_loader
@@ -260,7 +261,7 @@ def user_identity_saving(identity: Identity):
 
 @identity_loaded.connect
 def principal_identity_loaded(sender, identity: Identity):
-    """ 在这个回调函数里根据用户ID，添加用户的角色"""
+    """在这个回调函数里根据用户ID，添加用户的角色"""
     # print(f"principal_identity_loaded: prepare to add roles for {identity}")
     current_app.logger.debug(f"principal_identity_loaded -> prepare to add roles for {identity}.")
     authorized_users = current_app.config['AUTHORIZED_USERS']
@@ -274,19 +275,22 @@ def principal_identity_loaded(sender, identity: Identity):
         current_app.logger.debug(f"principal_identity_loaded -> RoleNeed '{role_need}' is added to identity: {identity}.")
         identity.provides.add(role_need)
 
-
+# 使用下面这个装饰器从每次请求的JWT里获取用户身份时，需要 Principal 里不设置任何 identity_loader/identity_saver 回调函数
+# 也就是禁止使用自动添加的 session 存储，以及注释掉上面使用 LOGGER_USER 的两个回调函数
 def principal_jwt_verify(fn):
     """
     Flask-Principle搭配Flask-JWT使用的装饰器，用在 @jwt_required 之后，
-    获取解析的用户并设置Principal需要使用的identity.
+    获取JWT解析的用户并设置Principal需要使用的identity.
     """
     @wraps(fn)
     def wrapper(*args, **kwargs):
         current_user = get_current_user()
         if current_user:
-            identity = Identity(id=current_user)
+            print(f"principal_jwt_verify -> current_user: {current_user}.")
+            identity = Identity(id=current_user['username'])
             # 这里通过闭包使用了上面初始化的 Principal 对象，需要注意
             principal.set_identity(identity=identity)
+            print(f"principal_jwt_verify -> identity: {identity}.")
         # return current_app.ensure_sync(fn)(*args, **kwargs)
         return fn(*args, **kwargs)
     return wrapper
