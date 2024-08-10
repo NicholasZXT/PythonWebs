@@ -4,7 +4,8 @@ from flask_jwt_extended import create_access_token, create_refresh_token  # Flas
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity, get_current_user, current_user
 from extensions import db
 from auth_app.models import User
-from auth_app.exts import api_abort
+from auth_app.exts import api_abort, principal_jwt_verify
+from auth_app.principal import Identity, identity_changed, RoleNeed, Permission
 
 # Flask-JWT 扩展研究，它也不需要从 exts.py 里引入 JWTManager 实例对象
 jwt_bp = Blueprint('jwt_bp', __name__, url_prefix='/jwt_bp')
@@ -99,6 +100,7 @@ def login_mock():
 		userdata = {'username': username, 'uid': user_config['uid'], 'roles': user_config['roles']}
 		print(f"login[mock] -> identity: {userdata}")
 		other_info = {'auth_backend': 'Flask-JWT', 'role_info': 'User-Role'}
+		# 下面会调用两次 @jwt.user_identity_loader 设置的回调函数
 		access_token = create_access_token(identity=userdata, additional_claims=other_info)
 		refresh_token = create_refresh_token(identity=userdata, additional_claims=other_info)
 		return jsonify(access_token=access_token, refresh_token=refresh_token)
@@ -132,10 +134,10 @@ def show_current_user():
 	return jsonify(res), 200
 
 
-# -------------- 配合 Flask-Principal 使用 ---------------
-@jwt_bp.route("/login_principal", methods=["POST"])
-def login_principal():
-	""""""
+# ------------------------------ 配合 Flask-Principal 使用 ---------------------------------
+@jwt_bp.route("/principal/login", methods=["POST"])
+def principal_login():
+	"""登录时设置Flask-Principal的信息"""
 	username = request.json.get("username", None)
 	password = request.json.get("password", None)
 	if username is None or password is None:
@@ -150,11 +152,41 @@ def login_principal():
 	if password == user_passwd:
 		# 这里的identity是一个字典，存放了用户名和角色组
 		userdata = {'username': username, 'uid': user_config['uid'], 'roles': user_config['roles']}
-		print(f"login[mock] -> identity: {userdata}")
+		print(f"Principal-login -> userdata: {userdata}")
 		other_info = {'auth_backend': 'Flask-JWT', 'role_info': 'User-Role'}
-		# TODO
+		# 下面会调用两次 @jwt.user_identity_loader 设置的回调函数
 		access_token = create_access_token(identity=userdata, additional_claims=other_info)
 		refresh_token = create_refresh_token(identity=userdata, additional_claims=other_info)
+		# --------- 通知Flask-Principal用户身份已变更 ------------
+		identity = Identity(id=username, auth_type='Bear-Token')
+		print(f"Principal-login -> identity: {identity}")
+		identity_changed.send(current_app._get_current_object(), identity=identity)
+		# -----------------------------------------------------
 		return jsonify(access_token=access_token, refresh_token=refresh_token)
 	else:
 		return api_abort(code=403, message="invalid password !")
+
+admin_permission = Permission(RoleNeed('admin'))
+normal_permission = Permission(RoleNeed('normal'))
+role_permission = admin_permission.union(normal_permission)
+
+@jwt_bp.get('/principal/admin')
+@jwt_required(refresh=False)
+@principal_jwt_verify   # 自定义装饰器
+@admin_permission.require(http_exception=403)
+def principal_admin_index():
+	return "<h1>Only if you are an admin !</h1>"
+
+@jwt_bp.get('/principal/normal')
+@jwt_required(refresh=False)
+@principal_jwt_verify
+@normal_permission.require(http_exception=403)
+def principal_normal_index():
+	return "<h1>Only if you are a normal user.</h1>"
+
+@jwt_bp.get('/principal/all')
+@jwt_required(refresh=False)
+@principal_jwt_verify
+@role_permission.require(http_exception=403)
+def principal_role_index():
+	return "<h1>If you are a user...</h1>"
