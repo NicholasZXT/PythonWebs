@@ -40,39 +40,3 @@ Flask有如下常用的ACL或者RBAC的扩展：
 + [~~Flask-ACL~~](https://mikeboers.github.io/Flask-ACL/): 没有版本信息，没找到GitHub仓库，文档内容很简单
 + [~~Flask-RBAC~~](https://flask-rbac.readthedocs.io/en/latest/): 2020.11后就没有更新版本，但是有commit，没到正式版
 
-
-------
-# JWT相关的库
-
-## itsdangerous
-
-[官网地址](https://itsdangerous.palletsprojects.com/en/2.2.x/), 此package属于 Pallet 项目（Flask项目同属）。
-
-itsdangerous库用于生成可靠签名和验证签名，提供了两个层次的抽象：
-+ `Signer`, 用于对指定字符串生成`bytes`的哈希摘要，一般不会直接使用这个层次的对象
-+ `Serializer`, 对`Signer`进行了一层封装，可以对一般性的数据进行序列化生成签名，**一般使用这个层次的接口即可**。
-
-提供的主要API如下：
-+ `Signer`, 最基本的摘要类
-+ `TimestampSigner`, 带时间戳的摘要类
-+ `Serializer`, 最基本的序列化类
-+ `TimedSerializer`, 带时间戳的序列化类
-+ URL相关的两个类：
-  + `URLSafeSerializer`
-  + `URLSafeTimedSerializer`
-+ 常用的验证异常：
-  + `BadData`
-  + `BadSignature`
-  + `BadTimeSignature`
-  + `SignatureExpired`
-
-注意，2.0.1 及其之前的版本里还有`JSONWebSignatureSerializer`和`TimedJSONWebSignatureSerializer`，但是后面被取消了，
-官方文档推荐使用 `authlib` 之类的专用JWT package 实现类似功能。
-
-------
-## Authlib
-
-官网地址 [Authlib: Python Authentication](https://docs.authlib.org/en/latest/).
-
-
-
