@@ -1,5 +1,5 @@
 """
-研究JWT相关package的使用.
+研究itsdangerous包的使用.
 """
 from itsdangerous import Signer, Serializer, TimestampSigner, TimedSerializer, URLSafeSerializer, URLSafeTimedSerializer
 from itsdangerous import BadData, BadSignature, BadTimeSignature, SignatureExpired

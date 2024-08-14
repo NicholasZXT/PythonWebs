@@ -1,11 +1,19 @@
 
-Python里认证+授权相关的package有如下几个：
+# 概述
+
+Python里认证+授权经常涉及的package有如下几个：
 + `passlib`: 专门用于对密码进行哈希散列的库
 + `itsdangerous`: 专门用于对数据进行签名，保证数据在不可信环境下的传输
 + `pyjwt`: 专门用于JWT的编码/解码
 + `python-jose`: The JavaScript Object Signing and Encryption (JOSE) 的Python版，
   提供了JSON Web Signature (JWS), JSON Web Token (JWT), JSON Web Key (JWK), JSON Web Encryption (JWE) 的签名方案.  
 + `authlib`: 用于构建 OAuth 和 OpenID Connect 服务的Python库，包含了用户认证+授权相关的全套内容.
+
+相比之下，`passlib`和`itsdangerous`都有各自明确专属的使用场景；`authlib`覆盖的范围很广，从JWT认证到OAuth2授权都有。   
+有明显竞争关系只有 `pyjwt` 和 `python-jose`，前者目前使用的范围更广，后者被FastAPI所采用，不过后者的文档写的不太好，没有提供详细的使用说明。   
+两者的一个简单对比可以参考如下博客和问答：
++ [StackShare: PyJWT VS Python-JOSE](https://stackshare.io/stackups/pypi-pyjwt-vs-pypi-python-jose)
++ [Github-FastAPI: Why python-jose is still recommended in the documentation when it is nearly abandoned](https://github.com/fastapi/fastapi/discussions/9587)
 
 ------
 # PassLib
@@ -57,7 +65,7 @@ pbkdf2_sha256.identify(hash)
 from passlib.context import CryptContext
 # 它的初始化参数是 passlib.hash 里的散列算法名称，本质上它内部会维护多个传入的哈希算法对象
 myctx = CryptContext(schemes=["sha256_crypt", "md5_crypt", "des_crypt"])
-# 指定默认使用的哈希算法，默认下会使用第一个配置的哈希算法
+# 指定默认使用的哈希算法，不指定时会使用第一个配置的哈希算法
 myctx = CryptContext(schemes=["sha256_crypt", "md5_crypt", "des_crypt"], default="des_crypt")
 
 # 使用时和原本的哈希算法接口一致
@@ -122,14 +130,79 @@ itsdangerous库用于生成可靠签名和验证签名，提供了两个层次�
 
 官网地址 [PyJWT](https://pyjwt.readthedocs.io/en/stable/).
 
+这个包专门用于生成JWT，写的非常精简，只依赖Python标准库，而且提供的接口也非常简单，只有3个：
++ `jwt.encode(payload, key, algorithm="HS256", headers=None, json_encoder=None)`: 用于将payload编码成JWT
++ `jwt.decode(jwt, key="", algorithms=None, options=None, audience=None, issuer=None, leeway=0)`: 用于验证并解码得到JWT
++ `jwt.api_jwt.decode_complete(jwt, key="", algorithms=None, options=None, audience=None, issuer=None, leeway=0)`: 也是
+  验证并解码JWT，但是会返回一个`dict`，里面的`header`, `payload`, `signature` 3个key分别对应各自的内容
+
+剩下的就是提供的各种异常类了，都在`jwt.exceptions`模块里。
+
+以下示例都来自官网：
+```python
+import jwt
+
+# 使用 HS256 算法编码/解码
+key = "secret"
+encoded = jwt.encode({"some": "payload"}, key, algorithm="HS256")
+print(encoded)
+# eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzb21lIjoicGF5bG9hZCJ9.4twFt5NiznN84AWoo1d7KO1T_yoc0Z6XOpOVswacPZg
+jwt.decode(encoded, key, algorithms="HS256")
+# {'some': 'payload'}
+
+# 使用 RS256(RSA) 算法编码/解码
+private_key = b"-----BEGIN PRIVATE KEY-----\nMIGEAgEAMBAGByqGSM49AgEGBS..."
+public_key = b"-----BEGIN PUBLIC KEY-----\nMHYwEAYHKoZIzj0CAQYFK4EEAC..."
+encoded = jwt.encode({"some": "payload"}, private_key, algorithm="RS256")
+print(encoded)
+# eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzb21lIjoicGF5bG9hZCJ9.4twFt5NiznN84AWoo1d7KO1T_yoc0Z6XOpOVswacPZg
+decoded = jwt.decode(encoded, public_key, algorithms=["RS256"])
+# {'some': 'payload'}
+
+# 设置 header 信息
+jwt.encode(
+    payload={"some": "payload"},
+    key="secret",
+    algorithm="HS256",
+    headers={"kid": "230498151c214b788dd97f22b85410a5"}
+)
+```
+
 
 ------
 # python-jose
 
 官网地址 [python-jose](https://python-jose.readthedocs.io/en/latest/).
 
+它的API分为4类：
++ JWS API
++ JWT API，它和上面的JWS API 是一样的，只不过生成的Token里有固定的一些信息
++ JWK API
++ JWE API
+
+这里只介绍 JWS/JWT 相关API使用。
+
+这个包用起来也很简单：
+```python
+from jose import jws, jwt
+
+# JWS 的api 只有 sign() 和 verify() 两个
+signed = jws.sign({'a': 'b'}, 'secret', algorithm='HS256')
+print(signed)
+# 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhIjoiYiJ9.jiMyrsmD8AoHWeQgmxZ5yq8z0lXS67_QGs52AzC8Ru8'
+jws.verify(signed, 'secret', algorithms=['HS256'])
+# {'a': 'b'}
+
+# JWT API 只有 encode() 和 decode() 两个
+key = 'some-key'
+token = jwt.encode(claims={'a': 'b'}, key=key)
+res = jwt.decode(token, key=key)
+```
+
 
 ------
 # Authlib
 
 官网地址 [Authlib: Python Authentication](https://docs.authlib.org/en/latest/).
+
+Authlib 是一个大而全的库，它包含了低层次的JWT生成，到高层次的OAuth认证以及Web框架的集成，旨在打造一站式的解决方案。
