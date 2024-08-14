@@ -3,6 +3,9 @@
 """
 from itsdangerous import Signer, Serializer, TimestampSigner, TimedSerializer, URLSafeSerializer, URLSafeTimedSerializer
 from itsdangerous import BadData, BadSignature, BadTimeSignature, SignatureExpired
+import jwt
+from datetime import datetime, timedelta
+
 
 if __name__ == '__main__':
     SECRET_KEY = 'secret-key'  # 加密的KEY，必须是随机的，以保证安全
@@ -80,6 +83,8 @@ if __name__ == '__main__':
     s3_rev = serializer_url.loads(s3)
     print(s3_rev)
     # 带时间戳的URL序列化摘要
+    # 特别要注意的是：URLSafeTimedSerializer看起来有类似JWT的功能，但是它可以序列化任何data（dict, list等），而且序列化后得到的摘要也并不符合
+    # JWT的标准格式，因此不推荐使用此函数来实现JWT功能
     serializer_url_time = URLSafeTimedSerializer(secret_key=SECRET_KEY, salt=salt)
     s3 = serializer_url_time.dumps(data)
     print(s3)
@@ -90,3 +95,18 @@ if __name__ == '__main__':
     except SignatureExpired as e:
         print("time expired ...")
         print(e)
+
+    # ---------------- PyJWT使用 ------------------
+    key = "secret"
+    algorithm = "HS256"
+    payload = {
+        'username': 'username',
+        'password': 'password',
+        'exp': datetime.utcnow() + timedelta(seconds=10)  # 使用 exp 设置一个过期时间戳，必须是 utc 时区
+    }
+    token = jwt.encode(payload=payload, key=key, algorithm=algorithm)
+    try:
+        jwt.decode(jwt=token, key=key, algorithms=[algorithm])
+        print("Signature valid!")
+    except jwt.ExpiredSignatureError as e:
+        print(f"Expired Signature: {e}")
