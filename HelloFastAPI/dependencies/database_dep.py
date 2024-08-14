@@ -11,7 +11,7 @@ Base = declarative_base()
 engine = create_engine(url=SQLALCHEMY_DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-def create_db_tables():
+def init_db_tables():
     Base.metadata.create_all(bind=engine)
 
 # 用于获取Session的依赖函数
