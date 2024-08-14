@@ -9,11 +9,21 @@ Python里认证+授权经常涉及的package有如下几个：
   提供了JSON Web Signature (JWS), JSON Web Token (JWT), JSON Web Key (JWK), JSON Web Encryption (JWE) 的签名方案.  
 + `authlib`: 用于构建 OAuth 和 OpenID Connect 服务的Python库，包含了用户认证+授权相关的全套内容.
 
-相比之下，`passlib`和`itsdangerous`都有各自明确专属的使用场景；`authlib`覆盖的范围很广，从JWT认证到OAuth2授权都有。   
-有明显竞争关系只有 `pyjwt` 和 `python-jose`，前者目前使用的范围更广，后者被FastAPI所采用，不过后者的文档写的不太好，没有提供详细的使用说明。   
-两者的一个简单对比可以参考如下博客和问答：
-+ [StackShare: PyJWT VS Python-JOSE](https://stackshare.io/stackups/pypi-pyjwt-vs-pypi-python-jose)
+对比上面的几个package，总结如下：
++ `passlib`的使用场景最为明确，只负责对密码进行哈希散列
++ `itsdangerous`的使用场景是对数据进行签名 
+  + 但是在2.0.1及其之前的版本里还提供了一个`JSONWebSignatureSerializer`和`TimedJSONWebSignatureSerializer` 实现JWS 的功能，
+    2.0.1 之后的版本里删除了这个类，不再提供JWS的功能
+  + 有一个类似的`URLSafeTimedSerializer`也有上述的类似功能
+  + 但是要明确的是：`itsdangerous` 提供的上述类，虽然看起来有类似JWT的功能，但实际上，**它生成的签名并不符合JWT的标准格式**，因此不推荐使用它来实现JWT功能
++ `authlib`覆盖的范围很广，从JWT认证到OAuth2授权都有。   
++ `pyjwt`和`python-jose`两者有竞争关系，前者目前使用的范围更广，后者被FastAPI所采用，不过后者的文档写的不太好，没有提供详细的使用说明。   
+  + 两者的一个简单对比可以参考博客[StackShare: PyJWT VS Python-JOSE](https://stackshare.io/stackups/pypi-pyjwt-vs-pypi-python-jose)
+
+不过根据当下情况来看，`python-jose`似乎已经失去维护了，最新的3.3.0版本发布于2021-06-05，之后就没有再发布过新版本了。   
+而且FastAPI从0.111.1版本开始，官方文档里的安全示例又转回了`pyjwt`（0.59版本从`pyjwt`转向的`python-jose`），详细说明参考如下文档：
 + [Github-FastAPI: Why python-jose is still recommended in the documentation when it is nearly abandoned](https://github.com/fastapi/fastapi/discussions/9587)
++ [FastAPI Release Note -> 0.111.1](https://fastapi.tiangolo.com/release-notes/#01111)
 
 ------
 # PassLib
@@ -124,6 +134,11 @@ itsdangerous库用于生成可靠签名和验证签名，提供了两个层次�
 注意，2.0.1 及其之前的版本里还有`JSONWebSignatureSerializer`和`TimedJSONWebSignatureSerializer`，但是后面被取消了，
 官方文档推荐使用 `authlib` 之类的专用JWT package 实现类似功能。
 
+特别要注意的是：
+> 不论是已过时的`JSONWebSignatureSerializer`/`TimedJSONWebSignatureSerializer`，还是`URLSafeSerializer`/`URLSafeTimedSerializer`，
+> 虽然它们看起来有类似JWT的功能，但是它们可以序列化任何data（dict, list等），而且**序列化后得到的摘要也并不符合JWT的标准格式**，
+> 因此不推荐使用这几个类来实现JWT功能，推荐使用下面的 PyJWT 或者 Authlib。
+
 
 ------
 # PyJWT
@@ -166,6 +181,24 @@ jwt.encode(
     algorithm="HS256",
     headers={"kid": "230498151c214b788dd97f22b85410a5"}
 )
+```
+对于JWT的过期时间校验，`pyjwt`也提供了支持，示例（官方文档 [Registered Claims Names](https://pyjwt.readthedocs.io/en/stable/usage.html#expiration-time-claim-exp)）如下：
+```python
+import jwt
+from datetime import datetime, timedelta
+key = "secret"
+algorithm = "HS256"
+payload = {
+    'username': 'username',
+    'password': 'password',
+    'exp': datetime.utcnow() + timedelta(seconds=10)  # 使用 exp 设置一个过期时间戳，必须是 utc 时区
+}
+token = jwt.encode(payload=payload, key=key, algorithm=algorithm)
+try:
+    jwt.decode(jwt=token, key=key, algorithms=[algorithm])
+    print("Signature valid!")
+except jwt.ExpiredSignatureError as e:
+    print(f"Expired Signature: {e}")
 ```
 
 
