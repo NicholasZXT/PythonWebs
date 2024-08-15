@@ -26,6 +26,7 @@ app = FastAPI(
         {"name": "User-App", "description": "展示 FastAPI 的数据库使用"},
         {"name": "Auth-JWT-App", "description": "展示 FastAPI 使用 Password-Bearer + JWT 实现令牌认证"}
     ],
+    include_in_schema=True,
     license_info={   # 配置API公开的许可证信息
         "name": "License info is here",
         "url": "https://license.example.com"
@@ -38,7 +39,7 @@ app = FastAPI(
 )
 
 @app.get(path='/', response_class=HTMLResponse, tags=['Hello'])
-def hello():
+def hello_fastapi():
     # 视图函数的 docstring 会显示在 Swagger UI 文档里每个接口下面
     """
     Hello World for FastAPI.
@@ -46,8 +47,9 @@ def hello():
     hello_str = "<h1>Hello FastAPI !</h1>"
     return HTMLResponse(content=hello_str)
 
-app.include_router(api_router, prefix="/api")
-app.include_router(user_router, prefix="/user_app")
+# 这里引入时使用的 prefix 会和实例化 APIRouter 时的 prefix 指定的前缀拼在一起
+app.include_router(api_router)
+app.include_router(user_router)
 app.include_router(auth_jwt_router, prefix="/auth_app")
 
 

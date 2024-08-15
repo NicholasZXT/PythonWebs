@@ -8,7 +8,13 @@ from .models import User
 from .schemas import UserItem, UserResponse
 from user_app import crud_actions
 
-user_router = APIRouter(tags=['User-App'])
+user_router = APIRouter(tags=['User-App'], prefix='/user_app')
+
+
+@user_router.get("/", tags=['Hello'])
+async def hello_user_app():
+    html = "<h1>Hello FastAPI for User App !</h1>"
+    return HTMLResponse(content=html)
 
 @user_router.post("/users/", response_model=UserItem)
 def create_user(user: UserItem, db: Session = Depends(get_db)):

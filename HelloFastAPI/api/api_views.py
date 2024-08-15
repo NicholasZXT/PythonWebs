@@ -9,14 +9,14 @@ from fastapi.encoders import jsonable_encoder
 from enum import Enum
 from .schemas import ItemBody, UserBody
 
-api_router = APIRouter(tags=['API-App'])
+api_router = APIRouter(tags=['API-App'], prefix='/api')
 
 
 # 路由装饰器的通用参数（和get,post,put无关）如下
 @api_router.get(
-    path='/hello',
+    path='/',
     # --- API文档相关参数 ---
-    tags=['Hello'],
+    tags=['Hello'],    # 这里给视图函数又设置了一个 'Hello' tag，那么此路由端点就会重复出现在两个 tag 下
     name='api-hello',  # 设置API文档中该路由接口的名称，和下面的summary类似，会优先显示summary，主要是用于反向查询
     summary='Hello summary for API',  # 设置 API 文档中该路由接口的名称，默认值为当前被装饰函数的名称
     # description='Hello description for API.',  # 设置 API 文档中对该路由功能的详细描述，支持Markdown，它会覆盖视图函数的 docstring ！
@@ -36,7 +36,7 @@ async def hello_api():
     """
     Hello api docstring...
     """
-    hello_str = "<h1>Hello API !</h1>"
+    hello_str = "<h1>Hello FastAPI for RESTful-APIs !</h1>"
     return HTMLResponse(content=hello_str)
 
 

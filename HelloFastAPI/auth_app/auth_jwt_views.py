@@ -13,9 +13,9 @@ from dependencies.auth_dep import oauth2_scheme, password_util, token_util, auth
 """
 auth_jwt_router = APIRouter(tags=['Auth-JWT-App'], prefix='/jwt')
 
-# 这里给视图函数又设置了一个 'Hello' tag，那么此路由端点就会重复出现在两个 tag 下
-@auth_jwt_router.get("/hello", tags=['Hello'])
-async def hello_auth():
+
+@auth_jwt_router.get("/", tags=['Hello'])
+async def hello_auth_jwt():
     html = "<h1>Hello FastAPI for Auth with JWT Demo !</h1>"
     return HTMLResponse(content=html)
 
