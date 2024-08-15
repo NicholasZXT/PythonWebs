@@ -1,1 +1,1 @@
-from .auth_views import auth_router
+from .auth_views import auth_jwt_router

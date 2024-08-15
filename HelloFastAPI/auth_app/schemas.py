@@ -1,5 +1,5 @@
-from typing import Union
 from pydantic import BaseModel
+from typing import Union
 
 class Token(BaseModel):
     access_token: str
@@ -8,4 +8,4 @@ class Token(BaseModel):
 
 class AuthUser(BaseModel):
     username: str
-    disabled: bool | None = None
+    disabled: Union[bool, None] = False
