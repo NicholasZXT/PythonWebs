@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from api import api_router
 from user_app import user_router
-from auth_app import auth_router
+from auth_app import auth_jwt_router
 
 app = FastAPI(
     debug=False,  # 调试参数
@@ -21,10 +21,10 @@ app = FastAPI(
         # name 是@app.get()中 tags= 参数值; description 是该组接口的描述
         # 这里的 tags 是用于对接口进行分组，而不是具体到每个端点的文档描述
         # 每个路由端点的文档描述，只需要在路由视图函数的docstring里写好，就会自动显示在 Swagger UI 和 ReDoc 上
-        {"name": "Hello", "description": "Hello World APIs in FastAPI"},
-        {"name": "API-App", "description": "APIs"},
-        {"name": "User-App", "description": "User App"},
-        {"name": "Auth-App", "description": "Auth App"}
+        {"name": "Hello", "description": "Hello World for FastAPI"},
+        {"name": "API-App", "description": "展示 FastAPI 请求/响应的基本使用"},
+        {"name": "User-App", "description": "展示 FastAPI 的数据库使用"},
+        {"name": "Auth-JWT-App", "description": "展示 FastAPI 使用 Password-Bearer + JWT 实现令牌认证"}
     ],
     license_info={   # 配置API公开的许可证信息
         "name": "License info is here",
@@ -48,12 +48,12 @@ def hello():
 
 app.include_router(api_router, prefix="/api")
 app.include_router(user_router, prefix="/user_app")
-app.include_router(auth_router, prefix="/auth_app")
+app.include_router(auth_jwt_router, prefix="/auth_app")
 
 
 if __name__ == "__main__":
     from dependencies.database_dep import init_db_tables
-    init_db_tables()
+    # init_db_tables()
     # 使用 uvicorn 运行 FastAPI 应用，可以参考 uvicorn 官网文档 https://www.uvicorn.org/#quickstart
     port = 8100
     # 第一种方式，其中的 main 对应的是 main.py 的文件名，不带后缀
