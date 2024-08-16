@@ -5,10 +5,7 @@ from configs import config
 from extensions import db
 from rest_app import restful_bp, ClassBasedViews, webargs_bp
 from auth_app.exts import login_manager, jwt, principal
-from auth_app.views_http_auth import http_auth_bp
-from auth_app.views_login_auth import login_bp
-from auth_app.views_jwt_auth import jwt_bp
-from auth_app.views_principal import principal_bp
+from auth_app import login_bp, http_auth_bp, jwt_bp, principal_bp
 from file_app import file_bp
 
 
