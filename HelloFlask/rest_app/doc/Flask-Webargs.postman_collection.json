@@ -1,0 +1,93 @@
+{
+	"info": {
+		"_postman_id": "dbb9f04f-5cff-4288-a651-24f56b1762b9",
+		"name": "Flask-Webargs",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "register-v1",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"username\": \"Someone\",\r\n    \"gender\": \"male\",\r\n    \"age\": 260,\r\n    \"email\": \"someone@python.org.com\",\r\n    \"password\": \"123456\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_ip}}/webargs/register/v1",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"webargs",
+						"register",
+						"v1"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "register-v2",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"username\": \"Someone\",\r\n    \"gender\": \"male\",\r\n    \"age\": 26,\r\n    \"email\": \"someone@python.org.com\",\r\n    \"password\": \"123456\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_ip}}/webargs/register/v2",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"webargs",
+						"register",
+						"v2"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "register-v3",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"username\": \"Someone\",\r\n    \"gender\": \"unknown\",\r\n    \"age\": 260,\r\n    \"email\": \"someone@python.org.com\",\r\n    \"password\": \"123456\"\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{base_ip}}/webargs/register/v3",
+					"host": [
+						"{{base_ip}}"
+					],
+					"path": [
+						"webargs",
+						"register",
+						"v3"
+					]
+				}
+			},
+			"response": []
+		}
+	]
+}
