@@ -3,8 +3,7 @@ import logging
 from flask import Flask
 from configs import config
 from extensions import db
-from rest_app.views_restful import restful_bp
-from rest_app.views_classful import ClassBasedViews
+from rest_app import restful_bp, ClassBasedViews, webargs_bp
 from auth_app.exts import login_manager, jwt, principal
 from auth_app.views_http_auth import http_auth_bp
 from auth_app.views_login_auth import login_bp
@@ -18,12 +17,13 @@ def create_app(config_name: str = 'dev'):
     config_obj = config.get(config_name)
     app.config.from_object(config_obj)
     # ------ 蓝图注册 ---------
-    app.register_blueprint(blueprint=http_auth_bp)
-    app.register_blueprint(blueprint=login_bp)
-    app.register_blueprint(blueprint=jwt_bp)
     app.register_blueprint(blueprint=restful_bp)
-    app.register_blueprint(blueprint=file_bp)
+    app.register_blueprint(blueprint=webargs_bp)
+    app.register_blueprint(blueprint=login_bp)
+    app.register_blueprint(blueprint=http_auth_bp)
+    app.register_blueprint(blueprint=jwt_bp)
     app.register_blueprint(blueprint=principal_bp)
+    app.register_blueprint(blueprint=file_bp)
     # ------ 初始化扩展 ---------
     db.init_app(app)
     app.db = db  # 设置一下，以便在 flask-shell 或者 with app.app_context() 里拿到 db 对象进行调试
