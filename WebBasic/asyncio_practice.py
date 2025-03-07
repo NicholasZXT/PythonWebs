@@ -17,7 +17,7 @@ def hello_generator(first_print, second_print):
     # 从 Python 3.3 开始，生成器函数末尾可以使用 return ，但是这个返回值实际上是放在抛出的 StopIteration 异常对象的 value 属性里
     return "hello_generator result"
 
-def hello_gengerator_check():
+def hello_generator_check():
     # 检查函数定义（没有调用之前）的对象
     print(hello_generator)
     # <function hello_generator at 0x0000029A69DD0CA0>
@@ -118,7 +118,7 @@ def hello_coroutine_check():
         t2.send(None)
     except StopIteration as e:
         r = e.value
-    print(r)
+        print(r)
 
 
 # --------------------------------------------------------------
@@ -217,7 +217,7 @@ def hello_await_check():
 async def hello_asyncio():
     print(f"hello_asyncio start")
     # 使用 await 的地方，会在之后的异步函数执行开始之后，暂停当前函数的执行，等到其他异步函数执行完了，再继续执行——这和正常函数调用栈一样
-    # 不同的地方在于，异步的调用只能保证顺序为 fun_1 > hello_coroutine('c1', 'c2')  > hello_coroutine('c3', 'c4')
+    # 不同的地方在于，异步的调用只能保证顺序为 current_fun > hello_coroutine('c1', 'c2')  > hello_coroutine('c3', 'c4')
     # 但是不能保证 hello_coroutine('c1', 'c2') 返回后马上继续执行 hello_coroutine('c3', 'c4')
     await hello_coroutine('c1', 'c2')
     await hello_coroutine('c3', 'c4')
