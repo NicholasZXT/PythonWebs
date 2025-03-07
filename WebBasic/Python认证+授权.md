@@ -33,21 +33,26 @@ JOSE全称是The JavaScript Object Signing and Encryption，常说的 JWT, JWS, 
 + [CSDN: 关于 JWT、JWS、JWE](https://blog.csdn.net/u012503481/article/details/125982508)
 + [51CTO: JWT、JWE、JWS 、JWK 到底是什么？该用 JWT 还是 JWS？](https://www.51cto.com/article/630971.html)
 + [Medium: JWT & JWE & JWS 大亂鬥！](https://blog.cssuen.tw/jwt-jwe-jws-%E5%A4%A7%E4%BA%82%E9%AC%A5-5ca68bebe426)
++ [JWT 基础概念详解](https://javaguide.cn/system-design/security/jwt-intro.html)
 + [Medium: What is JWT, JWS, JWE, and JWK? When we should use which token in our business applications](https://medium.com/@goynikhil/what-is-jwt-jws-jwe-and-jwk-when-we-should-use-which-token-in-our-business-applications-74ae91f7c96b)
 + [StackOverflow: What is the difference between JSON Web Signature (JWS) and JSON Web Token (JWT)?](https://stackoverflow.com/questions/27640930/what-is-the-difference-between-json-web-signature-jws-and-json-web-token-jwt)
 
 总结下来，大致就是如下几点： 
-+ JWT 定义了token的格式为 `{header}.{payload}.{signature}`： 
++ JWT(JSON Web Token) 定义了token的格式为 `JWTString = Base64(Header) + "." + Base64(Payload) + "." + Signature`： 
   + header是元数据，payload是实际数据（JSON格式），signature是签名，用于验证Token是否被篡改
   + header和payload都使用base64进行**明文**编码
-  + signature是可选项，如果没有signature，则被称为“Unsecured JWT”，此时header的`alg`字段应当为None 
-+ JWS 是在 Unsecured JWT 基础上，Header 部分声明签名算法，并添加 Signature 部分
+  + signature是可选项，如果没有signature，则被称为“Unsecured JWT”，此时header的`alg`字段应当为None
+> JWT是一个规范，它的实现一般要么是下面的 JWS，要么是 JWE.
++ JWS(JSON Web Signature) 是在 Unsecured JWT 基础上，Header 部分声明签名算法，并添加 Signature 部分
   + 这实际上就是RESTful-API里常用的JWT
   + JWS的格式和JWT是一样的，也是 3 段式
-+ JWE 是对JWT整体进行了加密，因为JWT（包括JWS）中payload部分并未加密
-  + JWE格式是 5 段式的：`JWEString = Base64(Header) + "." + Base64(Encrypted Key) + "." + Base64(Initialization Vector) + "." + Base64(Encrypted Data) + "." + Base64(Auth Tag)`
-+ JWK 是一个 JSON 格式的对象，表示加密用的密钥
-+ JWA 是 RFC7581 中规定的算法，用于 JWT 的签名或加密
++ JWE(JSON Web Encryption) 是对JWT整体进行了加密，因为JWT（包括JWS）中payload部分并未加密
+  + JWE格式是 5 段式的：
+```shell
+JWEString = Base64(Header) + "." + Base64(Encrypted Key) + "." + Base64(Initialization Vector) + "." + Base64(Encrypted Data) + "." + Base64(Auth Tag)
+```
++ JWK(JSON Web Key) 是一个 JSON 格式的对象，表示加密用的密钥
++ JWA(JSON Web Algorithms) 是 RFC7581 中规定的算法，用于 JWT 的签名或加密
 
 ------
 # PassLib
