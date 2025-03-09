@@ -2,7 +2,7 @@
 使用 SQL-Alchemy 定义 ORM 用到的表模型
 """
 from sqlalchemy import Column, ForeignKey, Integer, String, Boolean
-from dependencies.database_dep import Base
+from database import Base
 
 
 class User(Base):

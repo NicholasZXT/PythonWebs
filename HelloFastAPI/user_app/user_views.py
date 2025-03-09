@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, HTMLResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from dependencies.database_dep import get_db
+from database import get_db
 from .models import User
 from .schemas import UserItem, UserResponse
 from user_app import crud_actions
