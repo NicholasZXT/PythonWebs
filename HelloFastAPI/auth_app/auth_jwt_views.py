@@ -3,9 +3,9 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response, JSONResponse, PlainTextResponse, HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated, List
-from settings import AUTHORIZED_USERS, ACCESS_TOKEN_EXPIRE_SECONDS
+from config import settings
 from .schemas import Token, AuthUser
-from dependencies.auth_dep import oauth2_scheme, password_util, token_util, authenticate_user, get_user_roles, \
+from .dependencies import oauth2_scheme, password_util, token_util, authenticate_user, get_user_roles, \
     login_required_as_admin, login_required_as_other
 
 """
@@ -32,7 +32,7 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="The grant type must be password")
     if username is None or passwd is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Empty user or password is forbidden")
-    user_config = AUTHORIZED_USERS.get(username, {})
+    user_config = settings.AUTHORIZED_USERS.get(username, {})
     # print(f"user_config: {user_config}")
     passwd_to_check = user_config.get('passwd', '')
     # ----------------------------------------------------------------------------------------------------
@@ -42,7 +42,7 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
     #     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user or password")
     # ----------------------------------------------------------------------------------------------------
     # 这里简化起见，不做password的hash，直接比对密码
-    if username not in AUTHORIZED_USERS or passwd != passwd_to_check:
+    if username not in settings.AUTHORIZED_USERS or passwd != passwd_to_check:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user or password")
     # 用户名和密码校验通过，生成JWT
     token, expiration = token_util.generate_token(data={'username': username})

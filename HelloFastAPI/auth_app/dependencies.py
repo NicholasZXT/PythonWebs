@@ -5,7 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 from passlib.context import CryptContext
 import jwt
 
-from settings import SECRET_KEY, ALGORITHM, AUTHORIZED_USERS, ACCESS_TOKEN_EXPIRE_SECONDS
+from config import settings
 # 下面在pycharm中会提示报错（因为HelloFlask中也有一个auth_app），但实际不影响
 # from HelloFastAPI.auth_app.schemas import AuthUser
 from auth_app.schemas import AuthUser
@@ -67,7 +67,7 @@ class TokenUtil:
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 password_util = PasswordUtil(context=pwd_context)
 
-token_util = TokenUtil(secret_key=SECRET_KEY, algorithm=ALGORITHM, exp_default=ACCESS_TOKEN_EXPIRE_SECONDS)
+token_util = TokenUtil(secret_key=settings.SECRET_KEY, algorithm=settings.ALGORITHM, exp_default=settings.ACCESS_TOKEN_EXPIRE_SECONDS)
 
 
 async def authenticate_user(token: Annotated[str, Depends(oauth2_scheme)]):  # 这里使用了 OAuth2PasswordBearer 依赖来解析token
@@ -80,14 +80,14 @@ async def authenticate_user(token: Annotated[str, Depends(oauth2_scheme)]):  # �
     token_data = token_util.verify_token(token)
     print(f"token_data: {token_data}")
     username: str = token_data.get("username", None)
-    if username is None or username not in AUTHORIZED_USERS:
+    if username is None or username not in settings.AUTHORIZED_USERS:
         raise credentials_exception
     user = AuthUser(username=username)
     return user
 
 async def get_user_roles(token_data: Annotated[AuthUser, Depends(authenticate_user)]):
     username = token_data.username
-    user_roles = AUTHORIZED_USERS.get(username)['roles']
+    user_roles = settings.AUTHORIZED_USERS.get(username)['roles']
     return user_roles
 
 # 下面的依赖，仿照的是 flask_httpauth 的 HTTPTokenAuth 功能来做的，实现类似于 HTTPTokenAuth 的 login_required 装饰器的作用

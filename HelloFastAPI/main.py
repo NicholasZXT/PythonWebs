@@ -54,7 +54,7 @@ app.include_router(auth_jwt_router, prefix="/auth_app")
 
 
 if __name__ == "__main__":
-    from dependencies.database_dep import init_db_tables
+    from database import init_db_tables
     # init_db_tables()
     # 使用 uvicorn 运行 FastAPI 应用，可以参考 uvicorn 官网文档 https://www.uvicorn.org/#quickstart
     port = 8100
