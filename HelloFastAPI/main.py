@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from api import api_router
 from user_app import user_router
-from auth_app import auth_jwt_router
+from auth_app import custom_jwt_router, login_router
 from api import rest_router, MyResource
 # from api import controller
 
@@ -26,7 +26,7 @@ app = FastAPI(
         {"name": "Hello", "description": "Hello World for FastAPI"},
         {"name": "API-App", "description": "展示 FastAPI 请求/响应的基本使用"},
         {"name": "User-App", "description": "展示 FastAPI 的数据库使用"},
-        {"name": "Auth-JWT-App", "description": "展示 FastAPI 使用 Password-Bearer + JWT 实现令牌认证"}
+        {"name": "Auth-App-Custom-JWT", "description": "展示 FastAPI 使用 Password-Bearer + 自定义JWT验证 实现令牌认证"}
     ],
     include_in_schema=True,
     license_info={   # 配置API公开的许可证信息
@@ -53,7 +53,8 @@ def hello_fastapi():
 app.include_router(api_router)
 # # app.include_router(api_router, prefix="/api_prefix")
 app.include_router(user_router)
-app.include_router(auth_jwt_router)
+app.include_router(custom_jwt_router)
+app.include_router(login_router)
 
 # fastapi-utils的CBV使用
 # --- 第1种方式，用起来不错
