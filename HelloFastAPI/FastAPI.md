@@ -32,6 +32,26 @@ pip install fastapi-sqlalchemy
 # conda暂无
 ```
 
+RESTful：
+- [FastAPI-Utils](https://fastapi-utils.davidmontague.xyz/)
+  - 未发布正式版，v0.6.0发布于2024年，缓慢更新中
+  - 提供的CBV用起来不错
+```shell
+pip install fastapi-restful  # For basic slim package :)
+pip install fastapi-restful[session]  # To add sqlalchemy session maker
+pip install fastapi-restful[all]  # For all the packages
+conda install -c conda-forge fastapi-restful 
+```
+- [FastAPI-Router-Controller](https://github.com/KiraPC/fastapi-router-controller)
+  - 未发布正式版，v0.5.0发布于2022年，后续未更新
+  - 此插件源代码比较少，可以看看
+  - 此插件不是很好用，不推荐
+```shell
+pip install fastapi-router-controller
+# conda暂无
+```
+
+
 认证：
 - [FastAPI-Login](https://fastapi-login.readthedocs.io/), [Github地址](https://github.com/MushroomMaula/fastapi_login)
   - 已发布正式版(v1.10.3)，持续更新中 
@@ -79,22 +99,6 @@ pip install fastapi-jwt-auth
 # 暂未上架PyPI
 ```
 
-
-RESTful：
-- [FastAPI-Router-Controller](https://github.com/KiraPC/fastapi-router-controller)
-  - 未发布正式版，v0.5.0发布于2022年，后续未更新
-```shell
-pip install fastapi-router-controller
-# conda暂无
-```
-- [FastAPI-Utils](https://fastapi-utils.davidmontague.xyz/)
-  - 未发布正式版，v0.6.0发布于2024年，缓慢更新中 
-```shell
-pip install fastapi-restful  # For basic slim package :)
-pip install fastapi-restful[session]  # To add sqlalchemy session maker
-pip install fastapi-restful[all]  # For all the packages
-conda install -c conda-forge fastapi-restful 
-```
 
 ----------
 # 认证&授权

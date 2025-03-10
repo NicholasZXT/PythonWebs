@@ -4,6 +4,8 @@ from fastapi.responses import HTMLResponse
 from api import api_router
 from user_app import user_router
 from auth_app import auth_jwt_router
+from api import rest_router, MyResource
+# from api import controller
 
 app = FastAPI(
     debug=False,  # 调试参数
@@ -18,7 +20,7 @@ app = FastAPI(
     openapi_url="/openapi.json",  # 配置访问 openapi_json.json 文件路径，此处为默认值
     openapi_tags=[  # 配置接口分组的描述信息
         # 用于自定义描述 一组 接口的文档，是一个list of dict，每个dict必须有两个key:
-        # name 是@app.get()中 tags= 参数值; description 是该组接口的描述
+        # name 是@app.get()中 tags= 参数值; description 是该组接口的描述；即使该 tag 下没有路由，也会显示在文档页面上
         # 这里的 tags 是用于对接口进行分组，而不是具体到每个端点的文档描述
         # 每个路由端点的文档描述，只需要在路由视图函数的docstring里写好，就会自动显示在 Swagger UI 和 ReDoc 上
         {"name": "Hello", "description": "Hello World for FastAPI"},
@@ -47,10 +49,23 @@ def hello_fastapi():
     hello_str = "<h1>Hello FastAPI !</h1>"
     return HTMLResponse(content=hello_str)
 
-# 这里引入时使用的 prefix 会和实例化 APIRouter 时的 prefix 指定的前缀拼在一起
+# 这里引入时使用的 prefix 会和实例化 APIRouter 时的 prefix 指定的前缀拼在一起，并且此处设置的 prefix 在前面
 app.include_router(api_router)
+# # app.include_router(api_router, prefix="/api_prefix")
 app.include_router(user_router)
-app.include_router(auth_jwt_router, prefix="/auth_app")
+app.include_router(auth_jwt_router)
+
+# fastapi-utils的CBV使用
+# --- 第1种方式，用起来不错
+app.include_router(rest_router)
+# --- 第2种方式，不好用，不推荐
+# from fastapi_restful import Api
+# api = Api(app)
+# my_resource = MyResource()
+# api.add_resource(my_resource, "/rest/resource")
+
+# fastapi-router-controller插件提供的CBV并不好用
+# app.include_router(controller.router)
 
 
 if __name__ == "__main__":
