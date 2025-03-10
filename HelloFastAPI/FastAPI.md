@@ -55,14 +55,15 @@ pip install fastapi-router-controller
 认证：
 - [FastAPI-Login](https://fastapi-login.readthedocs.io/), [Github地址](https://github.com/MushroomMaula/fastapi_login)
   - 已发布正式版(v1.10.3)，持续更新中 
+  - 和Flask-Login插件不一样，这个主要提供基于JWT的认证（也支持基于session+cookies的认证），用法和Flask-Login类似，并且还提供了token生成和验证功能
 ```shell
 pip install fastapi-login
 # conda暂无
 ```
 - [AuthX](https://authx.yezz.me/)，gthub地址：[AuthX](https://github.com/yezz123/AuthX?tab=readme-ov-file)
-  - 已发布正式版(v1.4.1)，持续更新中 
-  - 支持JWT
+  - 已发布正式版(v1.4.1)，持续更新中
   - 此插件唯一的要求就是Pydantic 的版本要求 >= 2.0.0
+  - 支持JWT，使用起来也比较方便
 ```shell
 pip install authx
 # conda暂无
@@ -70,13 +71,14 @@ pip install authx
 - [FastAPI Users](https://fastapi-users.github.io/fastapi-users/latest/)
   - 已发布正式版(v14.0.1)，持续更新中 
   - 此插件对于sqlalchemy的版本要求 >= 2.0.0
-  - 此插件属于比较重的插件，依赖比较多，类似于Flask-Security，管的有点多
+  - 此插件属于比较重的插件，依赖比较多，类似于Flask-Security，管的有点多，因为包含了用户管理的功能
 ```shell
 pip install 'fastapi-users[sqlalchemy]'
 conda install -c conda-forge fastapi-users
 ```
 - [FastAPI-Auth-JWT](https://deepmancer.github.io/fastapi-auth-jwt/)，[Github地址](https://github.com/deepmancer/fastapi-auth-jwt)
   - 未到正式版，当前只到v0.1.11，但是项目于2024年发布，目前一直在更新中
+  - 初步体验，使用也比较简单，有待后续
 ```shell
 pip install fastapi-auth-jwt
 # conda暂无
@@ -92,6 +94,13 @@ pip install fastapi-security[oauth2]
   - 未到正式版，v0.5.0版本发布于2020年，后续未更新 
 ```shell
 pip install fastapi-jwt-auth
+# conda暂无
+```
+- [FastAPI-permissions](https://github.com/holgi/fastapi-permissions)
+  - Row-level 权限控制
+  - 未到正式版，v0.2.7版本发布于2020年，后续未更新 
+```shell
+pip install fastapi_permissions
 # conda暂无
 ```
 - [FastAPI Auth](https://github.com/dmontagu/fastapi-auth)
