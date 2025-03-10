@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response, JSONResponse, PlainTextResponse, HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated, List
-from HelloFastAPI.config import settings
+from config import settings
 from .schemas import Token, AuthUser
 from .dependencies import oauth2_scheme, password_util, token_util, authenticate_user, get_user_roles, \
     login_required_as_admin, login_required_as_other
