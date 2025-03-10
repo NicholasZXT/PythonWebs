@@ -42,7 +42,7 @@ pip install fastapi-restful[session]  # To add sqlalchemy session maker
 pip install fastapi-restful[all]  # For all the packages
 conda install -c conda-forge fastapi-restful 
 ```
-- [FastAPI-Router-Controller](https://github.com/KiraPC/fastapi-router-controller)
+- [~~FastAPI-Router-Controller~~](https://github.com/KiraPC/fastapi-router-controller)
   - 未发布正式版，v0.5.0发布于2022年，后续未更新
   - 此插件源代码比较少，可以看看
   - 此插件不是很好用，不推荐
@@ -55,7 +55,8 @@ pip install fastapi-router-controller
 认证：
 - [FastAPI-Login](https://fastapi-login.readthedocs.io/), [Github地址](https://github.com/MushroomMaula/fastapi_login)
   - 已发布正式版(v1.10.3)，持续更新中 
-  - 和Flask-Login插件不一样，这个主要提供基于JWT的认证（也支持基于session+cookies的认证），用法和Flask-Login类似，并且还提供了token生成和验证功能
+  - 和Flask-Login插件不一样，这个主要提供基于JWT的认证（也支持基于session+cookies的认证），用法和Flask-Login类似
+  - 此插件提供了token生成和验证功能，但没有提供双token刷新认证功能，不过是作者有意不添加此功能的，参见Issue[refresh token function #45](https://github.com/MushroomMaula/fastapi_login/issues/45)
 ```shell
 pip install fastapi-login
 # conda暂无
@@ -83,14 +84,14 @@ conda install -c conda-forge fastapi-users
 pip install fastapi-auth-jwt
 # conda暂无
 ```
-- [FastAPI Security](https://jacobsvante.github.io/fastapi-security/), [Github地址](https://github.com/jacobsvante/fastapi-security)
+- [~~FastAPI Security~~](https://jacobsvante.github.io/fastapi-security/), [Github地址](https://github.com/jacobsvante/fastapi-security)
   - 未到正式版，v.0.5.0发布于2022年，后续未更新 
 ```shell
 pip install fastapi-security
 pip install fastapi-security[oauth2]
 # conda暂无
 ```
-- [FastAPI-JWT-Auth](https://indominusbyte.github.io/fastapi-jwt-auth/)，[Github地址](https://github.com/IndominusByte/fastapi-jwt-auth?tab=readme-ov-file)
+- [~~FastAPI-JWT-Auth~~](https://indominusbyte.github.io/fastapi-jwt-auth/)，[Github地址](https://github.com/IndominusByte/fastapi-jwt-auth?tab=readme-ov-file)
   - 未到正式版，v0.5.0版本发布于2020年，后续未更新 
 ```shell
 pip install fastapi-jwt-auth
@@ -103,7 +104,7 @@ pip install fastapi-jwt-auth
 pip install fastapi_permissions
 # conda暂无
 ```
-- [FastAPI Auth](https://github.com/dmontagu/fastapi-auth)
+- [~~FastAPI Auth~~](https://github.com/dmontagu/fastapi-auth)
 ```shell
 # 暂未上架PyPI
 ```
