@@ -8,7 +8,10 @@ from .models import User
 from .schemas import UserItem, UserResponse
 from user_app import crud_actions
 
-user_router = APIRouter(tags=['User-App'], prefix='/user_app')
+user_router = APIRouter(
+    prefix='/user_app',
+    tags=['User-App']
+)
 
 
 @user_router.get("/", tags=['Hello'])

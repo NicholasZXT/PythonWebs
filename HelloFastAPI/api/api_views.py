@@ -9,7 +9,10 @@ from fastapi.encoders import jsonable_encoder
 from enum import Enum
 from .schemas import ItemBody, UserBody
 
-api_router = APIRouter(tags=['API-App'], prefix='/api')
+api_router = APIRouter(
+    prefix='/api',
+    tags=['API-App']
+)
 
 
 # 路由装饰器的通用参数（和get,post,put无关）如下
@@ -142,13 +145,17 @@ def get_param_mix(
 
 # ------------------- 展示路由视图函数的 请求报文 获取 -------------------
 @api_router.post("/req/data/{page}", tags=['API-Request'], response_class=JSONResponse)
-async def get_request_data(request: Request, item: ItemBody, page: int, limit: int):  # 视图函数中显式声明 Request 参数后，就可以获取请求对象
+async def get_request_data(request: Request, item: ItemBody, page: int, limit: int):
+    # 视图函数中显式声明 Request 参数后，就可以获取请求对象，但要注意的是，该对象的方法都是异步方法
     """获取请求信息"""
     # 下面这 3 个方法都是协程方法，所以只能在异步视图函数中使用
     form_data = await request.form()
     json_data = await request.json()
     body_data = await request.body()
     return {
+        "item": item,
+        "page": page,
+        "limit": limit,
         # request.url 是一个 URL 对象，封装了一些属性
         'request.url.scheme': request.url.scheme,
         'request.url.port': request.url.port,
@@ -164,7 +171,12 @@ async def get_request_data(request: Request, item: ItemBody, page: int, limit: i
 
 
 # ------------------- 展示路由视图函数的 响应报文 返回 -------------------
-@api_router.get("/res/default1", tags=['API-Response'])
+@api_router.get(
+    path="/res/default1",
+    tags=['API-Response']
+    # 下面这个设置写不写无所谓，
+    , response_class=JSONResponse
+)
 def get_response_default1():
     """默认响应报文就是JSON"""
     return {"Hello": "World"}
@@ -175,9 +187,9 @@ def get_response_default2():
     # 字符串也会被转成JSON
     return "<h1>Hello FastAPI !</h1>"
 
-@api_router.get("/res/json", tags=['API-Response'])
+@api_router.get("/res/json", tags=['API-Response'], response_class=JSONResponse)
 def get_response_json():
-    """指定返回JSON"""
+    """指定返回JSON的完整写法"""
     # 完整写法
     data = {"Hello": "World"}
     json_compatible_item_data = jsonable_encoder(data)

@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response, JSONResponse, PlainTextResponse, HTMLResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated, List
-from config import settings
+from HelloFastAPI.config import settings
 from .schemas import Token, AuthUser
 from .dependencies import oauth2_scheme, password_util, token_util, authenticate_user, get_user_roles, \
     login_required_as_admin, login_required_as_other
@@ -11,7 +11,10 @@ from .dependencies import oauth2_scheme, password_util, token_util, authenticate
 """
 展示FastAPI下，使用 Bearer JWT 令牌的验证方式
 """
-auth_jwt_router = APIRouter(tags=['Auth-JWT-App'], prefix='/jwt')
+auth_jwt_router = APIRouter(
+    prefix='/auth_app',
+    tags=['Auth-JWT-App']
+)
 
 
 @auth_jwt_router.get("/", tags=['Hello'])
