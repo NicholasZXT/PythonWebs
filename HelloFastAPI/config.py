@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_SECONDS: int = 60 * 10
     AUTHORIZED_USERS: Dict = {
-        'admin': {'passwd': 'admin', 'roles': ['admin']},
+        'admin': {'passwd': 'admin', 'roles': ['admin', 'others']},
         'yourself': {'passwd': 'people', 'roles': ['others']},
     }
 

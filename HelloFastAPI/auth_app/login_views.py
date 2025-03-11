@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Security
+from fastapi import APIRouter, Depends, HTTPException, status, Security, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm, SecurityScopes
 from typing import Annotated, List
 from fastapi_login.exceptions import InvalidCredentialsException
 
@@ -37,15 +37,31 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 
 @login_router.get("/protected")
-def protected_route(user=Depends(login_manager)):
-    return {"user": user}
+async def protected_route(user: AuthUser = Depends(login_manager)):
+    """ 测试视图函数登录时需要验证用户 """
+    # Depends(login_manager)的返回值就是 @login_manager.user_loader() 注册函数的返回值
+    return {"user": user.username}
+
+
+@login_router.get("/protected/v2", dependencies=[Depends(login_manager)])
+async def protected_route_v2(request: Request):
+    """ 测试视图函数登录时需要验证用户-v2 """
+    # 在视图函数中获取当前用户的另一种方法
+    token = await login_manager._get_token(request)
+    user = await login_manager.get_current_user(token)
+    return {"user": user.username}
 
 
 @login_router.get("/test_admin", response_class=JSONResponse)
 def test_admin(user: AuthUser = Security(login_manager, scopes=['admin'])):
-    return {"user": user, "roles": user.roles}
+    """ 验证用户同时，还要验证 scopes"""
+    # 使用 FastAPI 提供的 Security 函数来接受需要校验的 scopes 列表，Security 类似于 Depends
+    # 实际的 scopes 校验流程是在 LoginManager 的 __call__ 方法里执行的，该方法有一个参数 SecurityScopes，
+    # 它是 FastAPI 提供的类似于 Request 的类，专门用于获取 Security 中的 scopes 列表？ —— 这一点有待深入研究
+    # scopes 是一个列表，要求其中所有的scope都含有时才能通过验证
+    return {"user": user.username, "roles": user.roles}
 
 
 @login_router.get("/test_others", response_class=JSONResponse)
-def test_admin(user: AuthUser = Security(login_manager, scopes=['admin', 'others'])):
-    return {"user": user, "roles": user.roles}
+def test_other(user: AuthUser = Security(login_manager, scopes=['others'])):
+    return {"user": user.username, "roles": user.roles}

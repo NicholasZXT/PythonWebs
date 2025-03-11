@@ -1,7 +1,7 @@
 from typing import Annotated, Union, List, Set
 from datetime import datetime, timedelta, timezone
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import OAuth2PasswordBearer, SecurityScopes
 from passlib.context import CryptContext
 import jwt
 
@@ -116,6 +116,7 @@ login_required_as_other = LoginRequired(accept_roles={'admin', 'others'})
 
 
 # ------------------------- FastAPI-Login 相关依赖 -------------------------
+# LoginManager 类继承自 OAuth2PasswordBearer
 login_manager = LoginManager(
     secret=settings.SECRET_KEY,
     token_url="/auth_app/fastapi_login/login",
@@ -124,16 +125,18 @@ login_manager = LoginManager(
     use_header=True,
     cookie_name="access_token",
     default_expiry=timedelta(seconds=settings.ACCESS_TOKEN_EXPIRE_SECONDS),
-    # 这个 scopes 是父类 OAuth2PasswordBearer 提供的功能
+    # 这个 scopes 是父类 OAuth2PasswordBearer 提供的功能，这里传入的scopes会在 SwaggerUI 界面的 Authorize 里显示，
+    # 告诉用户登录时，可以传入的scope，并不是起到限制作用
     scopes={'admin': 'Admin role', 'others': 'Guest role'}
 )
 
 # 和 Flask-Login 类似，FastAPI-Login也需要使用装饰器来定义一个用户加载函数
-@login_manager.user_loader
+@login_manager.user_loader()
 def load_user(user_name: str) -> AuthUser | None:
+    """此函数的返回值就是后续依赖FastAPI-LoginManager的返回值"""
     user = settings.AUTHORIZED_USERS.get(user_name, None)
     if user:
-        return AuthUser(username=user.get('username'), roles=user.get('roles'))
+        return AuthUser(username=user_name, roles=user.get('roles'))
     else:
         return None
 
