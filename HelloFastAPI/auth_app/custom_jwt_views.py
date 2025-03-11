@@ -23,7 +23,7 @@ async def hello_auth_jwt():
     return HTMLResponse(content=html)
 
 # 下面这个视图函数的 URL 需要在 OAuth2PasswordBearer 实例化时的 tokenUrl 里指定，才能在 API 文档界面使用 Authorize 按钮的功能
-@custom_jwt_router.post("/get_token", response_model=Token)
+@custom_jwt_router.post("/login", response_model=Token)
 async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
     # OAuth2PasswordRequestForm 表示从表单获取用户名和密码，并且key必须为 username 和 password
     """ 登录并获取用户的JWT """

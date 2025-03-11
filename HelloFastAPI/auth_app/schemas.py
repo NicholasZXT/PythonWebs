@@ -10,3 +10,7 @@ class AuthUser(BaseModel):
     username: str
     roles: List[str] = None
     disabled: Union[bool, None] = False
+
+
+class RefreshBody(BaseModel):
+    refresh_token: str

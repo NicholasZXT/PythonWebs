@@ -8,12 +8,20 @@ import jwt
 from config import settings
 from auth_app.schemas import AuthUser
 from fastapi_login import LoginManager
+from authx import AuthX, AuthXConfig
 
+# OAuth2PasswordBearer（或者其他fastapi.security里的认证类）在SwaggerUI上对应的是 Authorize 按钮里的验证，
+# 但能在 SwaggerUI 里显示的前提是对应router里的某个视图函数里依赖了 OAuth2PasswordBearer 才能显示，否则不会出现在SwaggerUI里
+# 说白了，就是要求：
+# 1. 下面的 oauth2_scheme/login_manger 对象在 custom_jwt_router/login_router 里的某个视图函数里被依赖
+# 2. custom_jwt_router/login_router 被 main.py 里的 FastAPI 对象 include
+# 满足上面两个条件，FastAPI 对象才知道某个视图函数中使用了 security 里的对象，才会在 SwaggerUI 显示 Authorize 按钮
+# 并且如果有多个 OAuth2PasswordBearer（及其子类）实例对象，Authorize 里也会显示多个登录验证框
 
 # ------------------------- 自己实现的 JWT 登录验证过程相关依赖 -------------------------
 # tokenUrl 的作用是指定 API 文档界面的 Authorize 按钮进行身份验证时要请求的URL，
 # 这个设置错误的话，API 文档界面就无法使用 Authorize 功能，不过不影响接口的正常使用
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth_app/jwt/get_token")
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth_app/custom/login")
 
 # 下面是处理 token 认证的实现依赖。
 # 所有的依赖，最里层都必须要依赖于 OAuth2PasswordBearer 类的实例对象 oauth2_scheme，因为 oauth2_scheme 会负责从请求中解析 token 相关的信息。
@@ -141,9 +149,20 @@ def load_user(user_name: str) -> AuthUser | None:
         return None
 
 
-
 # ------------------------- AuthX 相关依赖 -------------------------
+authx_config = AuthXConfig()
+authx_config.JWT_ALGORITHM = "HS256"
+authx_config.JWT_SECRET_KEY = settings.SECRET_KEY
+# 默认 Token 获取位置
+# authx_config.JWT_TOKEN_LOCATION = ["headers"]
+authx_config.JWT_TOKEN_LOCATION = ["headers", "json"]
+# 默认token过期时间
+authx_config.JWT_ACCESS_TOKEN_EXPIRES = timedelta(minutes=15)
+authx = AuthX(config=authx_config)
 
+# AuthX 的一个问题是，它没有继承 fastapi.security 里的 OAuth2PasswordBearer 等类，所以无法在 SwaggerUI 界面显示 Authorize 按钮
+# 下面采用了一个取巧的办法，声明一个 OAuth2PasswordBearer，在 authx_router 里随便引入一下这个依赖
+authx_scheme = OAuth2PasswordBearer(tokenUrl="auth_app/authx/login", scheme_name="AuthX")
 
 
 # ------------------------- fastapi-auth-jwt 相关依赖 -------------------------

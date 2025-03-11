@@ -56,15 +56,17 @@ pip install fastapi-router-controller
 - [FastAPI-Login](https://fastapi-login.readthedocs.io/), [Github地址](https://github.com/MushroomMaula/fastapi_login)
   - 已发布正式版(v1.10.3)，持续更新中 
   - 和Flask-Login插件不一样，这个主要提供基于JWT的认证（也支持基于session+cookies的认证），用法和Flask-Login类似
-  - 此插件提供了token生成和验证功能，但没有提供双token刷新认证功能，不过是作者有意不添加此功能的，参见Issue[refresh token function #45](https://github.com/MushroomMaula/fastapi_login/issues/45)
+  - 此插件提供了token生成和验证功能，**支持 scope 权限控制**
+  - 但**没有提供双token刷新**认证功能，不过是作者有意不添加此功能的，参见Issue[refresh token function #45](https://github.com/MushroomMaula/fastapi_login/issues/45)
 ```shell
 pip install fastapi-login
 # conda暂无
 ```
 - [AuthX](https://authx.yezz.me/)，gthub地址：[AuthX](https://github.com/yezz123/AuthX?tab=readme-ov-file)
   - 已发布正式版(v1.4.1)，持续更新中
-  - 此插件唯一的要求就是Pydantic 的版本要求 >= 2.0.0
-  - 支持JWT，使用起来也比较方便
+  - 此插件比较高的要求就是Pydantic 的版本要求 >= 2.0.0
+  - 支持JWT，**支持双token刷新**认证功能
+  - 但是**不支持 scope 权限控制**
 ```shell
 pip install authx
 # conda暂无
