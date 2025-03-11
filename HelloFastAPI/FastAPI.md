@@ -53,6 +53,9 @@ pip install fastapi-router-controller
 
 
 认证：
+> 总结：
+> + JWT认证功能的话，FastAPI-Login最好用，其次是 AuthX
+
 - [FastAPI-Login](https://fastapi-login.readthedocs.io/), [Github地址](https://github.com/MushroomMaula/fastapi_login)
   - 已发布正式版(v1.10.3)，持续更新中 
   - 和Flask-Login插件不一样，这个主要提供基于JWT的认证（也支持基于session+cookies的认证），用法和Flask-Login类似
@@ -81,7 +84,8 @@ conda install -c conda-forge fastapi-users
 ```
 - [FastAPI-Auth-JWT](https://deepmancer.github.io/fastapi-auth-jwt/)，[Github地址](https://github.com/deepmancer/fastapi-auth-jwt)
   - 未到正式版，当前只到v0.1.11，但是项目于2024年发布，目前一直在更新中
-  - 初步体验，使用也比较简单，有待后续
+  - 以中间件的形式提供JWT认证，不太好
+  - 不提供双token刷新，也不提供scope权限控制
 ```shell
 pip install fastapi-auth-jwt
 # conda暂无
