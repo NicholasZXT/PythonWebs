@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
 from api import api_router
 from user_app import user_router
-from auth_app import custom_jwt_router, login_router
+from auth_app import custom_jwt_router, login_router, authx_router
 from api import rest_router, MyResource
 # from api import controller
 
@@ -49,12 +49,19 @@ def hello_fastapi():
     hello_str = "<h1>Hello FastAPI !</h1>"
     return HTMLResponse(content=hello_str)
 
+
 # 这里引入时使用的 prefix 会和实例化 APIRouter 时的 prefix 指定的前缀拼在一起，并且此处设置的 prefix 在前面
 app.include_router(api_router)
 # # app.include_router(api_router, prefix="/api_prefix")
 app.include_router(user_router)
+
+# JWT认证相关Router
+# 注意，custom_jwt_router 和 login_router 里都设置了一个 OAuth2PasswordBearer，那么在 SwaggerUI 界面的 Authorize 里会显示两个登录验证的地方
+# 如果下面没有 include_router，那么 SwaggerUI 界面的 Authorize 里就不显示对应的登录验证框
 app.include_router(custom_jwt_router)
 app.include_router(login_router)
+# AuthX 的最大问题是，它没有继承 fastapi.security 里的 OAuth2PasswordBearer 等类，所以默认情况下无法在 SwaggerUI 界面显示 Authorize 按钮
+app.include_router(authx_router)
 
 # fastapi-utils的CBV使用
 # --- 第1种方式，用起来不错
