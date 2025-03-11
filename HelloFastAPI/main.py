@@ -59,9 +59,22 @@ app.include_router(user_router)
 # 注意，custom_jwt_router 和 login_router 里都设置了一个 OAuth2PasswordBearer，那么在 SwaggerUI 界面的 Authorize 里会显示两个登录验证的地方
 # 如果下面没有 include_router，那么 SwaggerUI 界面的 Authorize 里就不显示对应的登录验证框
 app.include_router(custom_jwt_router)
+# FastAPI-Login视图
 app.include_router(login_router)
-# AuthX 的最大问题是，它没有继承 fastapi.security 里的 OAuth2PasswordBearer 等类，所以默认情况下无法在 SwaggerUI 界面显示 Authorize 按钮
+# AuthX 视图
+# AuthX的一个问题是，它没有继承 fastapi.security 里的 OAuth2PasswordBearer 等类，所以默认情况下无法在 SwaggerUI 界面显示 Authorize 按钮
 app.include_router(authx_router)
+
+# FastAPI-Auth-JWT使用，它需要以中间件的方式注册，这一点不太好 —— 不推荐
+# from fastapi_auth_jwt import JWTAuthenticationMiddleware
+# from auth_app.dependencies import auth_backend
+# app.add_middleware(
+#     middleware_class=JWTAuthenticationMiddleware,
+#     backend=auth_backend,
+#     exclude_urls=["/auth_app/auth_jwt/login", "/auth_app/auth_jwt/sign-up"],  # Public endpoints
+# )
+# from auth_app.auth_jwt_views import auth_jwt_router
+# app.include_router(auth_jwt_router)
 
 # fastapi-utils的CBV使用
 # --- 第1种方式，用起来不错
