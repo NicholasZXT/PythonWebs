@@ -1,5 +1,6 @@
 """
 练习 SQL Alchemy 的 Core，以 1.4 版本为例
+2.0 版本 Core 的使用语法基本没有变化。
 """
 import logging
 from urllib import parse
