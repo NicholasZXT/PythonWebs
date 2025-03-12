@@ -4,7 +4,7 @@ from fastapi.responses import HTMLResponse
 from api import api_router
 from user_app import user_router
 from auth_app import custom_jwt_router, login_router, authx_router
-from api import rest_router, MyResource
+from api import rest_router, MyResource, streaming_router
 # from api import controller
 
 app = FastAPI(
@@ -54,6 +54,8 @@ def hello_fastapi():
 app.include_router(api_router)
 # # app.include_router(api_router, prefix="/api_prefix")
 app.include_router(user_router)
+# 流式响应接口
+app.include_router(streaming_router)
 
 # JWT认证相关Router
 # 注意，custom_jwt_router 和 login_router 里都设置了一个 OAuth2PasswordBearer，那么在 SwaggerUI 界面的 Authorize 里会显示两个登录验证的地方
@@ -93,10 +95,12 @@ if __name__ == "__main__":
     from database import init_db_tables
     # init_db_tables()
     # 使用 uvicorn 运行 FastAPI 应用，可以参考 uvicorn 官网文档 https://www.uvicorn.org/#quickstart
+    host = "localhost"
+    # host = "10.8.6.203"
     port = 8100
     # 第一种方式，其中的 main 对应的是 main.py 的文件名，不带后缀
-    uvicorn.run("main:app", port=port, log_level="info")
+    uvicorn.run("main:app", host=host, port=port, log_level="info")
     # 第二种方式
-    # config = uvicorn.Config("main:app", port=port, log_level="info")
-    # server = uvicorn.Server(config)
-    # server.run()
+    config = uvicorn.Config("main:app", host=host, port=port, log_level="info")
+    server = uvicorn.Server(config)
+    server.run()
