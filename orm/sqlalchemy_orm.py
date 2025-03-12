@@ -1,11 +1,15 @@
 """
 练习 SQL Alchemy 的 ORM，以 1.4 版本为例
+2.0版本主要是 Declarative Mapping 的方式有变化。
 """
 from urllib import parse
 from sqlalchemy import create_engine, inspect
 from sqlalchemy import MetaData, Table, Column, Integer, String, ForeignKey
 from sqlalchemy.sql.expression import text, select, func
 from sqlalchemy.orm import sessionmaker, declarative_base, registry
+# 2.0 版本引入了下面两个类，用于支持 Declarative 风格下的类型提示
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+# 注意，2.0 版本里 1.4 的 Declarative 方式仍然是可以使用的
 
 # --------------- 连接数据库 ---------------
 mysql_conf = {
@@ -58,6 +62,24 @@ class UserV1(Base):
     name = Column(String(64), nullable=False)
     gender = Column(String(64), nullable=True)
     age = Column(Integer, nullable=True)
+
+    def __repr__(self):
+        return f"<User(name={self.name}, gender={self.gender}, age={self.age}')>"
+
+# 2.x 风格的定义如下：
+class UserV11(DeclarativeBase):  # 直接继承基类 DeclarativeBase
+    __tablename__ = 'orm_user_v11'
+    __table_args__ = {
+        'mysql_engine': 'InnoDB',
+        'comment': 'ORM User-V11',
+        # 下面的这个属性是为了让 User 可以修改，重复定义，否则修改字段后，重新生成此类时，Base 类不允许重新注册已存在的类
+        'extend_existing': True
+    }
+    # 定义表的各个字段，使用 Mapped[] 增加类型提示，具体字段配置使用 mapped_column，而不是使用 Column 了
+    uid: Mapped[int] = mapped_column(primary_key=True)
+    name: Mapped[str] = mapped_column(type_=String(64), nullable=False)
+    gender: Mapped[str] = mapped_column(type_=String(64), nullable=True)
+    age: Mapped[int] = mapped_column(type_=Integer, nullable=True)
 
     def __repr__(self):
         return f"<User(name={self.name}, gender={self.gender}, age={self.age}')>"
