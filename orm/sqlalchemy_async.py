@@ -51,6 +51,8 @@ async def async_connection():
             print(row)
 
     async with async_engine.connect() as conn:
+        # print(type(conn))
+        # 类型是也AsyncConnection
         result2 = await conn.execute(text("select * from products"))
         # print(result2.fetchall())
         for row in result2:
@@ -59,7 +61,6 @@ async def async_connection():
     # 这一句必须要有，否则执行完会抛异常 ------ KEY
     # for AsyncEngine created in function scope, close and clean-up pooled connections
     await async_engine.dispose()
-
 
 
 # ------------ 2. Core 使用 -------------------
@@ -88,7 +89,8 @@ user_core = Table(
 
 async def async_core_usage():
     async with async_engine.begin() as conn:
-        # print(type(conn))  # AsyncConnection
+        # print(type(conn))
+        # AsyncConnection
         # 创建表
         # 下面这一句是一个同步调用，需要使用 AsyncConnection.run_sync 方法在异步环境下进行封装调用
         # metadata_obj.create_all(bind=conn, tables=[user_core], checkfirst=True)
@@ -141,26 +143,37 @@ class UserORM(Base):
 
 
 async def async_orm_usage():
-
     async with async_engine.begin() as conn:
-        # print(type(conn))
+        print(type(conn))
         # <class 'sqlalchemy.ext.asyncio.engine.AsyncConnection'>
         await conn.run_sync(Base.metadata.create_all, tables=[UserORM.__table__], checkfirst=True)
 
-    async with async_session.begin() as session:
-        # print(type(session))
-        # AsyncSessionTransaction
+    # async_session 是 AsyncSession 对象，begin() 方法 返回的是 AsyncSessionTransaction 对象，自动管理事务
+    async with async_session.begin() as session_transaction:
+        print(type(session_transaction))
+        # <class 'sqlalchemy.ext.asyncio.session.AsyncSessionTransaction'>
         user1 = UserORM(name="nicholas", gender="male", age=31)
         user2 = UserORM(name="alley", gender="female", age=30)
+        # 注意，这里用的是 async_session，不是 session_transaction，
         async_session.add_all([user1, user2])
-        # 这一句没必要
-        # await session.commit()
+        # 对于 AsyncSessionTransaction 来说，这一句没必要，with 管理器会自动提交事务
+        # await session_transaction.commit()
 
-    # 也可以直接通过 async_session_factory 来创建 AsyncSession 对象
+    #  async_sessionmaker 调用 __call__ 返回 AsyncSession 对象，也是使用 AsyncSession 的 __aenter__ 和 __aexit__ 方法
+    # 需要手动管理事务
+    async with async_session_factory() as session:
+        print(type(session))
+        # <class 'sqlalchemy.ext.asyncio.session.AsyncSession'>
+        user1 = UserORM(name="xiaoming", gender="male", age=26)
+        user2 = UserORM(name="xiaohong", gender="female", age=22)
+        session.add_all([user1, user2])
+        # 对于 AsyncSession 对象来说，必须要手动提交事务
+        await session.commit()
+
     async with async_session_factory() as session:
         # print(type(session))
         # <class 'sqlalchemy.ext.asyncio.session.AsyncSession'>
-        stmt = select(UserORM).where(UserORM.age > 30)
+        stmt = select(UserORM).where(UserORM.age > 18)
         # print(type(stmt))
         # <class 'sqlalchemy.sql.selectable.Select'>
         result = await session.execute(stmt)
@@ -172,12 +185,12 @@ async def async_orm_usage():
     await async_engine.dispose()
 
 
-async def main_all():
-    print("************* main_all **************")
+async def main_async():
+    print("************* main_async **************")
     await async_connection()
     await async_core_usage()
     await async_orm_usage()
 
 
 if __name__ == '__main__':
-    asyncio.run(main_all())
+    asyncio.run(main_async())

@@ -3,7 +3,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, HTMLResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 
-from database import get_db
+from database import get_db_session
 from .models import User
 from .schemas import UserItem, UserResponse
 from user_app import crud_actions
@@ -20,7 +20,7 @@ async def hello_user_app():
     return HTMLResponse(content=html)
 
 @user_router.post("/users/", response_model=UserItem)
-def create_user(user: UserItem, db: Session = Depends(get_db)):
+def create_user(user: UserItem, db: Session = Depends(get_db_session)):
     # user 是 UserItem 对象，由于它是一个 pydantic.BaseModel 子类，会从 post 请求体中自动解析
     # db 是通过依赖传入的 sqlalchemy 连接对象 Session
     db_user = crud_actions.get_user(db, uid=user.uid)
@@ -33,7 +33,7 @@ def create_user(user: UserItem, db: Session = Depends(get_db)):
     return new_user
 
 @user_router.get("/users/{user_id}", response_model=UserItem)
-def get_user(user_id: int, uid: int = 1, db: Session = Depends(get_db)):
+def get_user(user_id: int, uid: int = 1, db: Session = Depends(get_db_session)):
     # user_id 和 URL 中的 {user_id} 同名，所以它是一个 路径参数 —— 需要从 URL 路径中获得
     # uid 不在路径参数中，所以会从查询参数中解析 —— 也就是位于 URL 的 ？ 之后，并以 & 符号分隔的键值对参数
     db_user = crud_actions.get_user(db, uid=user_id)
@@ -42,7 +42,7 @@ def get_user(user_id: int, uid: int = 1, db: Session = Depends(get_db)):
     return db_user
 
 @user_router.get("/list_users", response_model=list[UserItem])
-def list_users(db: Session = Depends(get_db)):
+def list_users(db: Session = Depends(get_db_session)):
     users = crud_actions.list_users(db)
     # user_items = [UserItem(uid=user.uid, name=user.name, gender=user.gender, is_active=user.is_active) for user in users]
     return users
@@ -51,7 +51,7 @@ def list_users(db: Session = Depends(get_db)):
 # ----------------- 以下的接口直接在视图函数内完成 ORM 操作，就不放到 crud_actions.py 文件里了 -------------------------
 
 @user_router.get("/list_genders", response_class=JSONResponse)
-def list_genders(db: Session = Depends(get_db)):
+def list_genders(db: Session = Depends(get_db_session)):
     """
     显示有哪些性别. \n
     只是为了展示 distinct 的用法。
@@ -61,7 +61,7 @@ def list_genders(db: Session = Depends(get_db)):
     return {'genders': res}
 
 @user_router.get("/filter_user", response_model=UserResponse)
-def filter_users(db: Session = Depends(get_db), page_size: int = 20, page_index: int = 1, gender: str = None):
+def filter_users(db: Session = Depends(get_db_session), page_size: int = 20, page_index: int = 1, gender: str = None):
     """
     展示分页+过滤查询
     """

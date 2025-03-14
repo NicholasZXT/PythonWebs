@@ -29,6 +29,7 @@ engine = create_engine(db_url, echo=True)
 
 # ORM 的使用从 Session 出发
 session_factory: sessionmaker[Session] = sessionmaker(bind=engine)
+# 这里是调用 sessionmaker 类的 __call__ 方法，创建一个 Session 对象
 session: Session = session_factory()
 
 # ------- 建立 业务表映射 ----------
@@ -339,3 +340,29 @@ def P2_2_Query_V2():
         print(row4)
 
 
+def P3_Session_Context():
+    """ 讨论下 Session 的上下文管理 """
+    # 下面的讨论也适用于 异步Session 的情况
+
+    # Engine.begin() 方法被 @contextlib.contextmanager 装饰，返回一个 Connection 对象
+    with engine.begin() as conn:
+        print(type(conn))
+        # <class 'sqlalchemy.engine.base.Connection'>
+
+    # Session 实例对象有 __enter__ 和 __exit__ 方法，所以可以用 with 语句管理 Session 对象，并且返回的就是 Session 对象本身
+    with Session(engine) as session:
+        print(type(session))
+        # <class 'sqlalchemy.orm.session.Session'>
+
+    # sessionmaker 类调用 __call__ 方法，返回的也是 Session 对象本身，所以也是调研 Session 的 __enter__ 和 __exit__ 方法
+    with session_factory() as session:
+        print(type(session))
+        # <class 'sqlalchemy.orm.session.Session'>
+
+    # 上面两种上下文返回 Session 对象时，并不会自动管理事务，所以末尾都需要手动执行 session.commit()
+    # 但是下面返回 SessionTransaction 对象时会自动管理事务，无需执行 commit() 方法
+
+    # Session 对象的 begin() 方法返回的是 SessionTransaction 对象
+    with session.begin() as session_transaction:
+        print(type(session_transaction))
+        # <class 'sqlalchemy.orm.session.SessionTransaction'>
