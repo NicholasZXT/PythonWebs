@@ -6,7 +6,7 @@ from urllib import parse
 from sqlalchemy import create_engine, inspect
 from sqlalchemy import MetaData, Table, Column, Integer, String, ForeignKey
 from sqlalchemy.sql.expression import text, select, func
-from sqlalchemy.orm import sessionmaker, declarative_base, registry
+from sqlalchemy.orm import sessionmaker, Session, declarative_base, registry
 # 2.0 版本引入了下面两个类，用于支持 Declarative 风格下的类型提示
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 # 注意，2.0 版本里 1.4 的 Declarative 方式仍然是可以使用的
@@ -26,6 +26,10 @@ mysql_conf['passwd'] = parse.quote_plus(mysql_conf['passwd'])
 # database url的格式：dialect+driver://username:password@host:port/database
 db_url = 'mysql+pymysql://{user}:{passwd}@{host}:{port}/{database}'.format(**mysql_conf)
 engine = create_engine(db_url, echo=True)
+
+# ORM 的使用从 Session 出发
+session_factory: sessionmaker[Session] = sessionmaker(bind=engine)
+session: Session = session_factory()
 
 # ------- 建立 业务表映射 ----------
 def P1_Mapping():
@@ -162,9 +166,6 @@ print(metadata_obj.tables)
 # 使用 SQL Expression Language 1.x API 进行增删查改操作
 def P2_CRUD():
     pass
-
-Session = sessionmaker(bind=engine)
-session = Session()
 
 # 1.x 版本 和 2.x 版本中，ORM 插入记录的语法没有什么区别
 def P2_1_Add():
