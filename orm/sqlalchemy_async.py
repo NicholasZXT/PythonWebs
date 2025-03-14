@@ -4,7 +4,7 @@ SQLAlchemy异步使用，以2.0为例
 import asyncio
 from urllib import parse
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, async_scoped_session, AsyncEngine, \
-    AsyncSession, AsyncConnection
+    AsyncSession, AsyncConnection, AsyncSessionTransaction
 from sqlalchemy import MetaData, Table, Column, Integer, String, ForeignKey, CursorResult, text
 from sqlalchemy.orm import sessionmaker, declarative_base, registry
 from sqlalchemy.future import select
@@ -23,6 +23,15 @@ mysql_conf['passwd'] = parse.quote_plus(mysql_conf['passwd'])
 # 数据库驱动改为 aiomysql
 db_url = 'mysql+aiomysql://{user}:{passwd}@{host}:{port}/{database}'.format(**mysql_conf)
 async_engine = create_async_engine(url=db_url, echo=True)
+
+# 这个MetaData对象可以被 Core 和 ORM 一起使用
+metadata_obj = MetaData()
+Base = declarative_base(metadata=metadata_obj)
+# 异步Session对象工厂
+async_session_factory: async_sessionmaker[AsyncSession] = async_sessionmaker(async_engine, expire_on_commit=False)
+# 通过上面的工厂对象来创建一个 AsyncSession 对象
+async_session: AsyncSession = async_session_factory()
+# AsyncSession 对象其实是同步对象 Session 的一个轻量代理
 
 
 # ------------ 2. 使用 Connection -------------------
@@ -47,10 +56,10 @@ async def async_connection():
         for row in result2:
             print(row)
 
+    # 这一句必须要有，否则执行完会抛异常 ------ KEY
     # for AsyncEngine created in function scope, close and clean-up pooled connections
     await async_engine.dispose()
 
-# asyncio.run(async_connection())
 
 
 # ------------ 2. Core 使用 -------------------
@@ -58,12 +67,10 @@ def P2_Core_Usage():
     pass
 
 
-metadata_core = MetaData()
-
 # 定义表
 user_core = Table(
     "user_core",  # 表名称
-    metadata_core,
+    metadata_obj,
     # 使用 Column 对象来定义列，并设置列的具体类型
     Column("uid", Integer, primary_key=True, autoincrement=True),
     Column("name", String(63), nullable=False),
@@ -83,10 +90,10 @@ async def async_core_usage():
     async with async_engine.begin() as conn:
         # print(type(conn))  # AsyncConnection
         # 创建表
-        # 下面这一句是一个同步调用，需要封装成异步调用
-        # metadata_core.create_all(bind=conn, tables=[user_core], checkfirst=True)
+        # 下面这一句是一个同步调用，需要使用 AsyncConnection.run_sync 方法在异步环境下进行封装调用
+        # metadata_obj.create_all(bind=conn, tables=[user_core], checkfirst=True)
         # 异步调用时，第一个参数 bind 由 run_sync 方法传入，不需要自己传入
-        res = await conn.run_sync(metadata_core.create_all, tables=[user_core], checkfirst=True)
+        res = await conn.run_sync(metadata_obj.create_all, tables=[user_core], checkfirst=True)
         print(res)
         print('-------------------------------')
 
@@ -111,16 +118,9 @@ async def async_core_usage():
     await async_engine.dispose()
 
 
-# asyncio.run(async_core_usage())
-
-
-
 # ------------ 3. ORM 使用 -------------------
 def P3_ORM_Usage():
     pass
-
-
-Base = declarative_base()
 
 
 class UserORM(Base):
@@ -140,16 +140,44 @@ class UserORM(Base):
         return f"<User(name={self.name}, gender={self.gender}, age={self.age}')>"
 
 
-async_session: async_sessionmaker[AsyncSession] = async_sessionmaker(async_engine, expire_on_commit=False)
-session = async_session()
-
 async def async_orm_usage():
 
     async with async_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all, tables=[UserORM], checkfirst=True)
+        # print(type(conn))
+        # <class 'sqlalchemy.ext.asyncio.engine.AsyncConnection'>
+        await conn.run_sync(Base.metadata.create_all, tables=[UserORM.__table__], checkfirst=True)
+
+    async with async_session.begin() as session:
+        # print(type(session))
+        # AsyncSessionTransaction
+        user1 = UserORM(name="nicholas", gender="male", age=31)
+        user2 = UserORM(name="alley", gender="female", age=30)
+        async_session.add_all([user1, user2])
+        # 这一句没必要
+        # await session.commit()
+
+    # 也可以直接通过 async_session_factory 来创建 AsyncSession 对象
+    async with async_session_factory() as session:
+        # print(type(session))
+        # <class 'sqlalchemy.ext.asyncio.session.AsyncSession'>
+        stmt = select(UserORM).where(UserORM.age > 30)
+        # print(type(stmt))
+        # <class 'sqlalchemy.sql.selectable.Select'>
+        result = await session.execute(stmt)
+        # print(type(result))
+        # <class 'sqlalchemy.engine.result.ChunkedIteratorResult'>
+        for row in result:
+            print(row)
+
+    await async_engine.dispose()
 
 
-        async with async_session() as session:
-            async with session.begin():
-                session.add_all()
+async def main_all():
+    print("************* main_all **************")
+    await async_connection()
+    await async_core_usage()
+    await async_orm_usage()
 
+
+if __name__ == '__main__':
+    asyncio.run(main_all())
