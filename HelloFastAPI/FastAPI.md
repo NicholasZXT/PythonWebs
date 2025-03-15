@@ -147,3 +147,21 @@ FastAPI提供的上述类，其实功能都很简单，查看源码就能发现�
 + `OAuth2PasswordRequestFormStrict`
 
 和HTTP身份验证里一样，这些类都只是简单的从请求header里解析对应信息，token验证和token生成功能都需要开发者自己完成。
+
+---------
+# 原理研究
+
+## 依赖注入的实现
+
+FastAPI的依赖注入过程主要由下面几个地方完成：
++ `fastapi.dependencies.models.Dependant`类，这个类封装了依赖的参数、函数、函数的返回值等信息
++ `fastapi.dependencies.utils`，依赖解析的工具函数都在这里，特别是其中的`get_dependant`、`analyze_param`、`solve_dependencies`这三个函数
++ `fastapi.routing` 的 `APIRouter` 和 `APIRoute`类
+
+依赖注入的过程是在视图函数注册时（例如使用`@app.get`）进行的，大致流程如下：
++ 所有的视图函数注册，都是走`APIRouter`的`add_api_route`方法，此方法负责封装视图函数的上下文，将待注册的视图函数作为 endpoint 封装到`APIRoute`中
++ `APIRoute`实例化时，会调用`get_dependant`方法
++ `get_dependant`里，会对endpoint（视图函数）的参数逐层进行解析，查看有无`Depends`封装的依赖，逐层封装成`Dependant`对象
++ endpoint里的视图函数本身也会作为`Dependant`对象，封装到`dependant.call`属性里
+
+粗略看下来，FastAPI的依赖注入和解析过程比较直白，没有太高深的设计，并且和Starlette没有关系，只能用于FastAPI，不是作为一个通用的依赖注入框架设计的。
