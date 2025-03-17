@@ -10,7 +10,7 @@ from sqlmodel._compat import SQLModelConfig
 from sqlmodel.ext.asyncio.session import AsyncSession
 # 异步使用，目前还是需要调用 sqlalchemy 的组件
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine, async_sessionmaker, AsyncSession, AsyncConnection
-from sqlalchemy import create_engine as create_engine_origin, select as select_origin
+from sqlalchemy import create_engine as create_engine_origin, select as select_origin, text
 from sqlalchemy.orm import Session as Session_origin
 from sqlalchemy import Column, String, Integer, DateTime, Boolean
 
@@ -157,6 +157,14 @@ def select_heroes():
         print("------------------------------------------")
         statement = select(Hero).where(or_(Hero.age <= 35, Hero.age > 90))
         results = session.exec(statement)
+        for hero in results:
+            print(hero)
+
+    # ---- 直接SQL语句查询 ----
+    with Session(engine) as session:
+        print("------------------------------------------")
+        statement_str = "select * from hero where age >= 35 and age <90"
+        results = session.execute(text(statement_str))
         for hero in results:
             print(hero)
 
