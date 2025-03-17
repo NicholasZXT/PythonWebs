@@ -10,6 +10,8 @@ from sqlmodel._compat import SQLModelConfig
 from sqlmodel.ext.asyncio.session import AsyncSession
 # 异步使用，目前还是需要调用 sqlalchemy 的组件
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncEngine, async_sessionmaker, AsyncSession, AsyncConnection
+from sqlalchemy import create_engine as create_engine_origin, select as select_origin
+from sqlalchemy.orm import Session as Session_origin
 from sqlalchemy import Column, String, Integer, DateTime, Boolean
 
 from typing import List
@@ -31,8 +33,11 @@ mysql_conf = {
 mysql_conf['passwd'] = parse.quote_plus(mysql_conf['passwd'])
 db_url = 'mysql+pymysql://{user}:{passwd}@{host}:{port}/{database}'.format(**mysql_conf)
 db_url_async = 'mysql+aiomysql://{user}:{passwd}@{host}:{port}/{database}'.format(**mysql_conf)
-# 下面这个是同步引擎
+# 下面这个是同步引擎——SQLModel提供的封装
 engine = create_engine(url=db_url, echo=True)
+
+# sqlalchemy 的原始引擎对象
+engine_origin = create_engine_origin(url=db_url, echo=True)
 
 # 异步引擎和异步Session对象
 async_engine: AsyncEngine = create_async_engine(url=db_url_async)
@@ -115,6 +120,13 @@ def add_heroes():
     hero_3 = Hero(name="Rusty-Man", secret_name="Tommy Sharp", age=48)
     # 下面这个 Session 对象是同步的
     session = Session(engine)
+    # ----------------------------
+    # 用原生引擎试试 ——— 也是可以的
+    # session = Session(engine_origin)
+    # ----------------------------
+    # 用原生引擎 + 原生Session ——— 也没问题
+    # session = Session_origin(engine_origin)
+    # ----------------------------
     session.add(hero_1)
     session.add(hero_2)
     session.add(hero_3)
@@ -148,6 +160,32 @@ def select_heroes():
         for hero in results:
             print(hero)
 
+
+def select_heroes_mix():
+    """ 检查下 SQLModel 和 sqlalchemy 的混合使用 """
+    # 使用原生引擎查询 —— 也可以
+    with Session(engine_origin) as session:
+        statement = select(Hero)
+        results = session.exec(statement)
+        for hero in results:
+            print(hero)
+
+    # 使用原生引擎 + 原生Session 查询 —— 没问题
+    with Session_origin(engine_origin) as session:
+        statement = select(Hero)
+        # 不过方法名称需要换一下
+        results = session.execute(statement)
+        for hero in results:
+            print(hero)
+
+    # 使用原生引擎 + 原生Session + 原生 select 查询 —— 还是没问题
+    with Session(engine_origin) as session:
+        statement = select_origin(Hero)
+        # 不过方法名称需要换一下
+        results = session.execute(statement)
+        for hero in results:
+            print(hero)
+
 def main():
     print(">>>>>>> run main")
     init_db()
@@ -155,6 +193,7 @@ def main():
     add_heroes()
     print("===============================================")
     select_heroes()
+    select_heroes_mix()
 
 
 # **************************** 异步使用方式 ****************************
