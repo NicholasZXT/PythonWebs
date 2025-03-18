@@ -279,22 +279,107 @@ def P2_2_Query_V2():
     从 1.4 版本起， select() 函数支持两种方式：
       1. 传入 Table 对象进行查询 —— Core 的方式
       2. 传入 Base 类的子类对象进行查询 —— ORM 的方式
+    select() 函数返回 sqlalchemy.sql.selectable.Select 类的实例对象，该类提供的许多方法（filter, where等）都是返回self，
+    因此可以进行链式调用
     :return:
     """
-    s1 = select(UserV1).where(UserV1.age >= 20)
+    s1 = select(UserV1)
+    print(s1)
+    # SELECT orm_user_v1.uid, orm_user_v1.name, orm_user_v1.gender, orm_user_v1.age
+    # FROM orm_user_v1
+    print(type(s1))
+    # <class 'sqlalchemy.sql.selectable.Select'>
+    # 可以链式调用
+    s1 = s1.where(UserV1.age >= 20)
     print(s1.compile(compile_kwargs={"literal_binds": True}))
+
     # 使用 session.execute() 执行查询
-    res1 = session.execute(s1).all()
+    res1_ = session.execute(s1)
+    print(type(res1_))
+    # <class 'sqlalchemy.engine.result.ChunkedIteratorResult'>
+    # 调用 all() 方法拿到全部结果
+    res1 = res1_.all()
     print(type(res1))
     # <class 'list'>
     for row1 in res1:
         print(row1)
-    # 返回的是 Row 对象，它类似于一个元组
+    # 返回的是 Row 对象，它类似于一个named元组
     print(type(row1))
     # <class 'sqlalchemy.engine.row.Row'>
+    print(row1)  # 注意下面打印的是一个元组
+    # (< User(name=Rose, gender=female, age=20')>,)
+    print(len(row1))
+    # 1
     print(row1[0])  # 这样拿到的才是 User 对象
     # <User(name=Rose, gender=female, age=20')>
     print(row1[0].name)
+
+    # Row 对象有如下方法或属性，从下面的属性可以看出，里面包含的 UserV1 对象，属性名就是 UserV1
+    print(row1._asdict())
+    # {'UserV1': <User(name=Rose, gender=female, age=20')>}
+    print(row1._fields)
+    # ('UserV1',)
+    print(row1.t)
+    # (<User(name=Rose, gender=female, age=20')>,)
+    # 因此可以使用如下 属性访问方式 直接拿到 UserV1 对象
+    print(row1.UserV1)
+    # <User(name=Rose, gender=female, age=20')>
+
+    # --------- 选择部分属性 -------------
+    s1_col = select(UserV1.name, UserV1.gender).where(UserV1.age >= 20)
+    res1_col = session.execute(s1_col).all()
+    for row1_col in res1_col:
+        print(row1_col)
+    print(type(row1_col))  # 还是 Row 对象
+    # <class 'sqlalchemy.engine.row.Row'>
+    print(row1_col)  # 但是内容不一样，里面不再是 UserV1 对象了，而是各个字段对应的值 ------------------ KEY
+    # ('Rose', 'female')
+    print(row1_col[0])
+    # Rose
+    print(row1_col[1])
+    # female
+
+    print(row1_col._asdict())
+    # {'name': 'Rose', 'gender': 'female'}
+    print(row1_col._fields)
+    # ('name', 'gender')
+    print(row1_col.t)
+    # ('Rose', 'female')
+    # 从上面的属性可以看出，此时各个位置的值对应与字段名，也可以直接用 属性访问方式 获取
+    print(row1_col.name)
+    # Rose
+
+    # ---------- scalars/scalar 返回值 -------------
+    # scalars/scalar 用于可以确认只使用单一值的场景
+    # 调用 scalars() 方法
+    res1_scalars = session.execute(s1).scalars()
+    print(type(res1_scalars))
+    # <class 'sqlalchemy.engine.result.ScalarResult'>
+    for row1_scalar in res1_scalars:
+        print(row1_scalar)
+    print(row1_scalar)
+    # <User(name=Rose, gender=female, age=20')>
+    print(type(row1_scalar))  # 直接就是 UserV1 对象
+    # <class '__main__.UserV1'>
+
+    # 调用 scalar() 方法 —— 注意，单数形式，此时只会返回一行的第一个值
+    res1_scalar = session.execute(s1).scalar()
+    print(type(res1_scalar))
+    # <class '__main__.UserV1'>
+    print(res1_scalar)
+    # <User(name=wendy, gender=female, age=18')>
+
+    # 可以在 session 上直接调用 scalars/scalar 方法——内部会使用 session.execute()
+    # 这里改为了使用 s1_col 来演示，所以结果直接是 第一个 字段值，而不是 Row 对象
+    res1_scalars = session.scalars(s1_col)
+    for row1_scalar in res1_scalars:
+        print(row1_scalar)
+
+    res1_scalar = session.scalar(s1_col)
+    print(type(res1_scalar))
+    # <class 'str'>
+    print(res1_scalar)
+    # jane
 
     # 使用 connection.execute 也可以
     with engine.connect() as conn:
@@ -304,11 +389,12 @@ def P2_2_Query_V2():
         for row11 in res11:
             print(row11)
     print(type(row11))
-    # <class 'sqlalchemy.engine.row.LegacyRow'>
-    # LegacyRow 是 Row 的子类，好像是为了兼容1.x版本的结果
+    # <class 'sqlalchemy.engine.row.Row'>，
+    # 如果是 1.4 版本，好像是<class 'sqlalchemy.engine.row.LegacyRow'>，LegacyRow 是 Row 的子类，好像是为了兼容1.x版本的结果
     print(row11.name)
     print(row11.gender)
 
+    # ------------------------------------------------
     s2 = select(UserV2).where(UserV2.age >= 20)
     print(s2.compile(compile_kwargs={"literal_binds": True}))
     res2 = session.execute(s2).all()
@@ -319,6 +405,7 @@ def P2_2_Query_V2():
     print(row2[0])
     print(row2[0].name)
 
+    # ------------------------------------------------
     # 这里是使用 Table 对象，所以需要使用 .c 属性来访问 age
     s3 = select(user_v2_table).where(user_v2_table.c.age >= 20)
     print(s3.compile(compile_kwargs={"literal_binds": True}))
@@ -329,6 +416,7 @@ def P2_2_Query_V2():
     # <class 'sqlalchemy.engine.row.Row'>
     print(row3.name)
 
+    # ------------------------------------------------
     # 其他查询
     s4 = select(UserV1.gender, func.sum(UserV1.age).label('age_sum'),
                 func.count(UserV1.name).label('cnt'),
