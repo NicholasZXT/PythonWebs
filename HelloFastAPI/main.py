@@ -1,20 +1,23 @@
 import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
-from api import api_router
+from fastapi.middleware.cors import CORSMiddleware
+from config import settings
+from database import init_db_tables
 from user_app import user_router
 from auth_app import custom_jwt_router, login_router, authx_router
-from api import rest_router, MyResource, streaming_router
+from api import api_router, rest_router, MyResource, streaming_router, file_router
 # from api import controller
 
 app = FastAPI(
-    debug=False,  # 调试参数
+    debug=settings.DEBUG,  # 调试参数
     # ----- 以下为 API交互式文档的配置参数 -----
     title="FastAPI Demos",
     version="1.0.0",
     summary="Here is summary...",
     description="Here is description: Show how to use FastAPI.",
-    docs_url="/docs",    # SwaggerUI文档的URL，默认为 /docs, None 表示禁用
+    # SwaggerUI文档的URL，默认为 /docs, None 表示禁用
+    docs_url="/docs" if settings.SWAGGER_UI_ENABLE else None,
     redoc_url="/redoc",  # ReDoc文档的URL，默认为 /redoc, None 表示禁用
     openapi_prefix='',            # 配置访问 openapi_json.json 文件路径的前缀，默认空字符串
     openapi_url="/openapi.json",  # 配置访问 openapi_json.json 文件路径，此处为默认值
@@ -26,7 +29,8 @@ app = FastAPI(
         {"name": "Hello", "description": "Hello World for FastAPI"},
         {"name": "API-App", "description": "展示 FastAPI 请求/响应的基本使用"},
         {"name": "User-App", "description": "展示 FastAPI 的数据库使用"},
-        {"name": "Auth-App-Custom-JWT", "description": "展示 FastAPI 使用 Password-Bearer + 自定义JWT验证 实现令牌认证"}
+        {"name": "Auth-App-Custom-JWT", "description": "展示 FastAPI 使用 Password-Bearer + 自定义JWT验证 实现令牌认证"},
+        {"name": "FileUpload-App", "description": "文件上传接口"}
     ],
     include_in_schema=True,
     license_info={   # 配置API公开的许可证信息
@@ -39,6 +43,24 @@ app = FastAPI(
         "email": "example@gmail.com"
     }
 )
+
+# -------- CORS配置 --------
+origins = ["*"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 初始化数据库可以采用如下方式
+# @app.on_event("startup")
+# def init_db():
+#     # 需要提前导入要初始化的表，否则可能未注册到 metadata 里
+#     from user_app.models import User
+#     init_db_tables()
+
 
 @app.get(path='/', response_class=HTMLResponse, tags=['Hello'])
 def hello_fastapi():
@@ -56,6 +78,8 @@ app.include_router(api_router)
 app.include_router(user_router)
 # 流式响应接口
 app.include_router(streaming_router)
+# 文件上传接口
+app.include_router(file_router)
 
 # JWT认证相关Router
 # 注意，custom_jwt_router 和 login_router 里都设置了一个 OAuth2PasswordBearer，那么在 SwaggerUI 界面的 Authorize 里会显示两个登录验证的地方
@@ -92,7 +116,7 @@ app.include_router(rest_router)
 
 
 if __name__ == "__main__":
-    from database import init_db_tables
+    # from database import init_db_tables
     # init_db_tables()
     # 使用 uvicorn 运行 FastAPI 应用，可以参考 uvicorn 官网文档 https://www.uvicorn.org/#quickstart
     host = "localhost"

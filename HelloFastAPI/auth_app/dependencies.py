@@ -6,6 +6,7 @@ from passlib.context import CryptContext
 import jwt
 
 from config import settings
+from database import SessionLocalAsync
 from auth_app.schemas import AuthUser
 from fastapi_login import LoginManager
 from authx import AuthX, AuthXConfig
@@ -141,12 +142,36 @@ login_manager = LoginManager(
 # 和 Flask-Login 类似，FastAPI-Login也需要使用装饰器来定义一个用户加载函数
 @login_manager.user_loader()
 def load_user(user_name: str) -> AuthUser | None:
+    # 传入的参数就是创建token时传入的 sub 信息 —— 只能是 str 类型，int 类型在 jwt 解析token时会报错
     """此函数的返回值就是后续依赖FastAPI-LoginManager的返回值"""
     user = settings.AUTHORIZED_USERS.get(user_name, None)
     if user:
         return AuthUser(username=user_name, roles=user.get('roles'))
     else:
         return None
+
+# 如果从数据库中查询用户信息，需要特别注意的是 @login_manager.user_loader 不参与 FastAPI 的依赖注入，
+# 因此不能使用 Depends(get_db_session_async) 的方式获得数据库 AsyncSession 对象
+# 另外，由于 get_db_session_async 是一个 异步生成器，它用 yield 返回 AsyncSession，比较难处理
+# 下面的这种方式，只能第一次请求时拿到 AsyncSession 对象，之后 yield 返回，for 循环也就结束了，这是个小坑 —————— KEY
+# @login_manager.user_loader(db_gen=get_db_session_async())
+# async def load_user(uid: str, db_gen: AsyncGenerator[AsyncSession, None]) -> User | None:
+#     print(f">>>>> load_user_uid: {uid}")
+#     async for db in db_gen:
+#         async with db as session:
+#             user = await session.get(User, uid)
+#             print(f">>>>> load_user: {user}")
+#             return user
+
+@login_manager.user_loader()
+async def load_user(uid: str) -> AuthUser | None:
+    # print(f">>>>> load_user_uid: {uid}")
+    # 只能自己直接实例化一个 AsyncSession 对象
+    db_session = SessionLocalAsync()
+    async with db_session as session:
+        user = await session.get(AuthUser, uid)
+        # print(f">>>>> load_user: {user}")
+        return user
 
 
 # ------------------------- AuthX 相关依赖 -------------------------

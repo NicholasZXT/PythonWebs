@@ -1,7 +1,7 @@
+from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException, status, Security, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.security import OAuth2PasswordRequestForm, SecurityScopes
-from typing import Annotated, List
 from fastapi_login.exceptions import InvalidCredentialsException
 
 from config import settings
@@ -31,7 +31,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
     if username not in settings.AUTHORIZED_USERS or passwd != passwd_to_check:
         # raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user or password")
         raise InvalidCredentialsException
-    # 用户名和密码校验通过，生成JWT
+    # 用户名和密码校验通过，生成JWT，这里 sub 的传入值就是 @login_manager.user_loader() 注册函数的接受的参数
     token = login_manager.create_access_token(data={'sub': username}, scopes=user_config.get('roles', None))
     return {'access_token': token, 'token_type': "Bearer"}
 
