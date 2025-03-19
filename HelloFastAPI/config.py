@@ -8,12 +8,16 @@ import os
 
 class Settings(BaseSettings):
     ENV_NAME: str = None
+    DEBUG: bool = False
+    SWAGGER_UI_ENABLE: bool = False
     MYSQL_HOST: str = "localhost"
     MYSQL_PORT: int = 3306
     MYSQL_USER: str = None
     MYSQL_PASSWORD: str = None
     MYSQL_DB: str = None
-    DB_URL: str = f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}@{MYSQL_HOST}:{MYSQL_PORT}/{MYSQL_DB}"
+    # 下面两个变量需要放在 __init__ 方法里初始化，因为这些变量需要用到其他变量的值，并且它们的值必须要允许 None
+    DB_URL: str | None = None
+    DB_URL_ASYNC: str | None = None
     SECRET_KEY: str
     ALGORITHM: str
     ACCESS_TOKEN_EXPIRE_SECONDS: int = 60 * 5
@@ -21,6 +25,13 @@ class Settings(BaseSettings):
         'admin': {'passwd': 'admin', 'roles': ['admin', 'others']},
         'yourself': {'passwd': 'people', 'roles': ['others']},
     }
+
+    def __init__(self, *args, **kwargs):
+        # 必须要先调用 父类的 __init__ 方法，才能从环境变量里获取值
+        super().__init__(*args, **kwargs)
+        self.DB_URL = f"mysql+pymysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DB}"
+        self.DB_URL_ASYNC = f"mysql+aiomysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DB}"
+
 
 @lru_cache(maxsize=1)
 def get_settings(env: str) -> Settings:

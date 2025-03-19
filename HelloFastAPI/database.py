@@ -1,5 +1,5 @@
 import asyncio
-from typing import AsyncGenerator
+from typing import AsyncGenerator, Generator
 from sqlalchemy import create_engine, Engine, Connection, MetaData, Table, Column
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.ext.declarative import declarative_base
@@ -9,26 +9,35 @@ from config import settings
 
 # SQLALCHEMY_DATABASE_URL = "sqlite:///./sql_app.db"
 # SQLALCHEMY_DATABASE_URL = "postgresql://user:password@postgresserver/db"
-SQLALCHEMY_DATABASE_URL = settings.DB_URL
-Base = declarative_base()
+
+metadata = MetaData(schema="fastapi")
+Base = declarative_base(metadata=metadata)
 
 # 同步引擎和Session对象
-engine: Engine = create_engine(url=SQLALCHEMY_DATABASE_URL)
+engine: Engine = create_engine(url=settings.DB_URL)
 SessionLocal: sessionmaker[Session] = sessionmaker(bind=engine, autocommit=True, autoflush=False)
 
 # 异步引擎和异步Session对象
-async_engine: AsyncEngine = create_async_engine(url=SQLALCHEMY_DATABASE_URL)
+async_engine: AsyncEngine = create_async_engine(url=settings.DB_URL_ASYNC)
 SessionLocalAsync: async_sessionmaker[AsyncSession] = async_sessionmaker(bind=async_engine, expire_on_commit=False)
 
-def init_db_tables():
+def init_db_tables() -> None:
+    print("init_db_tables start ...")
+    tables = list(Base.metadata.tables)
+    print(f"prepare to initialize following tables:\n{tables}")
     Base.metadata.create_all(bind=engine, checkfirst=True)
+    print("init_db_tables done.")
 
-async def init_db_tables_async():
+async def init_db_tables_async() -> None:
+    print("init_db_tables start ...")
+    tables = list(Base.metadata.tables)
+    print(f"prepare to initialize following tables:\n{tables}")
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all, checkfirst=True)
+    print("init_db_tables done.")
 
 # 用于获取Session的依赖函数
-def get_db_session() -> AsyncGenerator[Session]:
+def get_db_session() -> Generator[Session]:
     db = SessionLocal()
     try:
         yield db
