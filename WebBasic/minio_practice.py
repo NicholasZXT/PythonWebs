@@ -64,7 +64,10 @@ class MinioClient:
         # Minio.fget_object 内部也是调用的 Minio.get_object，可以参考该方法源码使用 get_object 方法
         response: HTTPResponse | None = None
         try:
-            response: HTTPResponse = self.client.get_object(bucket_name=self.bucket_name, object_name=self.wrap_obj_name(object_name))
+            response: HTTPResponse = self.client.get_object(
+                bucket_name=self.bucket_name,
+                object_name=self.wrap_obj_name(object_name)
+            )
             data = response.data
         except S3Error as e:
             print(f"Failed to get object {object_name} with S3Error: ", e)
@@ -79,7 +82,11 @@ class MinioClient:
         obj: Object | None = None
         try:
             # 返回的是文件信息，也是 Minio.stat_object 的返回值
-            obj: Object = self.client.fget_object(bucket_name=self.bucket_name, object_name=self.wrap_obj_name(object_name), file_path=file_path)
+            obj: Object = self.client.fget_object(
+                bucket_name=self.bucket_name,
+                object_name=self.wrap_obj_name(object_name),
+                file_path=file_path
+            )
         except S3Error as e:
             print(f"Failed to get object {object_name} with S3Error: ", e)
         return obj
