@@ -47,7 +47,7 @@ db  = [
 #    "minio >= 7.1.0",
 ]
 flask = [
-#    "gunicorn",
+    "gunicorn >= 23.0.0 ; sys_platform == 'linux'",
     "werkzeug >= 2.1.2",
     "jinja2 >= 3.1.6",
     "flask >= 2.1.3",
