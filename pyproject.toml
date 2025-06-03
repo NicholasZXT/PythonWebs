@@ -38,8 +38,11 @@ db  = [
     "sqlalchemy >= 2.0.0",
     "alembic",
     "peewee >= 3.17.0",
-    "pyhive >= 0.7.0",
     "elasticsearch >= 7.13.0",
+    "pyhive >= 0.7.0",
+    # pyhive 依赖下面的 thrift
+	"thrift >= 0.20.0",
+    "thrift_sasl >= 0.4.3",
     "kafka-python >= 2.0.2",
 #    "neo4j-python-driver >= 5.5.0",
 #    "py2neo >= 2021.2.3",
