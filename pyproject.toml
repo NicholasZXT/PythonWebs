@@ -95,6 +95,10 @@ django = [
     "djangorestframework-simplejwt >= 5.3.1",
 ]
 #litestar  = ["litestar"]
+test = [
+    "pytest == 7.4.4",
+#    "pytest >= 8.2.0",
+]
 other = [
     "configparser >= 5.0.0",
     "pyyaml >= 6.0.2",
@@ -121,7 +125,7 @@ python-preference = "system"
 #python-preference = "managed"
 #link-mode = "copy"
 
-default-groups = ["db", "flask", "fastapi", "django", "other"]
+default-groups = ["db", "flask", "fastapi", "django", "test", "other"]
 
 # 适用于 uv pip 系列命令的配置
 [tool.uv.pip]
@@ -131,5 +135,5 @@ system = true
 break-system-packages = true
 all-extras = true
 # group 配置对于 uv pip sync 命令不生效
-group = ["db", "flask", "fastapi", "django", "other"]
+group = ["db", "flask", "fastapi", "django", "test", "other"]
 #torch-backend = "auto"
