@@ -10,10 +10,7 @@ import numpy as np
 import pandas as pd
 from time import sleep
 import random
-import multiprocessing as mp
 from multiprocessing import Process, Pool, Semaphore, Condition, current_process
-from multiprocessing import Queue as MQueue
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 
 # psutil.Process(os.getpid()).memory_info()
 # print('当前进程的内存使用：{:.2f} MB'.format(psutil.Process(os.getpid()).memory_info().rss / 1024 / 1024))
@@ -92,6 +89,7 @@ def show_self_df(value):
     # return sleep_time
     print("="*16)
     return shape
+
 
 """
 如果在 if __name__ == '__main__' **之前** 产生测试数据，根据平台会有如下情况：
