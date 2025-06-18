@@ -12,7 +12,7 @@ from multiprocessing import Lock, RLock, Semaphore, BoundedSemaphore, Condition,
 from multiprocessing import Queue, SimpleQueue, JoinableQueue, Pipe, Value, Array
 from multiprocessing.connection import Connection
 from queue import Empty, Full    # 这个 queue 是线程同步队列，这里需要用到其中定义的 Empty 和 Full 异常
-from concurrent.futures import Future, ProcessPoolExecutor, as_completed
+from concurrent.futures import Future, ProcessPoolExecutor, wait, as_completed, ALL_COMPLETED, FIRST_COMPLETED, FIRST_EXCEPTION
 from multiprocessing import Manager
 from multiprocessing.managers import BaseManager, SyncManager, Namespace, SharedMemoryManager
 
@@ -263,98 +263,215 @@ def process_manager_usage():
     print(f'num_dict: {num_dict}')
 
 
+# -------- Pool 的使用------------------
+def show(msg: str) -> str:
+    """
+    单参函数
+    """
+    print("msg '{}' starting, process id is: {}.".format(msg, os.getpid()))
+    # random.random()随机生成0~1之间的浮点数
+    sleep_time = random.random() * 5
+    sleep(sleep_time)
+    # print("msg '{}' sleep for {:.4f} second.".format(msg, sleep_time))
+    # return sleep_time
+    return msg
+
+
+def worker(level: str, msg: str) -> float:
+    """
+    多参函数
+    """
+    print("{} of {} starting, process id is: {}.".format(level, msg, os.getpid()))
+    # random.random()随机生成0~1之间的浮点数
+    sleep_time = random.random() * 5
+    print("{} of {} sleep for {:.4f} second.".format(level, msg, sleep_time))
+    sleep(sleep_time)
+    return round(sleep_time, 4)
+
+
+def callback(result: str) -> None:
+    print("callback: {}".format(result))
+
+
 def process_pool_usage():
     """
-    进程池使用
+    进程池 Pool 使用
     :return:
     """
-    def worker(level, msg):
-        print("{} of {} starting, process id is: {}.".format(level, msg, os.getpid()))
-        # random.random()随机生成0~1之间的浮点数
-        sleep_time = random.random() * 5
-        print("{} of {} sleep for {:.4f} second.".format(level, msg, sleep_time))
-        sleep(sleep_time)
-        return sleep_time
+    def apply_usage():
+        # 使用 apply 方法，一次提交一个进程，并阻塞直到子进程执行完
+        # 这种方式不必使用 join 等待，返回的结果就是直接是函数的返回结果
+        with Pool(3) as pool:
+            res1 = pool.apply(worker, ('process', 'worker-1'))
+            # 返回值就是 worker方法 的返回值
+            print(f"worker-1 is done, res is : {res1}")
+            res2 = pool.apply(worker, ('process', 'worker-2'))
+            print(f"worker-2 is done, res is : {res2}")
+            res3 = pool.apply(worker, ('process', 'worker-3'))
+            print(f"worker-3 is done, res is : {res3}")
 
-    def show(msg):
-        print("msg '{}' starting, process id is: {}.".format(msg, os.getpid()))
-        # random.random()随机生成0~1之间的浮点数
-        sleep_time = random.random() * 5
-        sleep(sleep_time)
-        # print("msg '{}' sleep for {:.4f} second.".format(msg, sleep_time))
-        # return sleep_time
-        return msg
+    def apply_async_usage():
+        # 使用 apply_async 进行异步调用，返回的 res 是一个 pool.ApplyResult 对象
+        # 必须要 使用 join 方法开启任务
+        with Pool(3) as pool:
+            res1 = pool.apply_async(worker, ('process', 'worker-1'))
+            print(f"worker-1 res : {res1}")
+            res2 = pool.apply_async(worker, ('process', 'worker-2'))
+            # print(f"worker-2 res : {res2}")
+            # 这个带了一个 callback 参数，当任务完成后，会调用 callback 方法，并把结果作为参数传递给 callback 方法
+            res3 = pool.apply_async(func=worker, args=('process', 'worker-3'), callback=callback)
+            # print(f"worker-3 res : {res3}")
+            # 上面不会阻塞，而是立即返回一个 AsyncResult 对象
+            print(f"res1.__class__: {type(res1)}")
+            # 判断是否执行完成，它不会抛出异常
+            print(f"res1.ready(): {res1.ready()}")
+            # 但是没有执行完之前，下面的这个方法会抛出 ValueError 异常
+            # print(f"res1.successful(): {res1.successful()}")
+            print("Closing pool...")
+            pool.close()  # 关闭进程池，关闭后pool不再接收新的请求 —— 必须要在 .join() 前调用此方法
+            print("Join and waiting subprocess done.")
+            pool.join()  # 等待po中所有子进程执行完成，再执行下面的代码，可以设置超时时间join(timeout=)
+            # 在执行完成后检查则不会抛出异常
+            print(f"res1.successful(): {res1.successful()}")
 
-    # -------- Pool 的使用------------------
-    # 使用 apply 方法，一次提交一个进程，并阻塞直到子进程执行完
-    # 这种方式不必使用 join 等待，返回的结果就是直接是函数的返回结果
-    with Pool(3) as pool:
-        res = pool.apply(worker, ('process', 'worker-1'))
-        # 返回值就是 worker方法 的返回值
-        print("worker-1 is done, res is :", res)
-        res = pool.apply(worker, ('process', 'worker-2'))
-        print("worker-2 is done, res is :", res)
-        res = pool.apply(worker, ('process', 'worker-3'))
-        print("worker-3 is done, res is :", res)
+            # wait() 会阻塞主进程，等待结果执行完成，可以设置 timeout 参数，它不会返回任何值
+            # 不过由于上面调用了 join 方法，所以这里调用 wait() 应该会立即返回
+            # print(f"res1.wait(): {res1.wait()}")
 
-    # 使用 apply_async 进行异步调用，返回的 res 是一个 pool.ApplyResult 对象
-    # 必须要 使用 join 方法开启任务
-    pool = Pool(3)
-    res1 = pool.apply_async(worker, ('process', 'worker-1'))
-    print("worker-1 is done, res is: ", res1)
-    res2 = pool.apply_async(worker, ('process', 'worker-2'))
-    print("worker-2 is done, res is: ", res2)
-    res3 = pool.apply_async(worker, ('process', 'worker-3'))
-    print("worker-3 is done, res is: ", res3)
-    print(f"res1.__class__: {type(res1)}")
-    # 判断是否执行完成，它不会抛出异常
-    print(f"res1.ready(): {res1.ready()}")
-    # 但是下面的这个方法会抛出 ValueError 异常
-    # print(f"res1.successful(): {res1.successful()}")
-    print("----start----")
-    pool.close()  # 关闭进程池，关闭后po不再接收新的请求 —— 必须要在 .join() 前调用此方法
-    pool.join()   # 等待po中所有子进程执行完成，再执行下面的代码,可以设置超时时间join(timeout=)
-    print("-----end-----")
-    # 在执行完成后检查则不会抛出异常
-    print(f"res1.successful(): {res1.successful()}")
-    # wait() 会等待结果执行完成，可以设置 timeout 参数，它不会返回任何值
-    print(f"res1.wait(): {res1.wait()}")
-    # get() 用于获取结果，可以设置 timeout 参数
-    print(f"res1.get(): {res1.get()}")
+            # get() 用于获取结果，可以设置 timeout 参数
+            print(f"res1.get(): {res1.get()}")
+            print(f"res2.get(): {res2.get()}")
+            print(f"res3.get(): {res3.get()}")
 
-    # 使用 map/starmap 方法一次提交多个进程，使用进程池中的所有进程并行执行某个函数 ----- 不太好用
-    # map 只能给函数传一个参数，starmap 可以传入多个参数
-    pool = Pool(3)
-    # 这里由于 worker 有两个参数，所以要使用 starmap
-    # res = pool.starmap(worker, [('process', 'worker-1')])
-    res = pool.starmap(worker, [('process', 'worker-1'), ('process', 'worker-2'), ('process', 'worker-3')])
-    # 上面的方法会阻塞，直到进程池执行完毕
-    # 返回的 res 是一个 list，其中的值就是 worker 的返回值
-    print(res)
-    print("----start----")
-    pool.close()  # 关闭进程池，关闭后po不再接收新的请求
-    pool.join()  # 等待po中所有子进程执行完成，再执行下面的代码,可以设置超时时间join(timeout=)
-    print("-----end-----")
+    def map_usage():
+        # 使用 map/starmap 方法一次提交多个进程，使用进程池中的所有进程并行执行某个函数 ----- 不太好用
+        msgs = ['worker-1', 'worker-2', 'worker-3']
+        with Pool(3) as pool:
+            res = pool.map(show, msgs)
+            # 上面的方法会阻塞，直到进程池执行完毕
+            # 返回的 res 是一个 list，其中的值就是 show 的返回值
+            print(res)
 
-    # Pool.map 方法有一个 chunksize 参数，指定一次传一批数据到子进程了，而不是每次传一条
-    pool = Pool(2)
-    # res = pool.map(show, [1, 2, 3, 4, 5, 6, 7, 8])
-    res = pool.map(show, [1, 2, 3, 4, 5, 6, 7, 8], chunksize=4)
-    # 返回的结果顺序并不会乱
-    print(res)
+        print("------------------------------------------")
+        # Pool.map 方法有一个 chunksize 参数，指定一次传一批数据到子进程了，而不是每次传一条
+        # 下面虽然有 3 个进程，但是 chuncksize=4 只有2批，所以只有2个进程有任务处理
+        with Pool(3) as pool:
+            res = pool.map(show, [1, 2, 3, 4, 5, 6, 7, 8], chunksize=4)
+            # 返回的结果顺序并不会乱
+            print(res)
 
-    #  进程池
+    def starmap_usage():
+        # map 只能给函数传一个参数，starmap 可以传入多个参数
+        # 由于 worker 有两个参数，所以要使用 starmap
+        tasks = [('process', 'worker-1'), ('process', 'worker-2'), ('process', 'worker-3')]
+        with Pool(3) as pool:
+            res = pool.starmap(func=worker, iterable=tasks)
+            # 也有 chunksize 参数
+            # res = pool.starmap(func=worker, iterable=tasks, chunksize=2)
+        print(res)
+
+    def map_async_usage():
+        msgs = ['worker-1', 'worker-2', 'worker-3']
+        with Pool(3) as pool:
+            res = pool.map_async(func=show, iterable=msgs, callback=callback)
+            # 不会阻塞，返回的也是 AsyncResult 对象
+            print(f"res.__class__: {type(res)}")
+            print(f"res.ready(): {res.ready()}")
+            # 有两种方式等待结果
+            # 1. 调用 AsyncResult.wait 方法
+            # res.wait()
+            # print(res.get())
+            # 2. 调用 Pool.close + Pool.join
+            pool.close()
+            pool.join()
+            print(res.get())
+
+    def pool_lifecycle_usage():
+        # 如果使用 with 管理 Pool 的上下文，就不必理会进程池生命周期，如果不使用 with，手动使用Pool时流程应当如下：
+        pool = Pool(3)
+        try:
+            res1 = pool.apply(worker, ('process', 'worker-1'))
+            res2 = pool.apply(worker, ('process', 'worker-2'))
+            res3 = pool.apply(worker, ('process', 'worker-3'))
+            print(res1, res2, res3)
+            pool.close()
+        except Exception as e:
+            pool.terminate()
+        finally:
+            pool.join()
+
+    # --- 例子展示 ---
+    apply_usage()
+    apply_async_usage()
+    map_usage()
+    starmap_usage()
+    map_async_usage()
+    pool_lifecycle_usage()
+
+
+def process_executor_usage():
+    """
+    concurrent.futures.ProcessPoolExecutor 使用.
+    还有如下两个库函数：
+    - wait(): 更适合当你关心一组任务是否全部完成、或者至少有一个任务完成了（通过设置 return_when 参数）。它允许你一次性获取所有已完成的任务和未完成的任务。
+    - as_completed(): 更加灵活，适用于你需要尽快处理最先完成的任务的情况。它可以让你以最快的速度响应已完成的任务，而不需要等待所有任务都结束
+    """
+    # 进程池 submit 方法使用
+    print("---------- Executor.submit ----------")
     future_list = []
     with ProcessPoolExecutor(max_workers=3) as executor:
         for i in range(3):
-            future = executor.submit(worker, "Process",  i+1)
+            # submit 的调用是非阻塞的，它会立即返回一个 Future 对象 ------------ KEY
+            future = executor.submit(worker, "Process",  str(i+1))
             future_list.append(future)
     for future in future_list:
         print("future.result: ", future.result())
 
+    print("---------- Executor.map ----------")
+    # 进程池 map 方法使用
+    msgs = ['worker-1', 'worker-2', 'worker-3']
+    with ProcessPoolExecutor(max_workers=3) as executor:
+        # map 方法也是非阻塞的，会立即返回一个 generator  --------- KEY
+        res = executor.map(show, msgs)
+    print(f"res.__class__: {type(res)}")
+    print("waiting results ...")
+    # 但是遍历 generator 时是阻塞的 ------------------- KEY
+    for item in res:
+        print(item)
 
-def process_concurrent_pool_usage():
-    ...
+    # wait 函数使用
+    print("---------- wait ----------")
+    msgs = ['worker-1', 'worker-2', 'worker-3']
+    future_list = []
+    with ProcessPoolExecutor(max_workers=3) as executor:
+        for msg in msgs:
+            future = executor.submit(show, msg)
+            future_list.append(future)
+    # 使用 wait 函数等待任务完成
+    # wait_res = wait(fs=future_list, return_when=FIRST_COMPLETED)
+    # print(f"wait_res.__class__: {type(wait_res)}")   # <class 'concurrent.futures._base.DoneAndNotDoneFutures'>
+    # print(wait_res)
+    done, not_done = wait(fs=future_list, return_when=ALL_COMPLETED)
+    # done, not_done = wait(fs=future_list, return_when=FIRST_COMPLETED)
+    # done, not_done = wait(fs=future_list, return_when=FIRST_EXCEPTION)
+    # 下面的顺序不能保证
+    print('Done tasks:', [future.result() for future in done])
+    print('Not done tasks:', [future.running() for future in not_done])
+
+    # as_complete 函数使用
+    print("---------- as_complete ----------")
+    msgs = ['worker-1', 'worker-2', 'worker-3']  # 这里 worker 顺序并不能保证结果的顺序
+    future_list = []
+    with ProcessPoolExecutor(max_workers=3) as executor:
+        for msg in msgs:
+            future = executor.submit(show, msg)
+            future_list.append(future)
+    for future in as_completed(future_list):
+        try:
+            result = future.result()
+            print(f'Result: {result}')
+        except Exception as e:
+            print(f'Task generated an exception: {e}')
 
 
 def process_singleton():
@@ -362,7 +479,6 @@ def process_singleton():
     单例模式 + 多进程
     :return:
     """
-
     # 下面这个例子可以看出，单例模式的作用范围是 单进程，跨进程的话是可以有两个对象的，并且这两个对象的修改都是独立的
     class Single:
         __instance = None
@@ -410,7 +526,8 @@ def main():
     process_shared_memory_usage()
     process_manager_usage()
     process_pool_usage()
-    process_singleton()
+    process_executor_usage()
+    # process_singleton()
 
 
 if __name__ == '__main__':
