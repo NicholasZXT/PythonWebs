@@ -412,66 +412,106 @@ def process_pool_usage():
 def process_executor_usage():
     """
     concurrent.futures.ProcessPoolExecutor 使用.
+    它的父类 Executor 定义了如下两个常用方法：
+    - submit(fn, /, *args, **kwargs): 提交一个任务，使用 fn 执行：
+      - 非阻塞，立即返回一个 Future 对象
+    - map(fn, *iterables, timeout=None, chunksize=1): 提交一个可迭代对象 iterables，使用 fn 执行
+      - 非阻塞，立即返回一个 generator
+      - 但是对返回的 generator 进行遍历时，会阻塞
+
     还有如下两个库函数：
-    - wait(): 更适合当你关心一组任务是否全部完成、或者至少有一个任务完成了（通过设置 return_when 参数）。它允许你一次性获取所有已完成的任务和未完成的任务。
-    - as_completed(): 更加灵活，适用于你需要尽快处理最先完成的任务的情况。它可以让你以最快的速度响应已完成的任务，而不需要等待所有任务都结束
+    - wait(fs, timeout=None, return_when=ALL_COMPLETED): 更适合当你关心一组任务是否全部完成、或者至少有一个任务完成了（通过设置 return_when 参数）。
+      - fs 是 Future 列表
+      - return_when 指定此函数应在何时返回，它只接受一些预定义常量：FIRST_COMPLETED, FIRST_EXCEPTION, ALL_COMPLETED
+      - 它允许 立即 一次性获取 当前 所有已完成的任务和未完成的任务。
+
+    - as_completed(fs, timeout=None): 更加灵活，适用于你需要尽快处理最先完成的任务的情况。它可以让你以最快的速度响应已完成的任务，而不需要等待所有任务都结束
+      - fs 是一个由 Future 对象组成的可迭代对象（如列表）
+      - 它按任务完成的顺序 yield 出这些 Future 对象，而不是按照它们被提交的顺序 —— 也就是不会等待所有任务都完成，而是一旦有任务完成，就 yield 它
+      - 支持异常捕获和超时设置
+      - 方法本身是 阻塞的，会在第一个任务完成时返回！！！
+      - 返回值是一个 generator，并且对返回的生成器进行遍历时是阻塞的
     """
-    # 进程池 submit 方法使用
-    print("---------- Executor.submit ----------")
-    future_list = []
-    with ProcessPoolExecutor(max_workers=3) as executor:
-        for i in range(3):
-            # submit 的调用是非阻塞的，它会立即返回一个 Future 对象 ------------ KEY
-            future = executor.submit(worker, "Process",  str(i+1))
-            future_list.append(future)
-    for future in future_list:
-        print("future.result: ", future.result())
+    def submit_usage():
+        # 进程池 submit 方法使用
+        print("---------- Executor.submit ----------")
+        future_list = []
+        with ProcessPoolExecutor(max_workers=3) as executor:
+            for i in range(3):
+                # submit 的调用是非阻塞的，它会立即返回一个 Future 对象 ------------ KEY
+                future = executor.submit(worker, "Process",  str(i+1))
+                future_list.append(future)
+        # 下面遍历返回的结果顺序是确定的 ------------------- KEY
+        for future in future_list:
+            # print(f"type(future): {type(future)}")  # <class 'concurrent.futures._base.Future'>
+            # Future.result() 方法是阻塞的，返回值就是 worker 的返回值
+            print("future.result(): ", future.result())
 
-    print("---------- Executor.map ----------")
-    # 进程池 map 方法使用
-    msgs = ['worker-1', 'worker-2', 'worker-3']
-    with ProcessPoolExecutor(max_workers=3) as executor:
-        # map 方法也是非阻塞的，会立即返回一个 generator  --------- KEY
-        res = executor.map(show, msgs)
-    print(f"res.__class__: {type(res)}")
-    print("waiting results ...")
-    # 但是遍历 generator 时是阻塞的 ------------------- KEY
-    for item in res:
-        print(item)
+    def map_usage():
+        print("---------- Executor.map ----------")
+        # 进程池 map 方法使用
+        msgs = ['worker-1', 'worker-2', 'worker-3']
+        with ProcessPoolExecutor(max_workers=3) as executor:
+            # map 方法也是非阻塞的，会立即返回一个 generator  --------- KEY
+            res_generator = executor.map(show, msgs)
+            # print(f"res_generator.__class__: {type(res_generator)}")   # <class 'generator'>
 
-    # wait 函数使用
-    print("---------- wait ----------")
-    msgs = ['worker-1', 'worker-2', 'worker-3']
-    future_list = []
-    with ProcessPoolExecutor(max_workers=3) as executor:
-        for msg in msgs:
-            future = executor.submit(show, msg)
-            future_list.append(future)
-    # 使用 wait 函数等待任务完成
-    # wait_res = wait(fs=future_list, return_when=FIRST_COMPLETED)
-    # print(f"wait_res.__class__: {type(wait_res)}")   # <class 'concurrent.futures._base.DoneAndNotDoneFutures'>
-    # print(wait_res)
-    done, not_done = wait(fs=future_list, return_when=ALL_COMPLETED)
-    # done, not_done = wait(fs=future_list, return_when=FIRST_COMPLETED)
-    # done, not_done = wait(fs=future_list, return_when=FIRST_EXCEPTION)
-    # 下面的顺序不能保证
-    print('Done tasks:', [future.result() for future in done])
-    print('Not done tasks:', [future.running() for future in not_done])
+        print("waiting results ...")
+        # 但是遍历 generator 时是阻塞的 ------------------- KEY
+        # 遍历返回的结果顺序是确定的 ------------------- KEY
+        for item in res_generator:
+            # 使用 for 循环遍历时，直接拿到的是 worker 的返回值，不是 Future 对象
+            print(f"type(item): {type(item)}")   # <class 'str'>
+            print(f"item:  {item}")
 
-    # as_complete 函数使用
-    print("---------- as_complete ----------")
-    msgs = ['worker-1', 'worker-2', 'worker-3']  # 这里 worker 顺序并不能保证结果的顺序
-    future_list = []
-    with ProcessPoolExecutor(max_workers=3) as executor:
-        for msg in msgs:
-            future = executor.submit(show, msg)
-            future_list.append(future)
-    for future in as_completed(future_list):
-        try:
-            result = future.result()
-            print(f'Result: {result}')
-        except Exception as e:
-            print(f'Task generated an exception: {e}')
+    def wait_usage():
+        # wait 函数使用
+        print("---------- wait ----------")
+        msgs = ['worker-1', 'worker-2', 'worker-3']
+        future_list = []
+        with ProcessPoolExecutor(max_workers=3) as executor:
+            for msg in msgs:
+                future = executor.submit(show, msg)
+                future_list.append(future)
+        # 使用 wait 函数等待任务完成
+        # wait_res = wait(fs=future_list, return_when=FIRST_COMPLETED)
+        # print(f"wait_res.__class__: {type(wait_res)}")   # <class 'concurrent.futures._base.DoneAndNotDoneFutures'>
+        # print(wait_res)
+        done, not_done = wait(fs=future_list, return_when=ALL_COMPLETED)
+        # done, not_done = wait(fs=future_list, return_when=FIRST_COMPLETED)
+        # done, not_done = wait(fs=future_list, return_when=FIRST_EXCEPTION)
+        # 下面的顺序不能保证
+        print('Done tasks:', [future.result() for future in done])
+        print('Not done tasks:', [future.running() for future in not_done])
+
+    def as_complete_usage():
+        # as_complete 函数使用
+        print("---------- as_complete ----------")
+        msgs = ['worker-1', 'worker-2', 'worker-3']  # 这里 worker 顺序并不能保证结果的顺序
+        future_list = []
+        with ProcessPoolExecutor(max_workers=3) as executor:
+            for msg in msgs:
+                future = executor.submit(show, msg)
+                future_list.append(future)
+        # as_completed 本身是阻塞的，在第一个任务完成时返回一个 generator ---------- KEY
+        fs_generator = as_completed(future_list)
+        print(f"type(fs_generator): {type(fs_generator)}")   # <class 'generator'>
+        print("waiting results ...")
+        # 但是进行遍历时是阻塞的 ------------------- KEY
+        # 并且遍历返回的结果顺序不能保证
+        for future in fs_generator:
+            # 遍历时返回的是 Future 对象
+            # print(f"type(future): {type(future)}")  # <class 'concurrent.futures._base.Future'>
+            try:
+                result = future.result()
+                print(f'Result: {result}')
+            except Exception as e:
+                print(f'Task generated an exception: {e}')
+
+    submit_usage()
+    map_usage()
+    wait_usage()
+    as_complete_usage()
 
 
 def process_singleton():
@@ -518,14 +558,14 @@ def process_singleton():
 
 
 def main():
-    process_function_usage()
-    process_basic_usage()
-    process_object_serialization()
-    process_queue_usage()
-    process_pipe_usage()
-    process_shared_memory_usage()
-    process_manager_usage()
-    process_pool_usage()
+    # process_function_usage()
+    # process_basic_usage()
+    # process_object_serialization()
+    # process_queue_usage()
+    # process_pipe_usage()
+    # process_shared_memory_usage()
+    # process_manager_usage()
+    # process_pool_usage()
     process_executor_usage()
     # process_singleton()
 
