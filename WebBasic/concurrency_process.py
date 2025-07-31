@@ -418,6 +418,7 @@ def process_executor_usage():
     - map(fn, *iterables, timeout=None, chunksize=1): 提交一个可迭代对象 iterables，使用 fn 执行
       - 非阻塞，立即返回一个 generator
       - 但是对返回的 generator 进行遍历时，会阻塞
+      - 迭代map返回的 generator 时，拿到的就是 fn 的返回值 —— map 内部会创建Future对象并管理它们，对使用者来说是透明的，无法拿到 Future 对象，
 
     还有如下两个库函数：
     - wait(fs, timeout=None, return_when=ALL_COMPLETED): 更适合当你关心一组任务是否全部完成、或者至少有一个任务完成了（通过设置 return_when 参数）。
@@ -442,7 +443,7 @@ def process_executor_usage():
                 future = executor.submit(worker, "Process",  str(i+1))
                 future_list.append(future)
         # 下面遍历返回的结果顺序是确定的 ------------------- KEY
-        for future in future_list:
+        for future in future_list:   # 如果改成 for future in as_completed(future_list)，那么返回的结果顺序就是不确定的了
             # print(f"type(future): {type(future)}")  # <class 'concurrent.futures._base.Future'>
             # Future.result() 方法是阻塞的，返回值就是 worker 的返回值
             print("future.result(): ", future.result())
