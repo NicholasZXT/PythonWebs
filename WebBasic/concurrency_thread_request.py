@@ -23,15 +23,18 @@ class ThreadSafeSessionManager:
     """
     一个完全线程安全的 Session 管理器。
     它使用锁来保护 Session 的创建和注册过程，防止竞态条件。
+    支持自定义请求 headers。
     """
 
-    def __init__(self):
+    def __init__(self, headers: dict | None = None):
         # 关于 threading.local()，它里面的保存的引用的生命周期和线程是一样的：一旦线程结束，那么它在 threading.local 里保存的引用对象也会被删除 。
         self._thread_local = threading.local()
         # 这个列表用于保存所有创建的 Session 对象，以便在关闭时进行清理。
         self._all_sessions = []
         # 关键：为临界区创建一个锁 —— 主要是用于保护上面 self._all_sessions 列表的多线程访问。
         self._lock = threading.Lock()
+        # 存储用户自定义的 headers
+        self._headers = headers or {}
         print("Session Manager initialized with Lock.")
 
     def get_session(self):
@@ -47,6 +50,8 @@ class ThreadSafeSessionManager:
             # 如果没有这第二次检查，所有等待锁的线程最终都会创建一个新的 Session，锁就失去了意义。
             if not hasattr(self._thread_local, 'session'):
                 session = requests.Session()
+                # 应用自定义 headers
+                session.headers.update(self._headers)
                 print(f"[Thread {threading.get_ident()}] Creating and registering a new Session.")
                 self._all_sessions.append(session)
                 self._thread_local.session = session
@@ -97,9 +102,16 @@ if __name__ == "__main__":
         "https://github.com",
     ]
 
+    # 自定义请求头
+    custom_headers = {
+        "User-Agent": "MyCustomBot/1.0",
+        "X-Request-Source": "ThreadSafeSessionManager",
+        "Accept": "application/json"
+    }
+
     print("--- Starting execution with Session Manager ---")
     # 使用 with 语句，自动管理 SessionManager 的生命周期
-    with ThreadSafeSessionManager() as manager:
+    with ThreadSafeSessionManager(headers=custom_headers) as manager:
         with ThreadPoolExecutor(max_workers=2) as executor:
             # 使用 lambda 或 functools.partial 将 manager 传递给 worker
             # 这里使用 lambda 更直观
