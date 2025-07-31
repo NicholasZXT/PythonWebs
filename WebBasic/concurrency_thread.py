@@ -455,8 +455,21 @@ def thread_queue_usage():
 
 def thread_pool_usage():
     """
-    线程池使用
-    :return: None
+    线程池使用。
+    关于线程池的使用，一点实践经验如下：
+    ```python
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [executor.submit(task, data) for data in chunk_data]
+    ```
+    （1）上面的代码中，如果 chunk_data 比 max_workers 数量大，那么submit提交的任务会进入后台的一个任务队列queue.Queue —— 它是一个无界队列。
+    （2）如果 chunk_data 比 max_workers 数量大很多，可以考虑手动将 chunk_data 分块（chunking）并修改task，在task里一次处理多个数据项。
+    不过此方案的性能提升要视具体的任务工作负载而定：
+    - 对于 I/O 密集型任务，通常提升不大甚至可能变差
+      - 单条处理方案优势：最大化并发度。即使一个线程在等待网络响应，其他线程可以继续提交请求或处理其他任务。
+      - 分块方案劣势：降低了并发度。如果一个任务要处理 10 个 URL，它会串行地发起 10 个请求，这 10 个请求的等待时间是叠加的。
+    - 对于 CPU 密集型任务，可能有显著提升
+      - 单条处理方案劣势：任务调度开销大。每个小任务都要经过 submit、入队、线程调度、上下文切换、结果收集等过程。如果单个任务计算量很小，这些开销可能占比很高。
+      - 分块方案优势：减少任务调度开销：将 1000 个小任务合并成 100 个大任务，任务调度、上下文切换的次数减少了 10 倍；提高 CPU 缓存利用率：连续处理一批数据，局部性更好。
     """
     # 模拟一个耗时任务
     def task(n):
