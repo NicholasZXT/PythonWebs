@@ -70,6 +70,7 @@ class ThreadSafeSessionManager:
             # 关闭会话时增加了异常捕获，以确保即使某些会话关闭失败也不会影响其他会话的关闭操作。
             try:
                 session.close()
+                print(f"closed session: {session}.")
             except Exception as e:
                 print(f"Error closing session: {e}")
         # 清空列表，避免残留引用
@@ -84,39 +85,48 @@ class ThreadSafeSessionManager:
 
 
 # 使用上下文管理器的主逻辑
-def worker_task_with_manager(url: str, manager: ThreadSafeSessionManager):
+def worker_with_manager(manager: ThreadSafeSessionManager, url: str, data: dict | None = None):
     """一个使用 Session 管理器的工作任务"""
     try:
         session = manager.get_session()
-        response = session.get(url, timeout=5)
+        print(f"[Thread {threading.get_ident()}] get session {session}.")
+        response = session.post(url, data=data)
         print(f"[Thread {threading.get_ident()}] Fetched {url}, Status: {response.status_code}")
     except requests.RequestException as e:
         print(f"[Thread {threading.get_ident()}] Error fetching {url}: {e}")
 
 
 if __name__ == "__main__":
-    urls_to_fetch = [
-        "https://www.google.com",
-        "https://www.bing.com",
-        "https://www.python.org",
-        "https://github.com",
-    ]
-
-    # 自定义请求头
-    custom_headers = {
-        "User-Agent": "MyCustomBot/1.0",
-        "X-Request-Source": "ThreadSafeSessionManager",
-        "Accept": "application/json"
+    from copy import deepcopy
+    url = 'http://localhost:10086/v1/chat/completions'
+    headers = {'Content-Type': 'application/json', "Accept": "application/json"}
+    payload = {
+        'model': 'Qwen3-7B',
+        'messages': [
+            {'role': 'system', 'content': 'You are a helpful assistant'},
+            {"role": "user", "content": ''}
+        ],
+        'max_tokens': 512,
+        'top_p': 0.9,
+        'temperature': 0.1,
     }
+    contents = [
+        "请给一个Python requests 库的使用示例，并给出代码注释。",
+        "请给一个Python httpx 库的使用示例，并给出代码注释。",
+        "请给一个Python aiohttp 库的使用示例，并给出代码注释。",
+        "请给一个Python ruff 库的使用示例，并给出代码注释。"
+    ]
+    payloads = []
+    for content in contents:
+        data = deepcopy(payload)
+        data['messages'][1]['content'] = content
+        payloads.append(data)
 
     print("--- Starting execution with Session Manager ---")
     # 使用 with 语句，自动管理 SessionManager 的生命周期
-    with ThreadSafeSessionManager(headers=custom_headers) as manager:
+    with ThreadSafeSessionManager(headers=headers) as manager:
         with ThreadPoolExecutor(max_workers=2) as executor:
-            # 使用 lambda 或 functools.partial 将 manager 传递给 worker
-            # 这里使用 lambda 更直观
-            tasks = [executor.submit(worker_task_with_manager, url, manager) for url in urls_to_fetch]
-
+            tasks = [executor.submit(worker_with_manager, manager, url, data) for data in payloads]
             # 等待所有任务完成
             for future in tasks:
                 future.result()
