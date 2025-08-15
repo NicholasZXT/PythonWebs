@@ -103,7 +103,8 @@ litestar  = [
 ]
 tornado = [
     "tornado == 6.5.1",
-    "tornado-swagger",
+#    "tornado-swagger == 1.5.1",
+#    "tornado-rest-swagger == 1.2.1",
 ]
 mcp = [
     "mcp[cli] >= 1.12.0"
