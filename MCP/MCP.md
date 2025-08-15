@@ -109,6 +109,12 @@ MCP Python 服务端是基于 starlette 开发的。
 MCP Python package 源码里重要的有如下几部分：
 
 ---
+## `types.py`
+
+此文件里基于pydantic-v2定义了 MCP 服务端和客户端的JSON-RPC协议格式，
+详细格式参见官方文档 [MCP Specification](https://modelcontextprotocol.io/specification/2025-06-18)）。
+
+---
 ## `server` Module
 
 模块 `server` 主要定义了 MCP 服务端的实现组件，分为如下几个子模块：
@@ -134,9 +140,41 @@ MCP Python package 源码里重要的有如下几部分：
 
 模块 `client` 主要定义了 MCP 客户端的实现组件。
 
+- `session.py` 里定义了`ClientSession`。
+- `session_group.py`
 - `stdio`模块（其实只有一个`__init__.py`源码文件）定义了`stdio_client`的实现，以及`StdioServerParameters`。
-- `streamable_http.py` 里定义了`streamablehttp_client`的实现。
 - `sse.py` 里定义了`sse_client`的实现。
-- `session.py` 里定义了`ClientSession`
+- `streamable_http.py` 里定义了`streamablehttp_client`的实现。
 - `auth.py` 里定义了 OAuth2 认证相关的类。
+
+
+## Example
+
+MCP Python SDK 的官方文档目前写的并不完善，不过好在官方的仓库里提供了一些示例代码，存放在 `examples` 目录下，可以参考。
+
+该目录下的内容如下：
+
+### `snippets`
+
+提供了一些 MCP 服务端/客户端开发示例代码，快速入门可以参考这里的示例 —— **推荐优先看这里的示例**。
+
+- `clients`
+- `servers`
+
+### `fastmcp`
+
+提供了一些基于 `FastMCP` 类进行MCP服务器开发的示例，比较有用。
+
+
+### `clients`
+
+提供了 MCP 客户端的示例代码。
+
+主要有两个：
+- `simple-auth-client`
+- `simple-chatbot`
+
+### `servers`
+
+提供了基于更加底层的 `Server` + `ServerSession` 类进行MCP服务器开发的示例。
 

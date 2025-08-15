@@ -1708,7 +1708,6 @@ test = [
 ]
 tornado = [
     { name = "tornado" },
-    { name = "tornado-swagger" },
 ]
 
 [package.metadata]
@@ -1792,10 +1791,7 @@ other = [
     { name = "pyyaml", specifier = ">=6.0.2" },
 ]
 test = [{ name = "pytest", specifier = "==7.4.4" }]
-tornado = [
-    { name = "tornado", specifier = "==6.5.1" },
-    { name = "tornado-swagger" },
-]
+tornado = [{ name = "tornado", specifier = "==6.5.1" }]
 
 [[package]]
 name = "pytz"
@@ -2110,16 +2106,6 @@ wheels = [
     { url = "https://pypi.tuna.tsinghua.edu.cn/packages/7b/09/6526e32bf1049ee7de3bebba81572673b19a2a8541f795d887e92af1a8bc/tornado-6.5.1-cp39-abi3-win_amd64.whl", hash = "sha256:908e7d64567cecd4c2b458075589a775063453aeb1d2a1853eedb806922f568b", size = 444840, upload-time = "2025-05-22T18:15:36.1Z" },
     { url = "https://pypi.tuna.tsinghua.edu.cn/packages/55/a7/535c44c7bea4578e48281d83c615219f3ab19e6abc67625ef637c73987be/tornado-6.5.1-cp39-abi3-win_arm64.whl", hash = "sha256:02420a0eb7bf617257b9935e2b754d1b63897525d8a289c9d65690d580b4dcf7", size = 443596, upload-time = "2025-05-22T18:15:37.433Z" },
 ]
-
-[[package]]
-name = "tornado-swagger"
-version = "1.5.0"
-source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
-dependencies = [
-    { name = "pyyaml" },
-    { name = "tornado" },
-]
-sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/d5/bf/a7040e7ee12aa6d5401c951e94b7b83e8ebbca04e4d538238233dbd79709/tornado-swagger-1.5.0.tar.gz", hash = "sha256:f7826d935cdd33eaa6365326726a8461912b5c69b92c3666ff02e4dcec0226a0" }
 
 [[package]]
 name = "typer"
