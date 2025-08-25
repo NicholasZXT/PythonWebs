@@ -178,3 +178,51 @@ MCP Python SDK 的官方文档目前写的并不完善，不过好在官方的�
 
 提供了基于更加底层的 `Server` + `ServerSession` 类进行MCP服务器开发的示例。
 
+
+
+------
+
+# FastMCP v2.0
+
+官方文档 [FastMCP](https://gofastmcp.com/getting-started/welcome).
+
+这是一个基于 MCP Python SDK 进行二次开发的 MCP package。
+
+> 实际上，根据 FastMCP 官方文档的说法，FastMCP 的1.0版本被合并吸收到了 MCP Python SDK 中了。
+> FastMCP v2.0 版本是一个全新的版本，也是基于 MCP Python SDK 构建的。
+> 相关讨论可以参见 [FastMCP 2.0 vs MCP Python SDK Server #1068](https://github.com/modelcontextprotocol/python-sdk/issues/1068).
+> 个人感觉，**FastMCP v2.0 的文档更加清晰，用起来更方便**。
+
+FastMCP v2.0 源码结构如下；
+
+## `settings.py`
+
+基于 `pydantic_settings` 的 `BaseSettings` 类定义了 FastMCP 的配置参数类 `Settings`。
+
+## `mcp_config.py`
+
+基于 `pydantic` 的 `BaseModel` 类定义了 MCP 服务器的各种配置类：
+- `StdioMCPServer`
+- `RemoteMCPServer`
+- `MCPConfig`: 汇总配置类
+
+
+## `client` module
+
+
+## `server` module
+
+
+## `tools` module
+
+
+## `resources` module
+
+
+## `prompts` module
+
+
+## `cli` module
+
+
+## `utilities` module
