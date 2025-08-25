@@ -107,7 +107,9 @@ tornado = [
 #    "tornado-rest-swagger == 1.2.1",
 ]
 mcp = [
-    "mcp[cli] >= 1.12.0"
+    "mcp[cli] >= 1.12.0",
+#   另一个 MCP package
+    "fastmcp >= 2.10.0"
 ]
 test = [
     "pytest == 7.4.4",
