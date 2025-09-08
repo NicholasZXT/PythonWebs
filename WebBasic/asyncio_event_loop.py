@@ -9,7 +9,7 @@ from socket import socket as socket_class
 import selectors
 from selectors import BaseSelector, DefaultSelector
 import threading
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor, Future as ConcurrentFuture
 from datetime import datetime
 
 
@@ -279,7 +279,7 @@ class CustomEventLoop:
         self._tasks_to_run: List[CustomTask] = []
         self.current_result = None
         # 下面这个是模拟 asyncio 里 event_loop 的 run_in_executor() 方法，
-        self._default_executor = ThreadPoolExecutor(max_workers=4)  # 默认线程池
+        self._default_executor: ThreadPoolExecutor | ProcessPoolExecutor = ThreadPoolExecutor(max_workers=4)  # 默认线程池
         self._lock = threading.Lock()
 
     # --------------------- 注册Task ----------------------
@@ -315,20 +315,20 @@ class CustomEventLoop:
             # ----- 事件循环中注册的其他协程都被封装为 Task 对象，在这里使用 step() 方法驱动执行 ---------
             # self._tasks_to_run 中的Task，是在主协程中使用 loop.register() 方法注册的，
             # 要特别注意的是，这些 task 一定要使用 await，否则可能执行不完，原因见上面
-            print(f"[{get_now()}][{self.__class__.__name__}][{round_num}]  run tasks in loop...")
+            print(f"[{get_now()}][{self.__class__.__name__}][{round_num}] run tasks in loop...")
             for task in self._tasks_to_run:
                 task.step()
             # 收集未完成的 Task，下一轮 while 循环中继续执行
             self._tasks_to_run = [task for task in self._tasks_to_run if not task.is_finished()]
 
             # ----- 阻塞等待/处理 selector 中事件 ---------
-            print(f"[{get_now()}][{self.__class__.__name__}][{round_num}]  Selector polling events...")
+            print(f"[{get_now()}][{self.__class__.__name__}][{round_num}] Selector polling events...")
             events = self.selector.select()
-            print(f"[{get_now()}][{self.__class__.__name__}][{round_num}]  Processing selector events...")
+            print(f"[{get_now()}][{self.__class__.__name__}][{round_num}] Processing selector events...")
             for key, mask in events:
                 callback = key.data
                 callback(key.fileobj)
-            print(f"[{get_now()}][{self.__class__.__name__}][{round_num}] {'-'*100}")
+            print(f"[{get_now()}][{self.__class__.__name__}][{round_num}] {'-----'*20}")
 
     def _set_current_result(self, result):
         self.current_result = result
@@ -337,7 +337,7 @@ class CustomEventLoop:
     def _register_socket_to_read(self, sock: socket_class, callback) -> CustomFuture:
         """
         此方法主要用于处理 selector 中 客户端socket 的两种情况：
-          1. 客户端socket 连接建立事件，在 selector 中注册 accept_connection() 处理az
+          1. 客户端socket 连接建立事件，在 selector 中注册 accept_connection() 处理
           2. 客户端socket 发送了数据， 在 selector 中注册 received_data() 处理
         """
         # future 对象是作为 客户端socket 的异步连接占位符
@@ -369,7 +369,7 @@ class CustomEventLoop:
 
     async def sock_recv(self, sock: socket_class) -> bytes:
         """
-        此方法的返回值就是 received_data 中 socke.recv() 的返回值
+        此方法的返回值就是 received_data 中 socket.recv() 的返回值
         """
         print(f"[{get_now()}] Registering socket to listen for data...")
         return await self._register_socket_to_read(sock, self.received_data)
@@ -388,7 +388,7 @@ class CustomEventLoop:
         """设置默认执行器"""
         self._default_executor = executor
 
-    def run_in_executor(self, executor, func, *args):
+    def run_in_executor(self, executor: Union[None, ThreadPoolExecutor, ProcessPoolExecutor], func, *args):
         """
         异步执行一个阻塞函数。
         :param executor: 执行器（ThreadPoolExecutor / ProcessPoolExecutor），None 表示使用默认线程池
@@ -400,27 +400,28 @@ class CustomEventLoop:
         if executor is None:
             executor = self._default_executor
 
-        # 创建一个 Future，作为 await 的占位符
+        # 创建一个 Future，作为 ThreadPoolExecutor/ProcessPoolExecutor submit方法 运行结果的异步占位符
         future = CustomFuture()
 
-        def _callback(future_from_executor):
+        def _executor_callback(future_from_executor: ConcurrentFuture):
             """
-            这是提交给线程/进程池 Future 的回调函数。
-            当后台任务完成时，此函数被调用。
+            这是提交给线程/进程池 Future 的回调函数，当后台任务完成时，此函数被调用。
+            注意，这里的 future 对象是 concurrent.futures.Future.
             """
             try:
                 # 获取执行结果
                 result = future_from_executor.result()
                 # 设置 asyncio Future 的结果，触发 await 恢复
+                # 这里的 future 是 CustomFuture，直接使用外部函数的 future 对象
                 future.set_result(result)
-            except Exception as e:
-                # 如果后台任务抛出异常，也设置到 Future
-                future.set_exception(e)  # 你可以在 CustomFuture 中添加 set_exception 方法
+            except Exception as ex:
+                # 如果后台任务抛出异常，也设置到 Future，需要在 CustomFuture 中添加 set_exception 方法
+                future.set_exception(ex)
 
         # 将函数提交到执行器
         # submit() 立即返回一个 concurrent.futures.Future
         try:
-            future_from_executor = executor.submit(func, *args)
+            future_from_executor: ConcurrentFuture = executor.submit(func, *args)
         except Exception as e:
             # 如果 submit 失败，直接设置异常
             future.set_exception(e)
@@ -429,9 +430,9 @@ class CustomEventLoop:
         # 为执行器的 Future 添加完成回调
         # 当线程/进程中的任务完成时，_callback 会被调用
         future_from_executor.add_done_callback(
-            lambda fut: self.call_soon_threadsafe(_callback, fut)
+            lambda fut: self.call_soon_threadsafe(_executor_callback, fut)
         )
-
+        # 返回的是 CustomFuture
         return future
 
     def call_soon_threadsafe(self, callback, *args):
@@ -440,8 +441,8 @@ class CustomEventLoop:
         在真实 asyncio 中，会通过 _write_to_self_pipe 或其他机制实现。
         这部分的实现比较复杂。
         """
-        # 简化实现：可以在 selector 中注册一个“唤醒 socket”
-        # 当线程完成任务后，写入这个 socket，事件循环就会被唤醒
+        # 简化实现：可以在 selector 中注册一个“唤醒 socket”，当线程完成任务后，写入这个 socket，事件循环就会被唤醒
+        # TODO
         pass
 
 
