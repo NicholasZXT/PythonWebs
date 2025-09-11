@@ -1,6 +1,14 @@
 """
 自定义实现异步编程里的简化版 Future, Task, EventLoop。
 基于《Python Concurrency with asyncio》 Chapter 14，略有改进。
+
+实现完这个自定义EventLoop，可以发现异步编程中有一个重要的点：
+await 本身并不“异步”，真正实现并发的是 Task 和事件循环的调度能力。
+
+如果一个异步函数的内部调用及其嵌套调用，都是单纯的 await，那么该异步函数及其内部的异步调用，都只是串行的。
+只有创建了 Task 并将其加入到事件循环中（当然后面还需要显式await该Task），才能实现真正的异步并发。
+
+async/await 是异步的“语法基础”，但 Task + EventLoop 才是并发的“执行引擎”。
 """
 from typing import List, Dict, Union, Tuple, Any
 from functools import partial
