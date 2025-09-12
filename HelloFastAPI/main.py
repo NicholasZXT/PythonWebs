@@ -6,7 +6,7 @@ from config import settings
 from database import init_db_tables
 from user_app import user_router
 from auth_app import custom_jwt_router, login_router, authx_router
-from api import api_router, rest_router, MyResource, streaming_router, file_router
+from api import api_router, rest_router, MyResource, streaming_router, file_router, batch_router
 # from api import controller
 
 app = FastAPI(
@@ -80,6 +80,8 @@ app.include_router(user_router)
 app.include_router(streaming_router)
 # 文件上传接口
 app.include_router(file_router)
+# 异步批量处理演示接口
+app.include_router(batch_router)
 
 # JWT认证相关Router
 # 注意，custom_jwt_router 和 login_router 里都设置了一个 OAuth2PasswordBearer，那么在 SwaggerUI 界面的 Authorize 里会显示两个登录验证的地方

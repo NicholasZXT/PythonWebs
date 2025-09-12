@@ -1,15 +1,14 @@
 """
 Python异步编程实践总结，结合 asyncio_event_loop.py 里的内容看会更容易懂。
 
-Python中异步（网络）编程的使用要点可以总结为如下：
-  - 使用Python的异步网络框架（比如Starttle/FastAPI，tornado）时，在异步视图函数里，绝大多数场景下只需要一直嵌套await一个协程函数；
+Python中异步（网络）编程 **大部分场景** 使用要点可以总结为如下：
+  - 使用Python的异步网络框架（比如 Starlette/FastAPI，tornado）时，在异步视图函数里，绝大多数场景下只需要一直嵌套await一个协程函数；
   - 最重要的点在于这一系列的嵌套await调用里，绝对不要使用任何阻塞IO的API（比如requests库），保证不阻塞事件循环的线程即可；
-  - 实际的异步并发体现在异步网络框架（比如Starttle）会将我们写的异步视图函数封装为 Task，借助事件循环来异步并发执行；
+  - 实际的异步并发体现在异步网络框架（比如 Starlette）会将我们写的异步视图函数封装为 Task，借助事件循环来异步并发执行；
   - 当我们写的异步视图函数里await执行到一个需要等待的异步操作（如网络请求、文件读写、定时器）时，异步网络框架会借助底层的事件循环来暂停当前协程，
     并恢复其他已就绪的协程（例如：之前另一个请求等待的 IO 已完成），从而实现并发。
 """
 import inspect
-import types
 import time
 import asyncio
 from typing import Generator, AsyncIterator, AsyncGenerator, Coroutine
