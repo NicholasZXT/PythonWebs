@@ -191,10 +191,10 @@ authx_scheme = OAuth2PasswordBearer(tokenUrl="auth_app/authx/login", scheme_name
 
 
 # ------------------------- fastapi-auth-jwt 相关依赖 -------------------------
-from fastapi_auth_jwt import AuthConfig, JWTAuthBackend
-auth_config = AuthConfig(secret=settings.SECRET_KEY, expires_delta=timedelta(seconds=settings.ACCESS_TOKEN_EXPIRE_SECONDS))
-auth_backend = JWTAuthBackend(
-    authentication_config=auth_config,
-    # user_schema 只要是 pydantic.BaseModel 的子类即可
-    user_schema=AuthUser
-)
+# from fastapi_auth_jwt import AuthConfig, JWTAuthBackend
+# auth_config = AuthConfig(secret=settings.SECRET_KEY, expires_delta=timedelta(seconds=settings.ACCESS_TOKEN_EXPIRE_SECONDS))
+# auth_backend = JWTAuthBackend(
+#     authentication_config=auth_config,
+#     # user_schema 只要是 pydantic.BaseModel 的子类即可
+#     user_schema=AuthUser
+# )

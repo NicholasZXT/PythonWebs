@@ -10,6 +10,7 @@ from fastapi_restful import Resource, Api, set_responses
 
 # ------------- 第1种 CBV 使用方式 -------------
 # 这种方式用起来比较顺手
+# 第 1 步，正常创建一个 APIRouter 实例
 rest_router = APIRouter(
     prefix='/rest',
     tags=['API-Restful']
@@ -17,12 +18,15 @@ rest_router = APIRouter(
 
 def some_dependency():
     s = "some_dependency"
-    print(s)
+    # print(s)
     return s
 
 
+# 第 2 步，使用 @cbv 装饰器 装饰自定义的 CBV 类
 @cbv(router=rest_router)
 class RestfulApi:
+
+    # 第 3 步：定义类属性为公共依赖
     # 所有视图函数中都需要的依赖可以采用类属性的方式
     some: str = Depends(some_dependency)
 
@@ -43,6 +47,7 @@ class RestfulApi:
         response_class=JSONResponse
     )
     def some_dep(self):
+        # 第 4 步，使用 self.<dependency_name> 的方式访问依赖注入的公共依赖
         # 可以通过如下方式访问类属性得到的依赖注入
         return {"message": self.some}
 

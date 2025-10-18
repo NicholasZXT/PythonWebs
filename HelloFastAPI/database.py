@@ -37,7 +37,7 @@ async def init_db_tables_async() -> None:
     print("init_db_tables done.")
 
 # 用于获取Session的依赖函数
-def get_db_session() -> Generator[Session]:
+def get_db_session() -> Generator[Session, None, None]:
     db = SessionLocal()
     try:
         yield db
@@ -45,7 +45,7 @@ def get_db_session() -> Generator[Session]:
     finally:
         db.close()
 
-async def get_db_session_async() -> AsyncGenerator[Session]:
+async def get_db_session_async() -> AsyncGenerator[Session, None]:
     db = SessionLocalAsync()
     try:
         yield db
