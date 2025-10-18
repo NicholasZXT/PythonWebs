@@ -91,6 +91,7 @@ fastapi  = [
     "fastapi-users>= 14.0.1",
 #    "fastapi-auth-jwt >= 0.1.11",
     "fastapi-restful >= 0.6.0",
+    "typing-inspect",
 #    "fastapi-router-controller >= 0.5.0",
 ]
 django = [

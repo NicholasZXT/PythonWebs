@@ -127,6 +127,6 @@ if __name__ == "__main__":
     # 第一种方式，其中的 main 对应的是 main.py 的文件名，不带后缀
     uvicorn.run("main:app", host=host, port=port, log_level="info")
     # 第二种方式
-    config = uvicorn.Config("main:app", host=host, port=port, log_level="info")
-    server = uvicorn.Server(config)
-    server.run()
+    # config = uvicorn.Config("main:app", host=host, port=port, log_level="info")
+    # server = uvicorn.Server(config)
+    # server.run()

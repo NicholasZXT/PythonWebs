@@ -9,7 +9,8 @@
 # 常用插件
 可以参考[Github: Awesome FastAPI](https://github.com/yshan2028/awesome-fastapi/blob/main/README.md)
 
-数据库：
+## 数据库
+
 - [SQLModel](https://sqlmodel.tiangolo.com/)
   - FastAPI作者写的数据库模块，专门配合FastAPI使用，不过尚未到正式版
   - 对于sqlalchemy的版本有要求比较严格，基本上要求 2.0 以上，安装的时候需要注意 
@@ -17,6 +18,7 @@
 pip install sqlmodel
 conda install -c conda-forge sqlmodel 
 ```
+
 - [Fastapi-SQLA](https://github.com/dialoguemd/fastapi-sqla)
   - 已发布正式版（v.3.4.8），持续更新中，更新频率较高
   - 支持分页，异步，SQLModel
@@ -25,6 +27,7 @@ conda install -c conda-forge sqlmodel
 pip install fastapi-sqla
 # conda暂无
 ```
+
 - [FastAPI-SQLAlchemy](https://github.com/mfreeborn/fastapi-sqlalchemy)]
   - 未到正式版，v.0.2.1 发布于2020年，后续没有再更新 
 ```shell
@@ -32,7 +35,9 @@ pip install fastapi-sqlalchemy
 # conda暂无
 ```
 
-RESTful：
+---
+## RESTful
+
 - [FastAPI-Utils](https://fastapi-utils.davidmontague.xyz/)
   - 未发布正式版，v0.6.0发布于2024年，缓慢更新中
   - 提供的CBV用起来不错
@@ -42,6 +47,7 @@ pip install fastapi-restful[session]  # To add sqlalchemy session maker
 pip install fastapi-restful[all]  # For all the packages
 conda install -c conda-forge fastapi-restful 
 ```
+
 - [~~FastAPI-Router-Controller~~](https://github.com/KiraPC/fastapi-router-controller)
   - 未发布正式版，v0.5.0发布于2022年，后续未更新
   - 此插件源代码比较少，可以看看
@@ -51,8 +57,8 @@ pip install fastapi-router-controller
 # conda暂无
 ```
 
-
-认证：
+---
+## 认证
 > 总结：
 > + JWT认证功能的话，FastAPI-Login最好用，其次是 AuthX
 
@@ -65,6 +71,7 @@ pip install fastapi-router-controller
 pip install fastapi-login
 # conda暂无
 ```
+
 - [AuthX](https://authx.yezz.me/)，gthub地址：[AuthX](https://github.com/yezz123/AuthX?tab=readme-ov-file)
   - 已发布正式版(v1.4.1)，持续更新中
   - 此插件比较高的要求就是Pydantic 的版本要求 >= 2.0.0
@@ -74,6 +81,7 @@ pip install fastapi-login
 pip install authx
 # conda暂无
 ```
+
 - [FastAPI Users](https://fastapi-users.github.io/fastapi-users/latest/)
   - 已发布正式版(v14.0.1)，持续更新中 
   - 此插件对于sqlalchemy的版本要求 >= 2.0.0
@@ -82,6 +90,7 @@ pip install authx
 pip install 'fastapi-users[sqlalchemy]'
 conda install -c conda-forge fastapi-users
 ```
+
 - [FastAPI-Auth-JWT](https://deepmancer.github.io/fastapi-auth-jwt/)，[Github地址](https://github.com/deepmancer/fastapi-auth-jwt)
   - 未到正式版，当前只到v0.1.11，但是项目于2024年发布，目前一直在更新中
   - 以中间件的形式提供JWT认证，不太好
@@ -90,6 +99,7 @@ conda install -c conda-forge fastapi-users
 pip install fastapi-auth-jwt
 # conda暂无
 ```
+
 - [~~FastAPI Security~~](https://jacobsvante.github.io/fastapi-security/), [Github地址](https://github.com/jacobsvante/fastapi-security)
   - 未到正式版，v.0.5.0发布于2022年，后续未更新 
 ```shell
@@ -97,12 +107,14 @@ pip install fastapi-security
 pip install fastapi-security[oauth2]
 # conda暂无
 ```
+
 - [~~FastAPI-JWT-Auth~~](https://indominusbyte.github.io/fastapi-jwt-auth/)，[Github地址](https://github.com/IndominusByte/fastapi-jwt-auth?tab=readme-ov-file)
   - 未到正式版，v0.5.0版本发布于2020年，后续未更新 
 ```shell
 pip install fastapi-jwt-auth
 # conda暂无
 ```
+
 - [FastAPI-permissions](https://github.com/holgi/fastapi-permissions)
   - Row-level 权限控制
   - 未到正式版，v0.2.7版本发布于2020年，后续未更新 
@@ -110,6 +122,7 @@ pip install fastapi-jwt-auth
 pip install fastapi_permissions
 # conda暂无
 ```
+
 - [~~FastAPI Auth~~](https://github.com/dmontagu/fastapi-auth)
 ```shell
 # 暂未上架PyPI

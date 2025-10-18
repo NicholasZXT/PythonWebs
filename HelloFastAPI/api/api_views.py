@@ -110,6 +110,11 @@ def get_body_user(user: UserBody):
 
 @api_router.post(path="/body/multiple", tags=['API-Body'], summary='多个请求体参数')
 def get_body_param_multiple(item: ItemBody, user: UserBody):
+    """
+    多个请求体参数时，FastAPI默认会为这多个请求参数生成一个最外层的 schema。
+    该 schema 的命名规则为：Body_{函数名}_{路径}_{方法}。
+    而且似乎没有办法自定义该schema名称（除非自己显式封装一个模型），这一点不太好
+    """
     return {'item': item, 'user': user}
 
 @api_router.post(path="/body/single", tags=['API-Body'], summary='单值请求参数')
