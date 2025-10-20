@@ -9,6 +9,13 @@ await 本身并不“异步”，真正实现并发的是 Task 和事件循环�
 只有创建了 Task 并将其加入到事件循环中（当然后面还需要显式await该Task），才能实现真正的异步并发。
 
 async/await 是异步的“语法基础”，但 Task + EventLoop 才是并发的“执行引擎”。
+
+-------------------------------------------------------------------
+关于 Reactor模型
+
+- python异步编程中，asyncio默认提供的是 “单Reactor-单线程” 模型，
+- 可以通过 `EventLoop.run_in_executor()` 方法支持 “单Reactor-多线程” 模型，
+- 但是对于 “多Reactor-多线程” 模型（比如Java Netty框架提供），asyncio库本身不支持，除非使用其他的高级技巧（比如多进程）或第三方库。
 """
 from typing import List, Dict, Union, Tuple, Any
 from functools import partial
