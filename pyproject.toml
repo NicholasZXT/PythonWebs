@@ -127,6 +127,7 @@ other = [
     "pandas >= 1.5.3",
     "phonenumbers >= 8.13.40",
     "email-validator >= 2.2.0",
+    "prometheus-client"
 ]
 
 
