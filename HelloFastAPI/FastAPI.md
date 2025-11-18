@@ -1,4 +1,4 @@
-[toc]
+[TOC]
 
 # FastAPI重要更新节点
 参考官方发布的[release note](https://fastapi.tiangolo.com/release-notes/#release-notes).
