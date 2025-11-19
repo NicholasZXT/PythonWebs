@@ -6,10 +6,10 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class AppSettings(BaseSettings):
     # 应用基本信息
-    app_name: str = "My Litestar App"
+    app_name: str = "Litestar Hello App"
     debug: bool = False
 
-    # 服务
+    # 服务地址：这里设置没啥用，因为 Litestar 没有提供 run() 方法，只能通过 Litestar CLI 启动或者 uvicorn 启动
     # host: str = "0.0.0.0"
     # port: int = 8100
 
