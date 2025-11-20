@@ -1,3 +1,13 @@
+"""
+展示 Litestar 里视图函数的使用。
+Litestar 提供了 Router 来汇总所有的视图函数，Router 就类似于 Flask里的 Blueprint，FastAPI里的APIRouter。
+
+这里还展示了如下内容：
+- 视图函数 返回值 和不同 Response 类型的配置
+- Stream Response 的使用
+- 后台任务 BackgroundTask 的使用
+- 视图函数各种参数（路径参数、查询参数、请求体参数）的获取
+"""
 from typing import TYPE_CHECKING, AsyncGenerator, Annotated
 from litestar import Router, Request, Response, HttpMethod, route, get, post
 from litestar.enums import MediaType

@@ -1,3 +1,10 @@
+"""
+Litestar 提供了 Controller 类来封装一组视图函数。
+Controller 和 Java Web 里 Spring 框架提供的 @Controller 注解标识的类很相似。
+
+这里还展示了如下内容：
+- Litestar 内置的DTO支持
+"""
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 from litestar import Controller, Request, Response, get, post, put, delete, MediaType
@@ -48,46 +55,4 @@ class UserController(Controller):
     @delete("/{user_id:uuid}", return_dto=None, sync_to_thread=False, status_code=200)
     def delete_user(self, user_id: UUID) -> dict:
         return {"message": f"User [{user_id}] deleted"}
-
-
-def controller_dependency(request: Request) -> str:
-    request.logger.info(f">>> controller_dependency called from request: {request.url}")
-    return "controller_dependency_value"
-
-def local_dependency(request: Request) -> str:
-    request.logger.info(f">>> local_dependency called from request: {request.url}")
-    return "local_dependency_value"
-
-
-class DependencyController(Controller):
-    """
-    展示 Litestar 里依赖注入系统的使用。
-    """
-    path = "/dependency"
-    tags = ['Dependency']
-
-    # 定义Controller基本的依赖
-    dependencies = {
-        "controller_dep": Provide(controller_dependency, sync_to_thread=False)
-    }
-
-    @get(
-        path="/",
-        sync_to_thread=False,
-        dependencies={
-            "local_dep": Provide(local_dependency, sync_to_thread=False)
-        },
-        summary="依赖注入基本使用",
-        description="展示 Litestar 里依赖注入系统的使用",
-        media_type=MediaType.JSON
-    )
-    def show_dependency(
-            self,
-            # 这个 key 来源于全局依赖注入的 key
-            app_settings: AppSettings,
-            controller_dep: str,
-            local_dep: str,
-    ) -> dict:
-        data = {"app_settings": app_settings.dict(), "controller_dep": controller_dep, "local_dep": local_dep}
-        return data
 
