@@ -12,7 +12,7 @@ from litestar.status_codes import HTTP_400_BAD_REQUEST, HTTP_500_INTERNAL_SERVER
 
 from config import get_settings, settings
 from api import api_router, MyController, UserController, DependencyController
-from auth import jwt_auth, AuthController
+from auth_app import jwt_auth, AuthController
 
 
 logging_config = LoggingConfig(

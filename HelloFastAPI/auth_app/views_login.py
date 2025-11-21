@@ -1,3 +1,6 @@
+"""
+练习 FastAPI-Login 使用
+"""
 from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException, status, Security, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
@@ -5,20 +8,19 @@ from fastapi.security import OAuth2PasswordRequestForm, SecurityScopes
 from fastapi_login.exceptions import InvalidCredentialsException
 
 from config import settings
-from .dependencies import login_manager
 from .schemas import AuthUser
+from .auth_dependencies import login_manager
 
-"""
-练习 FastAPI-Login 使用
-"""
 login_router = APIRouter(
     prefix='/auth_app/fastapi_login',
     tags=['Auth-App-FastAPI-Login']
 )
 
 @login_router.post("/login", response_class=JSONResponse)
-def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    """ 登录并获取用户的JWT """
+def login(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
+    """
+    登录并获取用户的JWT
+    """
     username = form_data.username
     passwd = form_data.password
     grant_type = form_data.grant_type
@@ -31,19 +33,26 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
     if username not in settings.AUTHORIZED_USERS or passwd != passwd_to_check:
         # raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user or password")
         raise InvalidCredentialsException
-    # 用户名和密码校验通过，生成JWT，这里 sub 的传入值就是 @login_manager.user_loader() 注册函数的接受的参数
+    # 用户名和密码校验通过，使用 FastAPI-Login 的工具函数生成JWT，
+    # 这里 sub 表示用户身份，也是 @login_manager.user_loader() 注册函数接收的参数
     token = login_manager.create_access_token(data={'sub': username}, scopes=user_config.get('roles', None))
     return {'access_token': token, 'token_type': "Bearer"}
 
 
 @login_router.get("/protected")
-async def protected_route(user: AuthUser = Depends(login_manager)):
-    """ 测试视图函数登录时需要验证用户 """
+async def protected_route(user: Annotated[AuthUser, Depends(login_manager)]):
+    """
+    测试视图函数登录时需要验证用户。
+    直接使用 FastAPI-Login 作为依赖项即可。
+    """
     # Depends(login_manager)的返回值就是 @login_manager.user_loader() 注册函数的返回值
     return {"user": user.username}
 
 
-@login_router.get("/protected/v2", dependencies=[Depends(login_manager)])
+@login_router.get(
+    path="/protected/v2",
+    dependencies=[Depends(login_manager)]  # 使用视图依赖来触发认证过程，但是不需要依赖返回值
+)
 async def protected_route_v2(request: Request):
     """ 测试视图函数登录时需要验证用户-v2 """
     # 在视图函数中获取当前用户的另一种方法
@@ -52,8 +61,8 @@ async def protected_route_v2(request: Request):
     return {"user": user.username}
 
 
-@login_router.get("/test_admin", response_class=JSONResponse)
-def test_admin(user: AuthUser = Security(login_manager, scopes=['admin'])):
+@login_router.get("/verify_admin", response_class=JSONResponse)
+def verify_admin(user: Annotated[AuthUser, Security(login_manager, scopes=['admin'])]):
     """ 验证用户同时，还要验证 scopes"""
     # 使用 FastAPI 提供的 Security 函数来接受需要校验的 scopes 列表，Security 类似于 Depends
     # 实际的 scopes 校验流程是在 LoginManager 的 __call__ 方法里执行的，该方法有一个参数 SecurityScopes，
@@ -62,6 +71,6 @@ def test_admin(user: AuthUser = Security(login_manager, scopes=['admin'])):
     return {"user": user.username, "roles": user.roles}
 
 
-@login_router.get("/test_others", response_class=JSONResponse)
-def test_other(user: AuthUser = Security(login_manager, scopes=['others'])):
+@login_router.get("/verify_others", response_class=JSONResponse)
+def verify_others(user: AuthUser = Security(login_manager, scopes=['others'])):
     return {"user": user.username, "roles": user.roles}

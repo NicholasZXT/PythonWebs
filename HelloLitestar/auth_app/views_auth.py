@@ -37,8 +37,10 @@ class AuthController(Controller):
     # 此视图函数排除认证
     @get(path='/skip', exclude_from_auth=True)
     async def skip_view(self, request: Request) -> str:
-        request.logger.info(f"[skip_view] request.user exist: {hasattr(request, 'user')}")
-        # request.logger.info(f"[skip_view] request.user exist...")
+        # 在使用 exclude_from_auth=True 排除认证的情况下，甚至不能尝试从 request 里检查 是否有 user 这个属性
+        # 一旦检查了，就会抛出异常
+        # request.logger.info(f"[skip_view] request.user exist: {hasattr(request, 'user')}")
+        request.logger.info(f"[skip_view] request.user exist...")
         return "skip_view is accessed."
 
 

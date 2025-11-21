@@ -1,6 +1,6 @@
-from .api_views import api_router
-from .rest_views import rest_router, MyResource
-# from .controller_views import controller
-from .streaming_views import streaming_router
-from .file_views import file_router
-from .batch_process_views import batch_router
+from .views_api import api_router
+from .views_restful import rest_router, MyResource
+from .views_streaming import streaming_router
+from .views_file_upload import file_router
+from .views_batch_process import batch_router
+# from .views_controller import controller

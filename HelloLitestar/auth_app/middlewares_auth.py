@@ -11,6 +11,7 @@ from litestar.security import AbstractSecurityConfig
 from litestar.security.jwt import Token, JWTAuth, JWTCookieAuth, OAuth2PasswordBearerAuth
 from litestar.security.session_auth import SessionAuth
 from litestar.exceptions import HTTPException, NotAuthorizedException
+from litestar.openapi import OpenAPIConfig
 
 from .models import MockToken, MockUser, User
 
@@ -103,11 +104,11 @@ jwt_auth = JWTAuth[User](
     token_secret="JWT_SECRET",
     # 要记得排除掉 OpenAPI 文档的视图路径和认证登录的路径
     exclude=[
-        "/",
-        "/schema/*",
-        "/router/*",
-        "/controller/*",
-        "/dependency/*",
+        r"^/$",  # 根路径的排除要注意，不使用 ^ 和 $ 界定的话，会将所有路由都排除掉
+        "/schema",
+        "/router",
+        "/controller",
+        "/dependency",
         "/auth/login"
     ],
     # 配置用户检索回调函数

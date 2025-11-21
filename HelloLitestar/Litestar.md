@@ -6,7 +6,7 @@ Litestar 也是一个高性能的 ASGI Web 框架，根据官方文档[Litestar 
 
 
 # 认证&鉴权
-官方文档[Usage -> Security](https://docs.litestar.dev/2/usage/security/index.html).
+官方文档 [Usage -> Security](https://docs.litestar.dev/2/usage/security/index.html).
 
 ## 认证
 
@@ -75,6 +75,8 @@ Litestar 里的认证功能也是基于 Middleware 方式实现的，底层主�
 - `JWTAuth`，继承自`BaseJWTAuth`，**JWT认证后端 —— 常用**
 - `JWTCookieAuth`，继承自`BaseJWTAuth`
 - `OAuth2PasswordBearerAuth`，继承自`BaseJWTAuth`，OAuth2认证后端
+
+> 可惜的是，Litestar 好像没有提供 HTTP Basic 认证的实现。
 
 `BaseJWTAuth` 在`AbstractSecurityConfig`抽象类的基础上，提供了如下方法的实现：
 - `login()`，登录视图函数里使用此方法生成用户对应的JWT token Response，重要的参数如下：
