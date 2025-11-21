@@ -4,6 +4,7 @@ Controller 和 Java Web 里 Spring 框架提供的 @Controller 注解标识的�
 
 这里还展示了如下内容：
 - Litestar 内置的DTO支持
+- 自定义中间件的使用
 """
 from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
@@ -12,6 +13,12 @@ from litestar.di import Provide
 from litestar.params import Dependency
 from config import AppSettings
 from .models import User, UserReadDTO, UserWriteDTO
+from litestar.middleware import DefineMiddleware
+from middlewares import simple_middleware_factory, SimpleClassMiddleware, SimpleProtocolMiddleware, \
+    SimpleAbstractMiddleware, SimpleInnerDefineMiddleware, SimpleASGIMiddleware, HTTPProcessTimeMiddleware
+
+# 使用 DefineMiddleware 来封装 SimpleInnerDefineMiddleware，传入自定义参数
+simple_define_middleware = DefineMiddleware(SimpleInnerDefineMiddleware, custom="custom-value")
 
 
 class MyController(Controller):
@@ -20,18 +27,39 @@ class MyController(Controller):
     router 的参数都变成了这里的类实例变量
     """
     path = '/controller'
+    tags = ["ControllerView"]
+    middleware = [
+        simple_middleware_factory,
+        SimpleClassMiddleware,
+    ]
 
-    @get("/")
+    @get(path="/", media_type=MediaType.HTML)
     async def hello(self, request: Request) -> str:
         request.logger.info(f">>> Hello World for Controller View")
         return "<h1>Hello Controller View</h1>"
+
+    @get(
+        path="/middlewares",
+        media_type=MediaType.HTML,
+        middleware=[
+            SimpleProtocolMiddleware,
+            SimpleAbstractMiddleware,
+            simple_define_middleware,
+            # ---- 注意下面两个基于 ASGIMiddleware 的自定义中间件，需要实例化，而不是传入类 --------
+            SimpleASGIMiddleware(),
+            HTTPProcessTimeMiddleware()
+        ]
+    )
+    async def show_custom_middlewares(self, request: Request) -> str:
+        request.logger.info(f">>> show_custom_middlewares")
+        return "<h1>Call custom middlewares</h1>"
 
 
 class UserController(Controller):
     """
     Controller 配合 DTO 实现 CRUD 的多种数据视图配置
     """
-    tags = ["UserDTO"]
+    tags = ["ControllerView", "UserDTO"]
     path = '/user'
     dto = UserWriteDTO
     return_dto = UserReadDTO

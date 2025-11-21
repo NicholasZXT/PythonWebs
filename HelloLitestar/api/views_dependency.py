@@ -47,7 +47,6 @@ Litestar 在这方面的设计更灵活、可组合，适合复杂业务依赖�
 | 权限校验（成功/失败）                                 | ✅ Guard         |
 """
 from typing import TYPE_CHECKING
-from uuid import UUID, uuid4
 from litestar import Controller, Request, Response, get, post, put, delete, MediaType
 from litestar.di import Provide
 from litestar.params import Dependency
