@@ -1,16 +1,16 @@
+"""
+练习 AuthX 使用
+"""
 from fastapi import APIRouter, Depends, HTTPException, status, Security, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.security import OAuth2PasswordRequestForm, SecurityScopes
 from typing import Annotated, List
 
 from config import settings
-from .dependencies import authx, authx_scheme
+from .auth_dependencies import authx, authx_scheme
 from .schemas import AuthUser, RefreshBody
 from authx import TokenPayload, RequestToken
 
-"""
-练习 AuthX 使用
-"""
 authx_router = APIRouter(
     prefix='/auth_app/authx',
     tags=['Auth-App-AuthX']
@@ -60,7 +60,10 @@ def scheme():
 
 # dependencies 中使用 Depends(authx_scheme) 是为了配合 SwaggerUI 界面的 Authorize Button 使用，只有依赖了这个
 # 在 SwaggerUI 界面调试时请求体才会带入 Authorize Button 登录时的 token 信息
-@authx_router.get("/protected", dependencies=[Depends(authx_scheme), Depends(authx.access_token_required),])
+@authx_router.get(
+    path="/protected",
+    dependencies=[Depends(authx_scheme), Depends(authx.access_token_required)]
+)
 def get_protected():
     """ 访问受保护视图函数 """
     return {"message": "Hello World for AuthX Protected View"}

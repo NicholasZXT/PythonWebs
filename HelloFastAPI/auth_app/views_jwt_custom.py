@@ -1,3 +1,6 @@
+"""
+展示 FastAPI下，使用 Bearer JWT 令牌的验证方式，JWT相关验证流程自己实现
+"""
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.responses import Response, JSONResponse, PlainTextResponse, HTMLResponse
@@ -5,28 +8,29 @@ from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated, List
 from config import settings
 from .schemas import Token, AuthUser
-from .dependencies import oauth2_scheme, password_util, token_util, authenticate_user, get_user_roles, \
+from .auth_utils import password_util
+from .auth_dependencies import oauth2_scheme, token_util, authenticate_user, get_user_roles, \
     login_required_as_admin, login_required_as_other
 
-"""
-展示FastAPI下，使用 Bearer JWT 令牌的验证方式，JWT相关验证流程自己实现
-"""
+
 custom_jwt_router = APIRouter(
     prefix='/auth_app/custom',
     tags=['Auth-App-Custom-JWT']
 )
 
 
-@custom_jwt_router.get("/", tags=['Hello'])
+@custom_jwt_router.get(path="/", tags=['Hello'])
 async def hello_auth_jwt():
     html = "<h1>Hello FastAPI for Auth with JWT Demo !</h1>"
     return HTMLResponse(content=html)
 
 # 下面这个视图函数的 URL 需要在 OAuth2PasswordBearer 实例化时的 tokenUrl 里指定，才能在 API 文档界面使用 Authorize 按钮的功能
-@custom_jwt_router.post("/login", response_model=Token)
+@custom_jwt_router.post(path="/login", response_model=Token)
 async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm, Depends()]):
-    # OAuth2PasswordRequestForm 表示从表单获取用户名和密码，并且key必须为 username 和 password
-    """ 登录并获取用户的JWT """
+    """
+    登录并获取用户的JWT.
+    OAuth2PasswordRequestForm 会从表单获取用户名和密码，并且key必须为 username 和 password。
+    """
     username = form_data.username
     passwd = form_data.password
     grant_type = form_data.grant_type
@@ -52,22 +56,26 @@ async def login_for_access_token(form_data: Annotated[OAuth2PasswordRequestForm,
     return {'access_token': token, 'token_type': "Bearer", 'expires_in': expiration}
 
 
-@custom_jwt_router.get("/show_token", response_class=JSONResponse)
+@custom_jwt_router.get(path="/show_token", response_class=JSONResponse)
 async def show_token(token: Annotated[str, Depends(oauth2_scheme)]):
-    """ 显示当前用户的Token内容 """
+    """
+    回显当前用户的Token内容
+    """
     print("show_token -> token: ", token)
     decoded_token = token_util.verify_token(token)
     return {'token': token, 'decoded_token': decoded_token}
 
 
-@custom_jwt_router.get("/test_token", response_class=HTMLResponse)
-async def test_token(user: AuthUser = Depends(authenticate_user)):
-    """ 验证是否通过Token校验 """
+@custom_jwt_router.get(path="/verify_token", response_class=HTMLResponse)
+async def verify_token(user: AuthUser = Depends(authenticate_user)):
+    """
+    验证是否通过Token校验
+    """
     html = f"<h1>Congratulations for passing token authorization with user '{user.username}' !</h1>"
     return HTMLResponse(content=html)
 
 
-@custom_jwt_router.get("/show_user_roles", response_class=JSONResponse)
+@custom_jwt_router.get(path="/show_user_roles", response_class=JSONResponse)
 async def show_user_roles(
     user: Annotated[AuthUser, Depends(authenticate_user)],
     user_roles: Annotated[List[str], Depends(get_user_roles)]
@@ -76,8 +84,12 @@ async def show_user_roles(
     return {'current_user': user.username, 'user_roles': user_roles}
 
 # 使用了自定义的依赖来校验用户角色，这里依赖是放在路由函数中的
-@custom_jwt_router.get("/test_admin_role", response_class=JSONResponse, dependencies=[Depends(login_required_as_admin)])
-async def test_admin_roles(
+@custom_jwt_router.get(
+    path="/verify_admin_role",
+    response_class=JSONResponse,
+    dependencies=[Depends(login_required_as_admin)]
+)
+async def verify_admin_roles(
     user: Annotated[AuthUser, Depends(authenticate_user)],
     user_roles: Annotated[List[str], Depends(get_user_roles)]
 ):
@@ -86,8 +98,8 @@ async def test_admin_roles(
 
 # 这里将角色校验依赖放在了视图函数参数里，原因是 login_required_as_other 中其实也调用了 get_user_roles -> authenticate_user，
 # 放在一起似乎能使用依赖解析的缓存？
-@custom_jwt_router.get("/test_other_role", response_class=JSONResponse)
-async def test_other_roles(
+@custom_jwt_router.get(path="/verify_other_role", response_class=JSONResponse)
+async def verify_other_roles(
     user: Annotated[AuthUser, Depends(authenticate_user)],
     user_roles: Annotated[List[str], Depends(get_user_roles)],
     role_pass: Annotated[bool, Depends(login_required_as_other)]

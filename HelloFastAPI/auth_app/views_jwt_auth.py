@@ -1,10 +1,14 @@
+"""
+练习 FastAPI-Auth-JWT 使用
+总结：此插件暂时不推荐使用。
+"""
 from fastapi import APIRouter, Depends, HTTPException, status, Security, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 from fastapi.security import OAuth2PasswordRequestForm, SecurityScopes
 from typing import Annotated, List
 
 from config import settings
-from .dependencies import auth_backend
+from .auth_dependencies import auth_backend
 from .schemas import AuthUser
 from fastapi_auth_jwt import JWTAuthenticationMiddleware
 
@@ -17,9 +21,7 @@ from fastapi_auth_jwt import JWTAuthenticationMiddleware
 #     exclude_urls=["/sign-up", "/login"],  # Public endpoints
 # )
 
-"""
-练习 FastAPI-Auth-JWT 使用
-"""
+
 auth_jwt_router = APIRouter(
     prefix='/auth_app/auth_jwt',
     tags=['Auth-App-FastAPI-Auth-JWT']

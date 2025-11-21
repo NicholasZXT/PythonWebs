@@ -130,13 +130,15 @@ pip install fastapi_permissions
 
 
 ----------
-# 认证&授权
+# 认证&鉴权
 
 ## 概览
 FastAPI提供的安全认证相关的组件都在`fastapi.security`模块里，分成了3类认证方案：
 1. 基于标准HTTP的身份验证
 2. 基于OAuth2的授权机制
 3. 基于APIKey的特定密钥，这个此处不介绍
+
+> FastAPI 里的认证和鉴权机制，都是采用依赖注入的方式实现的。
 
 ## 基于标准HTTP身份验证
 这部分相关的类都在`fastapi.security.http`模块里，主要是如下3个类：
@@ -145,7 +147,7 @@ FastAPI提供的安全认证相关的组件都在`fastapi.security`模块里，�
 + `HTTPDigest`，返回值是 `HTTPAuthorizationCredentials` 模型
 
 FastAPI提供的上述类，其实功能都很简单，查看源码就能发现，它们的功能就是作为视图函数的依赖注入，从请求header里解析出对应的信息，
-后续的处理逻辑交由开发者。
+但是**后续的处理逻辑交由开发者**。
 
 **这些类并不提供token生成、验证等功能，这些都需要开发者自己完成**。
 
