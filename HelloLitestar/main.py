@@ -12,6 +12,7 @@ from litestar.status_codes import HTTP_400_BAD_REQUEST, HTTP_500_INTERNAL_SERVER
 
 from config import get_settings, settings
 from api import api_router, MyController, UserController, DependencyController
+from auth import jwt_auth, AuthController
 
 
 logging_config = LoggingConfig(
@@ -126,7 +127,8 @@ app = Litestar(
         api_router,
         MyController,
         UserController,
-        DependencyController
+        DependencyController,
+        AuthController
     ],
     # debug模式，True 时会将错误信息渲染为HTML返回
     debug=settings.debug,
@@ -143,7 +145,11 @@ app = Litestar(
     # ------ 启动和关闭回调 ------
     on_startup=[startup_hook],
     on_shutdown=[shutdown_hook],
-    on_app_init=[app_init],
+    on_app_init=[
+        app_init,
+        # 注册 jwt_auth 的初始化操作
+        jwt_auth.on_app_init
+    ],
     lifespan=[lifespan_hook],
     # ------ 请求处理hook ------
     before_request=before_request_handler,
