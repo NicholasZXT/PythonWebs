@@ -59,8 +59,8 @@ class UserController(Controller):
     """
     Controller 配合 DTO 实现 CRUD 的多种数据视图配置
     """
+    path = '/controller/user'
     tags = ["ControllerView", "UserDTO"]
-    path = '/user'
     dto = UserWriteDTO
     return_dto = UserReadDTO
 
