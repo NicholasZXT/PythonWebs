@@ -1,10 +1,10 @@
 from django.urls import path, re_path, include
-from .views import get_student, list_student, create_student, TeacherApiView, TeacherGenericView, \
-    TeacherCompositeView, TeacherViewSet, create_draft_user, DraftOpenView, DraftAuthView, DraftOwnerView, DraftJwtView
 from rest_framework.urlpatterns import format_suffix_patterns
 from rest_framework.routers import DefaultRouter
 from rest_framework.authtoken.views import obtain_auth_token
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from .views import get_student, list_student, create_student, TeacherApiView, TeacherGenericView, \
+    TeacherCompositeView, TeacherViewSet, create_draft_user, DraftOpenView, DraftAuthView, DraftOwnerView, DraftJwtView
 
 # ViewSet 需要使用 Router 来集成
 router = DefaultRouter()
@@ -22,7 +22,7 @@ urlpatterns = [
     path('teacher/genericviews/<int:tid>', TeacherGenericView.as_view()),
     path('teacher/compositeviews', TeacherCompositeView.as_view()),
 
-    # 引入DRF的用户登录界面视图函数，具体URL为 api/auth/login
+    # 引入DRF的用户登录界面视图函数，具体URL为 api_drf/auth/login
     path('auth/', include('rest_framework.urls')),
     # 引入DRF里 rest_framework.authtoken 应用提供的token获取视图函数
     # path('auth/static/token', obtain_auth_token),

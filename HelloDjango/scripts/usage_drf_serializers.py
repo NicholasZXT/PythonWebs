@@ -5,14 +5,14 @@
 # print("CWD: ", os.getcwd())
 # os.chdir('HelloDjango')
 # print("CWD: ", os.getcwd())
-# os.environ.setdefault('DJANGO_SETTINGS_MODULE', f'ideablog.settings.dev')
+# os.environ.setdefault('DJANGO_SETTINGS_MODULE', f'hello_django.settings.dev')
 import io
 import json
 from django.db import models
-from rest_framework import serializers
 # 配置Django的setting环境——只能执行一次
 from django.conf import settings
 settings.configure()
+from rest_framework import serializers
 # 不能直接在ipython中导入下面两个包，需要按照上面的方式配置Django的SETTINGS，或者在 django shell 中执行
 from rest_framework.renderers import JSONRenderer
 from rest_framework.parsers import JSONParser
@@ -36,64 +36,64 @@ class PersonSerializerV1(serializers.Serializer):
     gender = serializers.CharField(max_length=15)
 
 
-p1 = Person(name='XiaoMing', gender='male')
-p2 = Person(name='XiaoHong', gender='female')
-print(p1)
+def test_serializer_v1():
+    p1 = Person(name='XiaoMing', gender='male')
+    p2 = Person(name='XiaoHong', gender='female')
+    print(p1)
 
-# 1. 序列化对象
-# 序列化时使用的参数名是 instance=
-s1 = PersonSerializerV1(instance=p1)
-print(s1.data)
-print(type(s1.data))
-# <class 'rest_framework.utils.serializer_helpers.ReturnDict'>
+    # ------- 1. 序列化对象 -------
+    # 序列化时使用的参数名是 instance=
+    s1 = PersonSerializerV1(instance=p1)
+    print(s1.data)
+    print(type(s1.data))
+    # <class 'rest_framework.utils.serializer_helpers.ReturnDict'>
 
-# 序列化成 bytes 对象
-p1_bytes = JSONRenderer().render(s1.data)
-print(p1_bytes)
-# 相当于下面的操作
-# p1_bytes = json.dumps(s1.data).encode()
+    # 序列化成 bytes 对象
+    p1_bytes = JSONRenderer().render(s1.data)
+    print(p1_bytes)
+    # 相当于下面的操作
+    # p1_bytes = json.dumps(s1.data).encode()
 
-# 序列化多个对象
-s12 = PersonSerializerV1([p1, p2], many=True)
-print(s12)
+    # 序列化多个对象
+    s12 = PersonSerializerV1([p1, p2], many=True)
+    print(s12)
 
-# 2. 反序列化对象
-# 首先要将 bytes 解析成 dict
-stream = io.BytesIO(p1_bytes)
-p1_ = JSONParser().parse(stream)
-# 上面几句相当于下面
-# p1_ = json.loads(p1_bytes)
-print(type(p1_))  # 是个dict
+    # ------- 2. 反序列化对象 -------
+    # 首先要将 bytes 解析成 dict
+    stream = io.BytesIO(p1_bytes)
+    p1_ = JSONParser().parse(stream)
+    # 上面几句相当于下面
+    # p1_ = json.loads(p1_bytes)
+    print(type(p1_))  # 是个dict
 
-# 使用 解析成 dict 的数据进行反序列化，注意，此时参数名是 data=
-s1_rev = PersonSerializerV1(data=p1_)
-# 不能一开始就访问 .data，会报错，必须要先调用 .is_valid() 方法检验数据
-# print(s1_rev.data)
-# 但是可以访问 .initial_data
-print(s1_rev.initial_data)
-# 必须先验证数据
-print(s1_rev.is_valid())
-# 结果为 True 之后，再访问 data
-print(s1_rev.data)
-print(type(s1_rev.data))  # 类型是 <class 'rest_framework.utils.serializer_helpers.ReturnDict'>
-# 验证后的结果存放在 .validated_data 里
-print(s1_rev.validated_data)
-print(type(s1_rev.validated_data))   # 类型是 <class 'collections.OrderedDict'>
+    # 使用 解析成 dict 的数据进行反序列化，注意，此时参数名是 data=
+    s1_rev = PersonSerializerV1(data=p1_)
+    # 不能一开始就访问 .data，会报错，必须要先调用 .is_valid() 方法检验数据
+    # print(s1_rev.data)
+    # 但是可以访问 .initial_data
+    print(s1_rev.initial_data)
+    # 必须先验证数据
+    print(s1_rev.is_valid())
+    # 结果为 True 之后，再访问 data
+    print(s1_rev.data)
+    print(type(s1_rev.data))  # 类型是 <class 'rest_framework.utils.serializer_helpers.ReturnDict'>
+    # 验证后的结果存放在 .validated_data 里
+    print(s1_rev.validated_data)
+    print(type(s1_rev.validated_data))   # 类型是 <class 'collections.OrderedDict'>
 
-# 由于 PersonSerializerV1 没有实现 .create() 方法，这里会抛出 NotImplementedError
-s1_rev_obj = s1_rev.save()
+    # 由于 PersonSerializerV1 没有实现 .create() 方法，这里会抛出 NotImplementedError
+    s1_rev_obj = s1_rev.save()
 
-# 对于 .is_valid() 为 False 的情况，错误信息存放在 .errors 中
-s1_rev = PersonSerializerV1(data=p1_bytes)
-print(s1_rev.is_valid())
-print(s1_rev.validated_data)   # 此时为空数据
-print(s1_rev.data)             # 这个也是空dict
-# 查看具体的错误信息
-print(s1_rev.errors)
-print(s1_rev.error_messages)
+    # 对于 .is_valid() 为 False 的情况，错误信息存放在 .errors 中
+    s1_rev = PersonSerializerV1(data=p1_bytes)
+    print(s1_rev.is_valid())
+    print(s1_rev.validated_data)   # 此时为空数据
+    print(s1_rev.data)             # 这个也是空dict
+    # 查看具体的错误信息
+    print(s1_rev.errors)
+    print(s1_rev.error_messages)
 
-
-# 到这一步，只是将验证后的各个字段恢复成原生的python数据类型，并存入了一个 dict 中，但是还没有得到 Person 对象
+    # 到这一步，只是将验证后的各个字段恢复成原生的python数据类型，并存入了一个 dict 中，但是还没有得到 Person 对象
 
 # ----------------------------------------------------------------------------------------------------------------------
 # 如果要反序列化获得 Person 对象，还需要实现 Serializer 子类中的 .create() 或者 .update() 方法
@@ -124,32 +124,37 @@ class PersonSerializerV2(serializers.Serializer):
         return instance
 
 
-s2 = PersonSerializerV2(instance=p2)
-s2_bytes = JSONRenderer().render(s2.data)
-s2_ = json.loads(s2_bytes)
-print(s2_)
-# 开始反序列化
-s2_rev = PersonSerializerV2(data=s2_)   # 这里只使用了 data 参数，没有传入 instance 参数，表示此时反序列化创建一个新对象
-print(s2_rev.is_valid())
-print(s2_rev.validated_data)
-# 拿到反序列化后的 Person 对象
-s2_rev_person = s2_rev.save()
-print(s2_rev_person)
-print(type(s2_rev_person))  # 现在是 <class 'Person'> 类型了
+def test_serializer_v2():
+    p1 = Person(name='XiaoMing', gender='male')
+    p2 = Person(name='XiaoHong', gender='female')
+    print(p1)
 
-# 如果要更新一个对象，可以使用下面的方式
-p3 = Person(name='Li', gender='male')
-p3_update = {'name': 'Li_new', 'gender': 'neutral'}  # 这里的字段能否缺失要看 PersonSerializerV2 里每个 field 的配置
-# instance 是需要被更新的实例对象， data 是更新的数据
-s3 = PersonSerializerV2(instance=p3, data=p3_update)
-print(s3.is_valid())
-# print(s3.errors)
-# 此时调用 .save()，得到的就是更新后的对象了
-s3_update = s3.save()
-print(s3_update)
-print(type(s3_update))
-# 当然，也可以手动调用 .update() 方法——但是只能调用一次
-# print(s3.update())
+    s2 = PersonSerializerV2(instance=p2)
+    s2_bytes = JSONRenderer().render(s2.data)
+    s2_ = json.loads(s2_bytes)
+    print(s2_)
+    # 开始反序列化
+    s2_rev = PersonSerializerV2(data=s2_)   # 这里只使用了 data 参数，没有传入 instance 参数，表示此时反序列化创建一个新对象
+    print(s2_rev.is_valid())
+    print(s2_rev.validated_data)
+    # 拿到反序列化后的 Person 对象
+    s2_rev_person = s2_rev.save()
+    print(s2_rev_person)
+    print(type(s2_rev_person))  # 现在是 <class 'Person'> 类型了
+
+    # 如果要更新一个对象，可以使用下面的方式
+    p3 = Person(name='Li', gender='male')
+    p3_update = {'name': 'Li_new', 'gender': 'neutral'}  # 这里的字段能否缺失要看 PersonSerializerV2 里每个 field 的配置
+    # instance 是需要被更新的实例对象， data 是更新的数据
+    s3 = PersonSerializerV2(instance=p3, data=p3_update)
+    print(s3.is_valid())
+    # print(s3.errors)
+    # 此时调用 .save()，得到的就是更新后的对象了
+    s3_update = s3.save()
+    print(s3_update)
+    print(type(s3_update))
+    # 当然，也可以手动调用 .update() 方法——但是只能调用一次
+    # print(s3.update())
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -197,10 +202,11 @@ class PersonSerializerV3(serializers.Serializer):
         return attrs
 
 
-s4_data = {'name': 'WangWang', 'gender': 'neutral'}
-s4 = PersonSerializerV3(data=s4_data)
-print(s4.is_valid())
-print(s4.errors)  # {'gender': [ErrorDetail(string='gender value must in {male, female}', code='invalid')]}
+def test_serializer_v3():
+    s4_data = {'name': 'WangWang', 'gender': 'neutral'}
+    s4 = PersonSerializerV3(data=s4_data)
+    print(s4.is_valid())
+    print(s4.errors)  # {'gender': [ErrorDetail(string='gender value must in {male, female}', code='invalid')]}
 
 
 # ----------------------------------------------------------------------------------------------------------------------

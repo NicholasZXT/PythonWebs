@@ -1,5 +1,5 @@
 """
-ASGI config for ideablog project.
+ASGI config for hello_django project.
 
 It exposes the ASGI callable as a module-level variable named ``application``.
 
@@ -11,8 +11,8 @@ import os
 
 from django.core.asgi import get_asgi_application
 
-# os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ideablog.settings')
-env_profile = os.environ.get('IDEA_BLOG_PROFILE', 'dev')
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', f'ideablog.settings.{env_profile}')
+# os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hello_django.settings')
+env_profile = os.environ.get('HELLO_DJANGO_PROFILE', 'dev')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', f'hello_django.settings.{env_profile}')
 
 application = get_asgi_application()
