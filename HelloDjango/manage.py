@@ -10,9 +10,9 @@ pymysql.install_as_MySQLdb()
 
 def main():
     """Run administrative tasks."""
-    # os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ideablog.settings')
-    env_profile = os.environ.get('IDEA_BLOG_PROFILE', 'dev')
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', f'ideablog.settings.{env_profile}')
+    # os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hello_django.settings')
+    env_profile = os.environ.get('HELLO_DJANGO_PROFILE', 'dev')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', f'hello_django.settings.{env_profile}')
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
@@ -23,7 +23,7 @@ def main():
         ) from exc
     # 设置本地运行时的端口号
     from django.core.management.commands.runserver import Command as runserver
-    runserver.default_port = "8100"
+    runserver.default_port = "8000"
     execute_from_command_line(sys.argv)
 
 

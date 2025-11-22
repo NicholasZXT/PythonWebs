@@ -1,8 +1,7 @@
 from .base import *     # NOQA
 
-
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+# DEBUG = True
 
 # Database
 # https://docs.djangoproject.com/en/4.1/ref/settings/#databases
@@ -11,8 +10,9 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'hello_django',
         'USER': 'root',
-        'PASSWORD': 'mysql2020',
+        # 'PASSWORD': 'mysql2020',
         # 'PASSWORD': 'mysql2022',
+        'PASSWORD': 'idata-2022',
         'HOST': 'localhost',
         'PORT': 3306,
         # 'CONN_MAX_AGE': 5*60,

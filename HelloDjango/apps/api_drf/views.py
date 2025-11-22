@@ -180,7 +180,7 @@ def create_draft_user(request, *args, **kwargs):
         print(message)
         response_data['msg'] = message
         draft_user = User.objects.create_user(username=username, password='draft2023', email='nothing@email.com')
-        # draft_user.user_permissions.add('api.add_draft', 'api.view_draft', 'api.update_draft', 'api.delete_draft')
+        # draft_user.user_permissions.add('api_drf.add_draft', 'api_drf.view_draft', 'api_drf.update_draft', 'api_drf.delete_draft')
         # 这里必须获取 Draft 表的所有权限
         draft_permissions = Permission.objects.filter(content_type=ContentType.objects.get_for_model(Draft)).all()
         draft_user.user_permissions.add(*draft_permissions)
