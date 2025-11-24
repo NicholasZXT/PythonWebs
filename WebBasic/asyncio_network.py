@@ -3,27 +3,37 @@
 主要有如下2个层次：
 - Transport/Protocol
 - StreamReader/StreamWriter
+
+Transport/Protocol 需要配合 AbstractEventLoop 提供的 create_server()、create_connection() 方法使用。
+
+StreamReader/StreamWriter 需要配合 start_server(), open_connection() 函数使用。
 """
 from typing import TYPE_CHECKING
 import asyncio
-from asyncio import Task, Future, Event, EventLoop, Server
-from asyncio import Transport, DatagramTransport, Protocol, DatagramProtocol, StreamReader, StreamWriter
+from asyncio import AbstractEventLoop, AbstractServer, BaseEventLoop, Server, SelectorEventLoop
+from asyncio import Task, Future
+from asyncio import Transport, DatagramTransport, Protocol, DatagramProtocol
+from asyncio import StreamReader, StreamWriter, start_server, open_connection
 
 
 # -------------------------- Transport + Protocol 使用 --------------------------------
 class ProtocolEchoServer(Protocol):
-    def connection_made(self, transport: Transport):
-        self.transport = transport
+    def connection_made(self, transport: Transport) -> None:
         peername = transport.get_extra_info('peername')
         print(f"Connection from {peername}")
+        self.transport = transport
 
-    def data_received(self, data):
+    def data_received(self, data: bytes) -> None:
         message = data.decode()
-        print(f"Received: {message}")
+        print(f"Data Received: {message}")
         # 回显数据
+        print(f'Send: {message}')
         self.transport.write(data)
+        # 关闭传输
+        print('Close the client socket')
+        self.transport.close()
 
-    def connection_lost(self, exc):
+    def connection_lost(self, exc: Exception | None) -> None:
         if exc:
             print("Connection lost due to error")
         else:
@@ -31,7 +41,7 @@ class ProtocolEchoServer(Protocol):
 
 
 class ProtocolEchoClient(Protocol):
-    def __init__(self, message, on_con_lost):
+    def __init__(self, message: str, on_con_lost: Future):
         self.message = message
         self.on_con_lost = on_con_lost
 
@@ -40,18 +50,18 @@ class ProtocolEchoClient(Protocol):
         print(f"Send: {self.message}")
         self.transport.write(self.message.encode())
 
-    def data_received(self, data):
+    def data_received(self, data: bytes) -> None:
         print(f"Received: {data.decode()}")
         self.transport.close()  # 收到回复后关闭
 
-    def connection_lost(self, exc):
+    def connection_lost(self, exc: Exception | None) -> None:
         print("Connection closed")
         self.on_con_lost.set_result(True)
 
 
 async def run_protocol_echo_server():
-    loop = asyncio.get_running_loop()
-    server = await loop.create_server(
+    loop: AbstractEventLoop = asyncio.get_running_loop()
+    server: Server = await loop.create_server(
         lambda: ProtocolEchoServer(),
         '127.0.0.1', 8888
     )
@@ -62,7 +72,7 @@ async def run_protocol_echo_server():
 
 async def run_protocol_echo_client():
     loop = asyncio.get_running_loop()
-    on_con_lost = loop.create_future()
+    on_con_lost: Future = loop.create_future()
     transport, protocol = await loop.create_connection(
         lambda: ProtocolEchoClient("Hello Server!", on_con_lost),
         '127.0.0.1', 8888
@@ -76,6 +86,12 @@ async def run_protocol_echo_client():
 
 # -------------------------- StreamReader + StreamWriter 使用 --------------------------------
 async def stream_echo_server(reader: StreamReader, writer: StreamWriter):
+    """
+    open_connection 里注册的服务端回调函数，每次有新的客户端连接建立时，就会调用此函数，并传入一对 (StreamReader, StreamWriter).
+    :param reader:
+    :param writer:
+    :return:
+    """
     addr = writer.get_extra_info('peername')
     print(f"Client connected: {addr}")
 
@@ -105,7 +121,7 @@ async def stream_echo_client():
     message = "Hello Server!"
     print(f"Send: {message}")
     writer.write(message.encode())
-    await writer.drain()  # 刷新缓冲区
+    await writer.drain()  # 刷新缓冲区  --------- KEY
 
     # 接收回复
     data = await reader.readline()  # 或 read(100), readuntil(b'\n') 等
@@ -123,7 +139,6 @@ async def run_stream_echo_server():
     print("Server listening on 127.0.0.1:8888")
     async with server:
         await server.serve_forever()
-
 
 
 def main():
