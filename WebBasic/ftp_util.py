@@ -72,7 +72,12 @@ class FTPUtil:
         error_message = f"{message}: {e}"
         print(error_message)
         if raise_error:
-            raise type(e)(message) from e
+            try:
+                # 尝试最常见的异常构造方式 (e.g., ValueError(msg))
+                raise type(e)(error_message) from e
+            except TypeError:
+                # 如果上面的方式失败（TypeError: function takes exactly X arguments），则直接链接并重新抛出原始异常
+                raise e from e
 
     def connect(self, raise_error: Optional[bool] = None) -> bool:
         """
@@ -404,6 +409,74 @@ class FTPUtil:
         self.ftp.delete(remote_path)
         return True
 
+    @_handle_ftp_exception("删除空目录失败", default_return=False)
+    def delete_directory(self, directory_name: str, parent_directory: str, raise_error: Optional[bool] = None) -> bool:
+        """
+        删除指定父目录下的一个空目录。
+        Args:
+            directory_name: 要删除的目录名称。
+            parent_directory: 父目录路径。
+            raise_error: 是否抛出异常。
+        Returns:
+            bool: 删除是否成功。
+        """
+        # 切换到父目录
+        if not self.change_directory(parent_directory, raise_error):
+            return False
+        # 删除空目录
+        self.ftp.rmd(directory_name)
+        return True
+
+    @_handle_ftp_exception("递归删除目录失败", default_return=False)
+    def delete_directory_recursive(self, directory_path: str, raise_error: Optional[bool] = None) -> bool:
+        """
+        递归删除FTP服务器上的目录及其所有内容。
+        Args:
+            directory_path: 要删除的目录的完整路径 (相对于FTP根目录)。
+            raise_error: 是否抛出异常。
+        Returns:
+            bool: 删除是否成功。
+        """
+        # --- 强制要求绝对路径 ---
+        if not directory_path.startswith('/'):
+            error_msg = f"请使用绝对路径: {directory_path}"
+            self._handle_exception(ValueError(error_msg), error_msg, raise_error)
+            return False
+
+        # 记录原始工作目录
+        original_wd = self.ftp.pwd()
+        try:
+            self.ftp.cwd(directory_path)
+            # 获取目录内容列表 (使用 LIST 命令)
+            entries = []
+            self.ftp.retrlines('LIST', entries.append)
+            # 遍历内容并删除
+            for entry in entries:
+                parts = entry.split(maxsplit=8)
+                if len(parts) < 9:
+                    continue  # 跳过格式不正确的行
+                name = parts[-1]
+                is_dir = parts[0].startswith('d')
+                if is_dir:
+                    # 递归删除子目录 (构建子目录的绝对路径)
+                    subdir_path = f"{directory_path.rstrip('/')}/{name}"
+                    if not self.delete_directory_recursive(subdir_path, raise_error):
+                        return False
+                else:
+                    self.ftp.delete(name)
+
+            # 内容删除完毕，切换回父目录准备删除目标目录本身
+            parent_path = '/'.join(directory_path.rstrip('/').split('/')[:-1]) or '/'
+            self.ftp.cwd(parent_path)
+            # 删除现在为空的目标目录
+            dir_name_to_delete = directory_path.rstrip('/').split('/')[-1]
+            self.ftp.rmd(dir_name_to_delete)
+
+            return True
+        finally:
+            # --- 清理：尝试恢复原始工作目录 ---
+            self.ftp.cwd(original_wd)
+
     def __enter__(self):
         self.connect()
         return self
@@ -417,15 +490,16 @@ def main():
 
 
 if __name__ == "__main__":
-    # 使用示例：使用上下文管理器方式（推荐）
+    # 使用示例：使用上下文管理器方式
     ftp_config = {
         "host": "10.3.4.120",
         "username": "ftpuser",
-        "password": "ftp-2025"
+        "password": "ftp-2025",
+        # "encoding" : "gbk"  # 目录内容包含中文名称，则需要指定编码
     }
-    ftp_util = FTPUtil(**ftp_config)
-    ftp_util.connect()
-    ftp_util.disconnect()
+    # ftp_util = FTPUtil(**ftp_config)
+    # ftp_util.connect()
+    # ftp_util.disconnect()
     with FTPUtil(**ftp_config) as ftp_util:
         # 列出目录中的文件
         files = ftp_util.list_files()
@@ -446,8 +520,10 @@ if __name__ == "__main__":
         # 写入文件内容
         ftp_util.write_file_content("/new_file.txt", "Hello, FTP!")
         # 上传文件夹
-        ftp_util.upload_dir("MCP", "/test")
+        ftp_util.upload_dir("util", "/test")
         # 下载文件夹
         ftp_util.download_dir("/test", "test")
         # 删除文件
         ftp_util.delete_file("README.md", "/test")
+        # 删除目录
+        ftp_util.delete_directory_recursive("/test-policy/some")
