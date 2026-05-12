@@ -53,6 +53,13 @@ db  = [
 #    "happybase >= 1.2.0",
 #    "minio >= 7.1.0",
 ]
+ds = [
+    "numpy >= 1.25.0",
+    "openpyxl >= 3.0.10",
+    "pandas >= 1.5.3",
+    "plotly >= 6.0.0",
+    "dash >= 2.14.2",
+]
 flask = [
     "gunicorn >= 23.0.0 ; sys_platform == 'linux'",
     "werkzeug >= 2.1.2",
@@ -113,6 +120,23 @@ mcp = [
 #   另一个 MCP package
     "fastmcp >= 2.10.0"
 ]
+cloud = [
+    "prometheus-client",
+    "opentelemetry-api",
+    "opentelemetry-sdk",
+    "opentelemetry-distro",
+#    "opentelemetry-instrumentation-asyncio",
+#    "opentelemetry-instrumentation-requests",
+#    "opentelemetry-instrumentation-httpx",
+#    "opentelemetry-instrumentation-pymysql",
+#    "opentelemetry-instrumentation-sqlalchemy",
+#    "opentelemetry-instrumentation-redis",
+#    "opentelemetry-instrumentation-flask",
+#    "opentelemetry-instrumentation-starlette",
+    "opentelemetry-instrumentation-fastapi",
+#    "opentelemetry-instrumentation-django",
+    "opentelemetry-exporter-prometheus",
+]
 test = [
     "pytest == 7.4.4",
 #    "pytest >= 8.2.0",
@@ -120,15 +144,9 @@ test = [
 other = [
     "configparser >= 5.0.0",
     "pyyaml >= 6.0.2",
-    "plotly >= 6.0.0",
-    "dash >= 2.14.2",
-    "passlib >= 1.7.4",
-    "openpyxl >= 3.0.10",
-    "numpy >= 1.25.0",
-    "pandas >= 1.5.3",
     "phonenumbers >= 8.13.40",
     "email-validator >= 2.2.0",
-    "prometheus-client"
+    "passlib >= 1.7.4",
 ]
 
 
@@ -142,7 +160,7 @@ python-preference = "system"
 #python-preference = "managed"
 #link-mode = "copy"
 
-default-groups = ["db", "flask", "fastapi", "django", "litestar", "tornado", "mcp", "test", "other"]
+default-groups = ["db", "ds", "flask", "fastapi", "django", "litestar", "tornado", "mcp", "cloud", "test", "other"]
 
 # 适用于 uv pip 系列命令的配置
 [tool.uv.pip]
@@ -152,5 +170,5 @@ system = true
 break-system-packages = true
 all-extras = true
 # group 配置对于 uv pip sync 命令不生效
-group = ["db", "flask", "fastapi", "django", "litestar", "tornado", "mcp", "test", "other"]
+group = ["db", "ds", "flask", "fastapi", "django", "litestar", "tornado", "mcp", "cloud", "test", "other"]
 #torch-backend = "auto"
