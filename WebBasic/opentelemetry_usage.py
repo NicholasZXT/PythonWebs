@@ -2,7 +2,10 @@
 OpenTelemetry实践练习
 """
 from typing import Iterable, List, Set, Dict
+import os
 import psutil
+import logging
+import atexit
 # %% --------------- 导入OpenTelemetry-API ---------------
 # 业务代码中应该只导入OpenTelemetry-API，而不是OpenTelemetry-SDK，包括使用的类型注解
 # ------ metrics ------
@@ -18,6 +21,9 @@ from opentelemetry.metrics import (
 # ------ traces ------
 from opentelemetry.trace import get_tracer
 # ------ logs ------
+# 实际上，和 Metric、Trace 使用不一样，OTel里的Log采用桥接方式使用，因此业务代码里永远不要直接使用 Logs-API 提供的内容。
+from opentelemetry._logs import Logger, LogRecord, SeverityNumber, get_logger, get_logger_provider, set_logger_provider
+# from opentelemetry._logs import LoggerProvider
 # %% --------------- 导入OpenTelemetry-SDK ---------------
 # 业务代码中 OpenTelemetry-SDK 只在初始化配置 Provider 时使用
 # ------ resource ------
@@ -34,6 +40,16 @@ from opentelemetry.sdk.metrics.view import (
 )
 # ------ traces ------
 # ------ logs ------
+from opentelemetry.sdk._logs import (
+    LoggingHandler, LoggerProvider, LogRecordProcessor, LogRecordLimits,
+    ReadableLogRecord, ReadWriteLogRecord
+)
+from opentelemetry.sdk._logs.export import (
+    SimpleLogRecordProcessor, BatchLogRecordProcessor,
+    LogRecordExporter, ConsoleLogRecordExporter, InMemoryLogRecordExporter,
+    # LogExporter, ConsoleLogExporter, InMemoryLogExporter, # 这几个都是被标记为废弃的，指向上面的RecordExporter
+)
+# 生产环境请替换为: from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
 
 
 def resource_configuration():
@@ -347,4 +363,80 @@ def metrics_sdk_view_aggregate_usage():
         attributes={"method": "GET", "service": "some-service"},
     )
 
+
+def logs_sdk_usage():
+    """"
+    OTel-Logs-SDK使用。
+
+    OTel Logs 模块的设计哲学与 Metrics/Traces 有本质区别。
+    在 Python 生态中，OTel Logs 不鼓励你直接使用 opentelemetry-api 的日志接口写业务代码，而是通过桥接（Bridge） 机制复用标准库 logging。
+    桥接模式的工作原理如下：
+      1. **应用继续使用 SLF4J/log4j/zap 等原有日志 API**
+      2. **将日志框架的 Appender/Handler 替换为 OTel-Logs-SDK 提供的 Bridge Appender**
+      3. Bridge Appender 内部调用 `LoggerProvider.getLogger()` 获取 Logger
+      4. 将日志框架的 LogEvent 转换为 OTel `LogRecord` 并调用 `emit()`
+      5. Bridge Appender 负责从日志框架的 MDC/Context 中提取 Trace Context 并注入
+    这个过程中，完全不涉及 OTel-Logs-API，直接使用OTel-Logs-SDK就行了。
+
+    OTel-Logs-SDK提供的 LoggingHandler 就是起到这样一个桥接器的作用：
+      - 它本身作为一个 Handler，可以接入 Python 标准库 logging 提供的 Logger 对象的 handlers。
+      - 它持有 SDK 的 LoggerProvider 对象，将标准库 logging 的日志进行转换并接入到OTel生态。
+    不过 LoggingHandler 并不是 OTel-Logs-SDK 里的规范，因为作为桥接器，它在不同语言中的日志框架/组件里实现形式并不一样。
+
+    OTel-Logs-SDK提供的组件工作流程为：
+    LoggingHandler -> LoggingProvider -> LogRecordProcessor实现类 -> LogExporter实现类.
+
+    此外，虽然 OTel-Logs-API/SDK 规范中对于 LogRecord 的要求是不可变的，但 Processor 链又需要对数据进行转换。
+    为此Python SDK中新增了 ReadableLogRecord 和 ReadWriteLogRecord 这两个数据类，实现读写分离视图模式。
+    """
+    print("*********** logs_sdk_usage ***********")
+    # 1. 定义 Resource (标识数据来源)
+    resource = Resource.create({
+        "service.name": "my-fastapi-service",
+        "service.version": "1.0.0",
+        "deployment.environment": "development"
+    })
+
+    # 2. LogRecordLimits: 资源保护阀 (防止异常数据占用内存/发往后端)
+    log_limits = LogRecordLimits(
+        max_attributes=64,          # 单条日志最多保留64个属性 (默认128)
+        max_attribute_length=1024,  # 单个属性值最大1KB (防止超长堆栈/SQL撑爆缓冲)
+    )
+
+    # 3. 初始化 LogProvider
+    logger_provider = LoggerProvider(
+        resource=resource,
+        # limits=log_limits,  # 👈 将 Limits 注入 Provider  ---- 此方式不对，目前还没找到 LogLimits 的配置接入方式
+    )
+
+    # 4. Processor + Exporter: 处理管道与传输适配器
+    # exporter = OTLPLogExporter(endpoint="otel-collector:4317")  # 生产环境推荐使用 OTLP gRPC Exporter
+    exporter = ConsoleLogRecordExporter()   # 本地演示用 Console
+    # exporter = InMemoryLogRecordExporter()  # 本地演示也可以使用 InMemory
+
+    batch_processor = BatchLogRecordProcessor(
+        exporter=exporter,
+        max_queue_size=2048,  # 内存队列上限，超限后新日志被丢弃
+        schedule_delay_millis=5000,  # 每5秒强制刷新一次
+        max_export_batch_size=512,  # 每批最多导出512条
+        export_timeout_millis=30000,  # 单次网络请求超时30s
+    )
+
+    logger_provider.add_log_record_processor(batch_processor)
+
+    # 4. 使用 LoggingHandler 作为桥接器，持有 SDK 的 LoggerProvider
+    handler = LoggingHandler(
+        level=logging.NOTSET,  # 👈 始终透传，由 stdlib logger 控制过滤
+        logger_provider=logger_provider,
+    )
+
+    # 5. 接入标准库
+    logger  = logging.getLogger(__name__)
+    logger.addHandler(handler)
+
+    # 6. 注册优雅退出 Hook (防丢日志)
+    atexit.register(logger_provider.shutdown)
+
+    # ========== 使用 ==========
+    logger.info("Hello, OpenTelemetry info log record.")
 
