@@ -19,7 +19,11 @@ from opentelemetry.metrics import (
 )
 # from opentelemetry.metrics._internal.instrument import Gauge
 # ------ traces ------
-from opentelemetry.trace import get_tracer
+from opentelemetry.trace import (
+    get_tracer, get_tracer_provider, set_tracer_provider, get_current_span, use_span, set_span_in_context,
+    # TracerProvider,
+    Tracer, TraceState, TraceFlags, Span, SpanContext, SpanKind, Status, StatusCode
+)
 # ------ logs ------
 # 实际上，和 Metric、Trace 使用不一样，OTel里的Log采用桥接方式使用，因此业务代码里永远不要直接使用 Logs-API 提供的内容。
 from opentelemetry._logs import Logger, LogRecord, SeverityNumber, get_logger, get_logger_provider, set_logger_provider
@@ -39,6 +43,21 @@ from opentelemetry.sdk.metrics.view import (
     SumAggregation, LastValueAggregation, ExplicitBucketHistogramAggregation,
 )
 # ------ traces ------
+from opentelemetry.sdk.trace import (
+    Tracer, Span,
+    TracerProvider, SpanLimits, SpanProcessor,
+    SynchronousMultiSpanProcessor, ConcurrentMultiSpanProcessor,
+)
+from opentelemetry.sdk.trace.sampling import (
+    Sampler, SamplingResult,
+    StaticSampler, TraceIdRatioBased, ParentBased, ParentBasedTraceIdRatio,
+    # 一般使用下面4个预定义的采样器就行了
+    DEFAULT_ON, DEFAULT_OFF, ALWAYS_ON, ALWAYS_OFF,
+)
+from opentelemetry.sdk.trace.export import (
+    SpanExporter, SpanExportResult, ConsoleSpanExporter,
+    SimpleSpanProcessor, BatchSpanProcessor,
+)
 # ------ logs ------
 from opentelemetry.sdk._logs import (
     LoggingHandler, LoggerProvider, LogRecordProcessor, LogRecordLimits,
@@ -52,7 +71,7 @@ from opentelemetry.sdk._logs.export import (
 # 生产环境请替换为: from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
 
 
-def resource_configuration():
+def resource_configuration() -> Resource:
     """
     OTel Resource 配置。
     Resource 只在SDK里有定义和实现。
@@ -75,6 +94,7 @@ def resource_configuration():
         schema_url = Schemas.V1_40_0.value
     )
     print(resource)
+    return resource
 
 
 
@@ -84,11 +104,7 @@ def metrics_sdk_configuration_usage(views: List[View] | None = None):
     """
     print("*********** metrics_sdk_configuration_usage ***********")
     # 1. 定义 Resource (标识数据来源)
-    resource = Resource.create({
-        "service.name": "my-fastapi-service",
-        "service.version": "1.0.0",
-        "deployment.environment": "development"
-    })
+    resource = resource_configuration()
 
     # 2. 配置 Exporter + Reader
     # 开发阶段用 Console；生产替换为 OTLPMetricExporter(endpoint="http://collector:4317")
@@ -115,7 +131,9 @@ def metrics_api_meter_init(views: List[View] | None = None) -> Meter:
     """
     """
     print("*********** metrics_api_meter_init ***********")
+    # 先引入 SDK ，完成配置并注册
     metrics_sdk_configuration_usage(views)
+
     # 调用 API 提供的工具函数获取 Meter，此函数获取 Meter 实例的唯一入口，用于后续的指标创建。
     meter = get_meter(
         # 必填: Instrumentation Scope 的标识符，含义是标识"谁在产生这些指标"。
@@ -364,6 +382,137 @@ def metrics_sdk_view_aggregate_usage():
     )
 
 
+def traces_sdk_configuration_usage():
+    """
+    展示 OTel-Trace-SDK 引入后的配置流程.
+    整体配置流程为：
+    1. 配置 Resource
+    2. 配置采样策略 Sampler
+    3. 配置 SpanLimits
+    4. 初始化 TracerProvider，传入 Sampler 和 SpanLimits
+    5. 初始化 SpanProcessor，并传入 Exporter
+    6. 向 TracerProvider 挂载 SpanProcessor
+    7. 调用 Tracer-API 工具方法，注册配置好的 TracerProvider
+    """
+    print("*********** traces_sdk_configuration_usage ***********")
+    # 1. 定义 Resource
+    resource = resource_configuration()
+
+    # 2. 配置采样策略
+    sampler = ParentBasedTraceIdRatio(rate=0.5)  # 50% 采样率，且尊重上游决策
+
+    # 3. 配置 SpanLimits
+    span_limits = SpanLimits(
+        max_attributes=128,
+        max_attribute_length=256,
+        max_events=128,
+        max_links=128,
+    )
+
+    # 4. 创建 TracerProvider
+    provider = TracerProvider(
+        resource=resource,
+        sampler=sampler,
+        span_limits=span_limits
+    )
+
+    # 5. 实例化 SpanProcessor，配置 Exporter
+    # 生产环境：BatchSpanProcessor + OTLP
+    # otlp_exporter = OTLPSpanExporter(endpoint="otel-collector:4317")
+    # batch_processor = BatchSpanProcessor(otlp_exporter)
+    # 开发调试：可额外挂载 Console 输出
+    simple_processor = SimpleSpanProcessor(ConsoleSpanExporter())
+
+    # 6. 注册 SpanProcessor
+    # provider.add_span_processor(batch_processor)
+    # 开发调试：可额外挂载 Console 输出
+    provider.add_span_processor(simple_processor)
+
+    # 配置shutdown，优雅停机
+    atexit.register(provider.shutdown)
+
+    # 7. 使用 Tracer-API 提供的工具函数注册配置好的TracerProvider
+    set_tracer_provider(provider)
+
+
+def traces_api_usage():
+    """
+    OTel-Traces-API使用。
+    主要关注两个类的使用：
+
+    1. Tracer，由 get_tracer() 函数返回的 全局单例对象。
+    主要方法如下：
+    - start_as_current_span() —— 推荐方式（支持上下文管理器），主要参数如下：
+      - name
+      - context
+      - kind
+      - attributes
+      - links
+      - start_time
+      适用大部分（同步）场景，会自动处理异常，自动调用 Span.end()，支持嵌套调用
+    - start_span —— 手动管理方式，适用异步场景。
+
+    2. Span，只能由 Tracer 创建。
+    主要方法如下：
+    - set_attribute(key, value) —— 添加元数据。
+      适用场景：
+      - 记录业务关键标识（用户ID、订单号）
+      - 标记操作特征（重试次数、缓存命中/未命中）
+    - add_event(name, attributes=None, timestamp=None) —— 记录离散事件
+      适用场景：
+      - 记录关键决策点（缓存未命中、降级触发）
+      - 标记异步操作的阶段（“消息入队”、“任务开始执行”）
+      - 替代结构化日志（当事件与 Span 强相关时）
+    - record_exception(exception, attributes=None) —— 标准化异常
+    - set_status(status_code, description="") —— 手动标记Span结果
+
+    总结：
+    | 对象      | 方法                     | 何时用                    | 何时不用                        |
+    | -------- | ----------------------- | ------------------------ | ------------------------------ |
+    | `Tracer` | `start_as_current_span` | 同步函数、Web 请求处理器     | 异步回调、手动 Context 管理        |
+    | `Tracer` | `start_span`            | 异步任务、跨线程传递         | 普通业务逻辑（易出错）              |
+    | `Span`   | `set_attribute`         | 业务标识、操作特征           | 敏感数据、高频变化值               |
+    | `Span`   | `add_event`             | 关键决策点、阶段标记         | 替代日志全文（用 Logs）            |
+    | `Span`   | `record_exception`      | 所有捕获的异常              | 未处理的异常（会被全局处理器捕获）    |
+    | `Span`   | `set_status`            | 显式标记失败原因            | 成功场景（可省略）                 |
+    | `Span`   | `is_recording`          | 高开销调试信息              | 简单属性设置                     |
+    """
+    print("*********** traces_api_usage ***********")
+    # 引入Trace-SDK，并进行配置、注册
+    traces_sdk_configuration_usage()
+
+    # 1. 获取Tracer，推荐以模块名命名，便于后端区分来源
+    tracer: Tracer = get_tracer(
+        instrumenting_module_name="some.service",
+        instrumenting_library_version="1.0.0",
+        schema_url=Schemas.V1_40_0.value,
+        attributes={"service.name": "some-service"},
+    )
+
+    # 2. 创建 Span
+    # 2.1 方式一：上下文管理器（推荐，自动处理异常记录和 Span 结束）
+    with tracer.start_as_current_span("process_order") as span:
+        span.set_attribute("order.id", "ORD-2026-001")
+        span.set_attribute("order.items_count", 3)
+
+        # 嵌套子 Span（自动建立 parent-child 关系）
+        with tracer.start_as_current_span("validate_inventory") as child:
+            child.set_attribute("sku", "ITEM-A")
+            # ... 业务逻辑
+
+    # 2.2 方式二：手动管理（适用于异步回调等无法用 with 的场景）
+    span = tracer.start_span("async_callback")
+    try:
+        # ... 业务逻辑
+        print("some business operation")
+        span.set_status(StatusCode.OK)
+    except Exception as e:
+        span.record_exception(e)
+        span.set_status(StatusCode.ERROR, str(e))
+    finally:
+        span.end()  # ⚠️ 必须手动调用，否则 Span 永远不会关闭
+
+
 def logs_sdk_usage():
     """"
     OTel-Logs-SDK使用。
@@ -391,11 +540,7 @@ def logs_sdk_usage():
     """
     print("*********** logs_sdk_usage ***********")
     # 1. 定义 Resource (标识数据来源)
-    resource = Resource.create({
-        "service.name": "my-fastapi-service",
-        "service.version": "1.0.0",
-        "deployment.environment": "development"
-    })
+    resource = resource_configuration()
 
     # 2. LogRecordLimits: 资源保护阀 (防止异常数据占用内存/发往后端)
     log_limits = LogRecordLimits(
