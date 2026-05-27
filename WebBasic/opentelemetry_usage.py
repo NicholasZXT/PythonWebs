@@ -28,6 +28,13 @@ from opentelemetry.trace import (
 # 实际上，和 Metric、Trace 使用不一样，OTel里的Log采用桥接方式使用，因此业务代码里永远不要直接使用 Logs-API 提供的内容。
 from opentelemetry._logs import Logger, LogRecord, SeverityNumber, get_logger, get_logger_provider, set_logger_provider
 # from opentelemetry._logs import LoggerProvider
+# ------ context propagator ------
+# 只有API里有，SDK里没有相关内容
+from opentelemetry.context import Context, get_current, attach, detach, create_key, get_value, set_value
+from opentelemetry.propagators import textmap, composite
+from opentelemetry.propagate import set_global_textmap, get_global_textmap, inject, extract
+from opentelemetry.baggage import set_value, get_baggage, remove_baggage, clear
+from opentelemetry.baggage.propagation import W3CBaggagePropagator
 # %% --------------- 导入OpenTelemetry-SDK ---------------
 # 业务代码中 OpenTelemetry-SDK 只在初始化配置 Provider 时使用
 # ------ resource ------
@@ -71,6 +78,7 @@ from opentelemetry.sdk._logs.export import (
 # 生产环境请替换为: from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
 
 
+# %% --------------- OpenTelemetry-SDK: Resource 配置 ---------------
 def resource_configuration() -> Resource:
     """
     OTel Resource 配置。
@@ -97,7 +105,7 @@ def resource_configuration() -> Resource:
     return resource
 
 
-
+# %% --------------- OpenTelemetry-SDK: Metrics 配置 ---------------
 def metrics_sdk_configuration_usage(views: List[View] | None = None):
     """
     展示OTel metrics sdk 的初始化配置
@@ -127,6 +135,7 @@ def metrics_sdk_configuration_usage(views: List[View] | None = None):
     # ✅ 此后所有 get_meter() 调用都会使用此 Provider
 
 
+# %% --------------- OpenTelemetry-API: Metric 使用 ---------------
 def metrics_api_meter_init(views: List[View] | None = None) -> Meter:
     """
     """
@@ -382,6 +391,7 @@ def metrics_sdk_view_aggregate_usage():
     )
 
 
+# %% --------------- OpenTelemetry-SDK: Traces 配置 ---------------
 def traces_sdk_configuration_usage():
     """
     展示 OTel-Trace-SDK 引入后的配置流程.
@@ -435,6 +445,7 @@ def traces_sdk_configuration_usage():
     set_tracer_provider(provider)
 
 
+# %% --------------- OpenTelemetry-API: Traces 使用 ---------------
 def traces_api_usage():
     """
     OTel-Traces-API使用。
@@ -513,6 +524,7 @@ def traces_api_usage():
         span.end()  # ⚠️ 必须手动调用，否则 Span 永远不会关闭
 
 
+# %% --------------- OpenTelemetry-SDK: Logs 使用 ---------------
 def logs_sdk_usage():
     """"
     OTel-Logs-SDK使用。
@@ -585,3 +597,40 @@ def logs_sdk_usage():
     # ========== 使用 ==========
     logger.info("Hello, OpenTelemetry info log record.")
 
+
+
+# %% --------------- OpenTelemetry-API: Context Propagation 使用 ---------------
+def context_usage():
+    """
+    OTel-Context使用。
+    OTel关于Context的规范中，只有 API 里有定义，SDK 里没有相关内容。
+    OTel-API的Python实现里有关Context的模块如下：
+    1. `opentelemetry.context` —— 进程内上下文的“存储仓库”
+      - 作用：提供一个与执行环境（线程/协程）绑定的、全局可访问的键值存储，用于在单个进程内传递 Context。
+      - 主要组件：
+        - Context：一个不可变的字典，用于存放各种上下文对象
+        - get_current()：获取当前活跃的 Context。
+        - attach(context) / detach(token)：将 Context 设为当前活跃上下文，并返回一个 token 用于后续恢复。
+    2. `opentelemetry.propagators` —— 传播器的“工具箱”
+      - 作用：定义了 Propagator 的抽象接口，并提供了 标准协议的具体实现。
+      - 主要组件：
+        - TextMapPropagator (抽象基类)
+        - CompositePropagator：组合多个 Propagator，按顺序 inject/extract。
+    3. `opentelemetry.propagate` —— 传播器的“全局门面”
+      - 作用：提供一个全局、单例的入口点，用于执行 inject 和 extract 操作。它是对 propagators 模块的封装和简化。
+      - 主要工具函数：
+        - set_global_textmap(propagator)
+        - inject(carrier, context=None)
+        - extract(carrier, context=None)
+      `propagate` 模块是开发者最常用的接口。
+    """
+    print("*********** context_usage ***********")
+
+
+# %% --------------- Main ---------------
+def main():
+    ...
+
+
+if __name__ == "__main__":
+    main()
