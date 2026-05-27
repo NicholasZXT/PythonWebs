@@ -6,6 +6,9 @@ import os
 import psutil
 import logging
 import atexit
+# from threading import Event
+import contextvars
+from functools import lru_cache
 # %% --------------- 导入OpenTelemetry-API ---------------
 # 业务代码中应该只导入OpenTelemetry-API，而不是OpenTelemetry-SDK，包括使用的类型注解
 # ------ metrics ------
@@ -43,7 +46,10 @@ from opentelemetry.sdk.resources import Resource, SERVICE_NAME, SERVICE_NAMESPAC
 from opentelemetry.semconv.schemas import Schemas
 # ------ metrics ------
 from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import InMemoryMetricReader, PeriodicExportingMetricReader, ConsoleMetricExporter
+from opentelemetry.sdk.metrics.export import (
+    MetricReader, MetricExporter, MetricExportResult, MetricsData,
+    InMemoryMetricReader, PeriodicExportingMetricReader, ConsoleMetricExporter
+)
 from opentelemetry.sdk.metrics import AlwaysOffExemplarFilter, AlwaysOnExemplarFilter, TraceBasedExemplarFilter
 from opentelemetry.sdk.metrics.view import (
     View, Aggregation, DefaultAggregation, DropAggregation,
@@ -77,8 +83,12 @@ from opentelemetry.sdk._logs.export import (
 )
 # 生产环境请替换为: from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
 
+METRIC_PROVIDER_SETUP = contextvars.ContextVar("METRIC_PROVIDER_SETUP", default=False)
+TRACE_PROVIDER_SETUP = contextvars.ContextVar("TRACE_PROVIDER_SETUP", default=False)
+
 
 # %% --------------- OpenTelemetry-SDK: Resource 配置 ---------------
+@lru_cache(maxsize=1)
 def resource_configuration() -> Resource:
     """
     OTel Resource 配置。
@@ -108,23 +118,46 @@ def resource_configuration() -> Resource:
 # %% --------------- OpenTelemetry-SDK: Metrics 配置 ---------------
 def metrics_sdk_configuration_usage(views: List[View] | None = None):
     """
-    展示OTel metrics sdk 的初始化配置
+    展示OTel metrics sdk 的初始化配置。
+    主要配置步骤为：
+    1. 定义Resource;
+    2. 配置 Reader + Exporter，其中 Exporter 是由 Reader 管理的;
+    3. 配置 MeterProvider;
+    4. 通过API提供的工具函数来注册 MeterProvider.
+
+    内置的两种 MetricReader 如下：
+    | 特性            | `InMemoryMetricReader`                   | `PeriodicExportingMetricReader`  |
+    |----------------|------------------------------------------|----------------------------------|
+    | 主要目的         | 拉取式 (Pull)：供外部主动查询当前指标快照                 | 推送式 (Push)：自动、周期性地将指标推送到后端       |
+    | 典型用途         | 单元测试、健康检查端点 (`/metrics`)、Prometheus 拉取模型 | 生产环境，向 OTLP Collector、云监控等后端持续上报 |
+    | 是否启动后台线程   | ❌ 否                                             | ✅ 是                              |
+    | 数据生命周期      | 调用 `collect()` 时才聚合，之后数据通常被重置            | 数据在内存中累积，由后台线程定期导出并（通常）重置        |
+    | 与 Exporter 关系 | 不直接使用 Exporter                                 | 必须 配合一个 `MetricExporter` 使用      |
+
+    内置的 MetricExporter 只有 ConsoleMetricExporter 这一种。
     """
     print("*********** metrics_sdk_configuration_usage ***********")
+    if METRIC_PROVIDER_SETUP.get():
+        print("METRIC_PROVIDER_SETUP is done, skip...")
+        return
     # 1. 定义 Resource (标识数据来源)
     resource = resource_configuration()
 
     # 2. 配置 Exporter + Reader
     # 开发阶段用 Console；生产替换为 OTLPMetricExporter(endpoint="http://collector:4317")
     console_exporter = ConsoleMetricExporter()
+    # 生产环境需要使用 PeriodicExportingMetricReader 定期将数据导出到 Exporter
     reader = PeriodicExportingMetricReader(
         exporter=console_exporter,
         export_interval_millis=5000  # 开发时可设短一些，生产建议 15s-60s
     )
+    # 开发也可以使用 InMemoryMetricReader 方便测试断言
+    # 不过要注意，InMemoryMetricReader 是 Pull 模式的，不需要配置 Exporter。
+    memory_reader = InMemoryMetricReader()
 
     # 3. 组装 MeterProvider。这个 MeterProvider 是从SDK导入的
     provider = MeterProvider(
-        metric_readers=[reader],
+        metric_readers=[reader, memory_reader],
         resource=resource,
         # 配置视图
         views=views if views else []
@@ -133,6 +166,8 @@ def metrics_sdk_configuration_usage(views: List[View] | None = None):
     # 4. 注册全局 MeterProvider，此函数是从 API 导入的
     set_meter_provider(provider)
     # ✅ 此后所有 get_meter() 调用都会使用此 Provider
+
+    METRIC_PROVIDER_SETUP.set(True)
 
 
 # %% --------------- OpenTelemetry-API: Metric 使用 ---------------
@@ -373,12 +408,12 @@ def metrics_sdk_view_aggregate_usage():
     # 用 DropAggregation 降噪
     # 很多 OTel 自动插桩库（如 SQLAlchemy、Redis）会产生大量你不需要的细粒度指标。
     # 与其让它们消耗内存和存储，不如直接 Drop
-    drop_redis_detail = View(
+    drop_redis_detail_view = View(
         instrument_name="db.redis.*",
         aggregation=DropAggregation()  # 完全屏蔽
     )
 
-    meter = metrics_api_meter_init([grpc_latency_view])
+    meter = metrics_api_meter_init([grpc_latency_view, drop_redis_detail_view])
 
     histogram = meter.create_histogram(
         "rpc.server.duration",
@@ -405,6 +440,9 @@ def traces_sdk_configuration_usage():
     7. 调用 Tracer-API 工具方法，注册配置好的 TracerProvider
     """
     print("*********** traces_sdk_configuration_usage ***********")
+    if TRACE_PROVIDER_SETUP.get():
+        print("TRACE_PROVIDER_SETUP is done, skip...")
+        return
     # 1. 定义 Resource
     resource = resource_configuration()
 
@@ -443,6 +481,8 @@ def traces_sdk_configuration_usage():
 
     # 7. 使用 Tracer-API 提供的工具函数注册配置好的TracerProvider
     set_tracer_provider(provider)
+
+    TRACE_PROVIDER_SETUP.set(True)
 
 
 # %% --------------- OpenTelemetry-API: Traces 使用 ---------------
