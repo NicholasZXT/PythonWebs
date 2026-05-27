@@ -3,12 +3,15 @@ OpenTelemetry实践练习
 """
 from typing import Iterable, List, Set, Dict
 import os
+import platform
+import socket
+import time
 import psutil
 import logging
 import atexit
-# from threading import Event
-import contextvars
 from functools import lru_cache
+# 下面这个属于 opentelemetry-semantic-conventions 包
+from opentelemetry.semconv.schemas import Schemas
 # %% --------------- 导入OpenTelemetry-API ---------------
 # 业务代码中应该只导入OpenTelemetry-API，而不是OpenTelemetry-SDK，包括使用的类型注解
 # ------ metrics ------
@@ -42,8 +45,13 @@ from opentelemetry.baggage.propagation import W3CBaggagePropagator
 # 业务代码中 OpenTelemetry-SDK 只在初始化配置 Provider 时使用
 # ------ resource ------
 # resource 只有SDK里有定义
-from opentelemetry.sdk.resources import Resource, SERVICE_NAME, SERVICE_NAMESPACE, SERVICE_VERSION, HOST_NAME
-from opentelemetry.semconv.schemas import Schemas
+from opentelemetry.sdk.resources import (
+    Resource,
+    OS_TYPE, OS_VERSION, OS_DESCRIPTION,
+    HOST_NAME, HOST_ARCH, HOST_TYPE, DEPLOYMENT_ENVIRONMENT,
+    SERVICE_NAME, SERVICE_NAMESPACE, SERVICE_VERSION, SERVICE_INSTANCE_ID,
+    # TELEMETRY_SDK_LANGUAGE, TELEMETRY_SDK_NAME, TELEMETRY_SDK_VERSION,
+)
 # ------ metrics ------
 from opentelemetry.sdk.metrics import MeterProvider
 from opentelemetry.sdk.metrics.export import (
@@ -58,8 +66,8 @@ from opentelemetry.sdk.metrics.view import (
 # ------ traces ------
 from opentelemetry.sdk.trace import (
     Tracer, Span,
-    TracerProvider, SpanLimits, SpanProcessor,
-    SynchronousMultiSpanProcessor, ConcurrentMultiSpanProcessor,
+    TracerProvider, SpanLimits,
+    SpanProcessor, SynchronousMultiSpanProcessor, ConcurrentMultiSpanProcessor,
 )
 from opentelemetry.sdk.trace.sampling import (
     Sampler, SamplingResult,
@@ -68,24 +76,23 @@ from opentelemetry.sdk.trace.sampling import (
     DEFAULT_ON, DEFAULT_OFF, ALWAYS_ON, ALWAYS_OFF,
 )
 from opentelemetry.sdk.trace.export import (
-    SpanExporter, SpanExportResult, ConsoleSpanExporter,
     SimpleSpanProcessor, BatchSpanProcessor,
+    SpanExporter, SpanExportResult, ConsoleSpanExporter,
 )
 # ------ logs ------
+# OTel-Logs 主要使用 SDK 里提供的功能即可，不要在业务代码中直接使用 OTel-Logs-API 里的内容
 from opentelemetry.sdk._logs import (
     LoggingHandler, LoggerProvider, LogRecordProcessor, LogRecordLimits,
     ReadableLogRecord, ReadWriteLogRecord
 )
 from opentelemetry.sdk._logs.export import (
+    # LogRecordProcessor 这个抽象类在上面 opentelemetry.sdk._logs 里已导入了
     SimpleLogRecordProcessor, BatchLogRecordProcessor,
     LogRecordExporter, ConsoleLogRecordExporter, InMemoryLogRecordExporter,
+    LogRecordExportResult,
     # LogExporter, ConsoleLogExporter, InMemoryLogExporter, # 这几个都是被标记为废弃的，指向上面的RecordExporter
 )
 # 生产环境请替换为: from opentelemetry.exporter.otlp.proto.grpc._log_exporter import OTLPLogExporter
-
-METRIC_PROVIDER_SETUP = contextvars.ContextVar("METRIC_PROVIDER_SETUP", default=False)
-TRACE_PROVIDER_SETUP = contextvars.ContextVar("TRACE_PROVIDER_SETUP", default=False)
-
 
 # %% --------------- OpenTelemetry-SDK: Resource 配置 ---------------
 @lru_cache(maxsize=1)
@@ -94,24 +101,33 @@ def resource_configuration() -> Resource:
     OTel Resource 配置。
     Resource 只在SDK里有定义和实现。
     """
-    print("*********** resource_configuration ***********")
+    print("*********** resource_configuration start ***********")
     # 一般使用 Resource.create() 静态方法初始化一个Resource对象，而不是直接调用__init__
     resource = Resource.create(
         # attributes是一个dict，可以填入自定义属性，也可以使用OTel预定义的属性SERVICE_NAME, SERVICE_NAMESPACE, SERVICE_VERSION
         attributes={
-            SERVICE_NAME: "my-service",
-            SERVICE_NAMESPACE: "my-namespace",
+            # OS_TYPE: os.name,
+            OS_TYPE: platform.system(),
+            OS_VERSION: platform.release(),
+            OS_DESCRIPTION: platform.platform(),
+            HOST_ARCH: platform.machine(),
+            HOST_TYPE: platform.node(),
+            HOST_NAME: socket.gethostname(),
+            DEPLOYMENT_ENVIRONMENT: "dev",
+            SERVICE_NAME: "micro.some.service",
+            SERVICE_NAMESPACE: "micro.some",
             SERVICE_VERSION: "1.0.0",
-            HOST_NAME: "my-host",
+            SERVICE_INSTANCE_ID: "1234567890",
             # 自定义属性
-            "service_tag": "some-tag"
+            "resource_tag": "some-resource-tag"
         },
         # 可选参数[since 1.4.0]，配置一个 Schema URL，指明该 Resource 所遵循的OTel语义约定（Semantic Conventions）的版本地址
         # schema_url="https://opentelemetry.io/schemas/1.21.0"
         # 实际中，一般使用 opentelemetry.semconv.schemas 提供的 Schemas 枚举变量值
         schema_url = Schemas.V1_40_0.value
     )
-    print(resource)
+    print(f"resource: {resource.to_json()}")
+    print("*********** resource_configuration done ***********")
     return resource
 
 
@@ -136,10 +152,7 @@ def metrics_sdk_configuration_usage(views: List[View] | None = None):
 
     内置的 MetricExporter 只有 ConsoleMetricExporter 这一种。
     """
-    print("*********** metrics_sdk_configuration_usage ***********")
-    if METRIC_PROVIDER_SETUP.get():
-        print("METRIC_PROVIDER_SETUP is done, skip...")
-        return
+    print("*********** metrics_sdk_configuration ***********")
     # 1. 定义 Resource (标识数据来源)
     resource = resource_configuration()
 
@@ -167,8 +180,6 @@ def metrics_sdk_configuration_usage(views: List[View] | None = None):
     set_meter_provider(provider)
     # ✅ 此后所有 get_meter() 调用都会使用此 Provider
 
-    METRIC_PROVIDER_SETUP.set(True)
-
 
 # %% --------------- OpenTelemetry-API: Metric 使用 ---------------
 def metrics_api_meter_init(views: List[View] | None = None) -> Meter:
@@ -185,17 +196,16 @@ def metrics_api_meter_init(views: List[View] | None = None) -> Meter:
         # 同一个 MeterProvider 下，相同 Scope 的多次 get_meter() 调用会返回同一个 Meter 实例（缓存机制）。
         # 命名规范：推荐使用反向域名 + 模块路径，与 Python 包名保持一致。
         # 例如："mycompany.orders.service"
-        name='OTel-Metrics-Usage',
+        name='otel.metrics.usage.service',
         # 标识产生指标的代码/库的版本。
-        version='0.1.0',
+        version='1.0.0',
         # 指标语义约定版本，指向一个 YAML/JSON Schema 文件的 URL，描述该 Scope 下指标的语义约定版本
         schema_url=Schemas.V1_40_0.value,
         # 可选, ≥1.27.0：Scope 级静态属性
         # 附加到该 Meter 产生的所有指标上的固定键值对。等价于给整个 Scope 打一组全局标签。
         attributes={
-            "service.name": "mycompany.orders.service",
-            "service.version": "0.1.0",
-            "service.instance.id": "1234567890",
+            'meter-k1': 'meter-v1',
+            'meter-k2': 'meter-v2'
         }
     )
     # 这个 meter 对象是全局使用的
@@ -438,11 +448,21 @@ def traces_sdk_configuration_usage():
     5. 初始化 SpanProcessor，并传入 Exporter
     6. 向 TracerProvider 挂载 SpanProcessor
     7. 调用 Tracer-API 工具方法，注册配置好的 TracerProvider
+
+    OTel-Traces-SDK 里内置了如下两种 SpanProcessor:
+    | 特性        | `SimpleSpanProcessor`    | `BatchSpanProcessor` |
+    |------------|--------------------------|----------------------|
+    | 处理模式     | 同步（Synchronous）       | 异步（Asynchronous）     |
+    | 导出时机     | 每个 Span 结束时立即导出    | 积累一批 Span 后由后台线程批量导出 |
+    | 是否阻塞应用线程 | ✅ 是（直到导出完成）     | ❌ 否（仅写入内存队列）         |
+    | 性能影响     | 高（尤其在网络 I/O 场景下）   | 低（对主业务逻辑几乎无影响）       |
+    | 资源开销     | 低（无额外线程）            | 中（需后台线程 + 内部队列）      |
+    | 数据可靠性    | 高（每条 Span 都尝试导出）   | 中（队列满或进程崩溃可能丢数据）     |
+    | 典型用途     | 开发调试、单元测试           | 生产环境（强烈推荐）           |
+
+    OTel-Traces-SDK 里内置的 SpanExporter 只提供了 ConsoleSpanExporter 一种实现。
     """
-    print("*********** traces_sdk_configuration_usage ***********")
-    if TRACE_PROVIDER_SETUP.get():
-        print("TRACE_PROVIDER_SETUP is done, skip...")
-        return
+    print("*********** traces_sdk_configuration ***********")
     # 1. 定义 Resource
     resource = resource_configuration()
 
@@ -481,8 +501,6 @@ def traces_sdk_configuration_usage():
 
     # 7. 使用 Tracer-API 提供的工具函数注册配置好的TracerProvider
     set_tracer_provider(provider)
-
-    TRACE_PROVIDER_SETUP.set(True)
 
 
 # %% --------------- OpenTelemetry-API: Traces 使用 ---------------
@@ -534,15 +552,19 @@ def traces_api_usage():
 
     # 1. 获取Tracer，推荐以模块名命名，便于后端区分来源
     tracer: Tracer = get_tracer(
-        instrumenting_module_name="some.service",
+        instrumenting_module_name="otel.traces.usage.service",
         instrumenting_library_version="1.0.0",
         schema_url=Schemas.V1_40_0.value,
-        attributes={"service.name": "some-service"},
+        attributes={
+            "trace-k1": "trace-v1",
+            "trace-k2": "trace-v2",
+        },
     )
 
     # 2. 创建 Span
     # 2.1 方式一：上下文管理器（推荐，自动处理异常记录和 Span 结束）
     with tracer.start_as_current_span("process_order") as span:
+        span.set_attribute("span.manager", "auto")
         span.set_attribute("order.id", "ORD-2026-001")
         span.set_attribute("order.items_count", 3)
 
@@ -556,6 +578,9 @@ def traces_api_usage():
     try:
         # ... 业务逻辑
         print("some business operation")
+        span.set_attribute("span.manager", "manual")
+        span.set_attribute("order.id", "ORD-2026-200")
+        span.set_attribute("order.items_count", 10)
         span.set_status(StatusCode.OK)
     except Exception as e:
         span.record_exception(e)
@@ -589,6 +614,29 @@ def logs_sdk_usage():
 
     此外，虽然 OTel-Logs-API/SDK 规范中对于 LogRecord 的要求是不可变的，但 Processor 链又需要对数据进行转换。
     为此Python SDK中新增了 ReadableLogRecord 和 ReadWriteLogRecord 这两个数据类，实现读写分离视图模式。
+
+    OTel-Logs-SDK 里提供了如下两种 LogRecordProcessor实现类：
+    | 特性    | `SimpleLogRecordProcessor`    | `BatchLogRecordProcessor` |
+    |--------|-------------------------------|---------------------------|
+    | 处理模式 | 同步 (Synchronous)           | 异步 (Asynchronous)         |
+    | 工作方式 | 每产生一条日志，立即调用 Exporter 导出   | 将日志暂存到队列，由后台线程批量导出        |
+    | 性能影响 | 高：日志记录会阻塞应用线程，直到导出完成   | 低：日志记录只写入内存队列，几乎不阻塞应用     |
+    | 可靠性  | 高：每条日志都会被尝试导出               | 中：队列满或应用崩溃可能导致日志丢失        |
+    | 资源消耗 | 低（无额外线程）                      | 中（需要后台线程和内存队程）            |
+    | 典型用途 | 开发、调试、测试                      | 生产环境                      |
+
+    OTel-Logs-SDK 里提供了如下两种 LogExporter实现类：
+    | 特性      | `ConsoleLogRecordExporter`                 | `InMemoryLogRecordExporter`                                       |
+    |----------|--------------------------------------------|-------------------------------------------------------------------|
+    | 主要目的    | 开发/调试：将日志记录以人类可读的格式直接打印到控制台（stdout/stderr） | 测试：将日志记录暂存于内存列表中，供程序后续读取和断言                                       |
+    | 数据去向    | 标准输出（通常是终端）                        | 内存中的一个 Python 列表 (`self._logs`)                                   |
+    | 是否阻塞    | 否（同步打印，但非常快）                       | 否（只是 append 到列表）                                                  |
+    | 生产环境适用性 | ❌ 不适用（性能差，无结构化）                | ❌ 不适用（内存会无限增长，有泄漏风险）                                              |
+    | 核心方法    | `export(log_data)` → 序列化并打印           | `export(log_data)` → 存入 `_logs` 列表 `get_finished_logs()` → 返回所有日志 |
+    要点：
+      - InMemoryLogRecordExporter 不会将日志输出到控制台，必须显式调用 get_finished_logs() 方法获取日志
+      - 这两个导出器都不应该用于生产环境！在生产环境中，应该使用如 OTLPLogExporter 这样的导出器，
+
     """
     print("*********** logs_sdk_usage ***********")
     # 1. 定义 Resource (标识数据来源)
@@ -608,9 +656,10 @@ def logs_sdk_usage():
 
     # 4. Processor + Exporter: 处理管道与传输适配器
     # exporter = OTLPLogExporter(endpoint="otel-collector:4317")  # 生产环境推荐使用 OTLP gRPC Exporter
-    exporter = ConsoleLogRecordExporter()   # 本地演示用 Console
+    exporter = ConsoleLogRecordExporter()     # 本地演示用 Console
     # exporter = InMemoryLogRecordExporter()  # 本地演示也可以使用 InMemory
 
+    # 生产环境必须使用 BatchLogRecordProcessor
     batch_processor = BatchLogRecordProcessor(
         exporter=exporter,
         max_queue_size=2048,  # 内存队列上限，超限后新日志被丢弃
@@ -618,16 +667,19 @@ def logs_sdk_usage():
         max_export_batch_size=512,  # 每批最多导出512条
         export_timeout_millis=30000,  # 单次网络请求超时30s
     )
+    # 开发环境可以使用 SimpleLogRecordProcessor
+    simple_processor = SimpleLogRecordProcessor(exporter)
 
-    logger_provider.add_log_record_processor(batch_processor)
+    # logger_provider.add_log_record_processor(batch_processor)
+    logger_provider.add_log_record_processor(simple_processor)
 
-    # 4. 使用 LoggingHandler 作为桥接器，持有 SDK 的 LoggerProvider
+    # 4. 使用 LoggingHandler 作为桥接器，持有 SDK 的 LoggerProvider  -------------- KEY
     handler = LoggingHandler(
         level=logging.NOTSET,  # 👈 始终透传，由 stdlib logger 控制过滤
         logger_provider=logger_provider,
     )
 
-    # 5. 接入标准库
+    # 5. 接入标准库 --------------- KEY
     logger  = logging.getLogger(__name__)
     logger.addHandler(handler)
 
@@ -635,7 +687,9 @@ def logs_sdk_usage():
     atexit.register(logger_provider.shutdown)
 
     # ========== 使用 ==========
-    logger.info("Hello, OpenTelemetry info log record.")
+    logger.info("<Info> Hello, OpenTelemetry info log record.")
+    logger.warning("<Warning> Hello, OpenTelemetry warning log record.")
+    logger.error("<Error> Hello, OpenTelemetry error log record.")
 
 
 
@@ -667,9 +721,118 @@ def context_usage():
     print("*********** context_usage ***********")
 
 
+ConsoleExporterDocstring = """
+OTel-SDK的实现中，三大支柱的Exporter里，都提供了基于 Console 的输出：
+
+- ConsoleMetricExporter
+- ConsoleSpanExporter
+- ConsoleLogRecordExporter
+
+这里对此做个总结。
+
+1. 三者特点如下：
+| 特性    | 说明 |
+| :---   | :--- |
+| 目标    | 仅用于开发、调试和演示，绝非为生产环境设计。 |
+| 输出方式 | 均通过 Python 内置的 `print()` 函数（或等效操作）将数据写入 标准输出（stdout）。 |
+| 输出行为 | 追加显示（Append），而非刷新或覆盖控制台。每条新数据都会在控制台上新增一行或多行。 |
+| 数据格式 | 输出的是 结构化的、人类可读的 JSON 或类 JSON 字符串，便于开发者直接查看内容。 |
+| 无状态   | 它们自身不维护任何状态（如 Metrics 的聚合状态由 Reader/Controller 管理），只负责“打印”。 |
+
+2. 控制台输出行为总结：
+| Exporter | 触发模式 | 输出频率 | 控制台行为 | 典型搭配 Processor |
+| :--- | :--- | :--- | :--- | :--- |
+| `ConsoleSpanExporter` | 推模式 (Push) | 每个 Span 结束时 | 追加 一条 JSON | `SimpleSpanProcessor` |
+| `ConsoleLogRecordExporter` | 推模式 (Push) | 每条日志产生时 | 追加 一条 JSON | `SimpleLogRecordProcessor` |
+| `ConsoleMetricExporter` | 拉模式 (Pull) | 周期性 (e.g., 每60秒) | 追加 一个 JSON 数组 | `PeriodicExportingMetricReader` |
+"""
+
+
 # %% --------------- Main ---------------
 def main():
-    ...
+    """
+    按模块依次展示 OpenTelemetry Metrics / Traces / Logs 的效果。
+    每个 Metrics 函数使用 PeriodicExportingMetricReader（5s 导出间隔），
+    因此调用后需 sleep 等待导出完成。
+    """
+    SEP = "=" * 60
+    sleep_seconds = 6  # PeriodicExportingMetricReader 默认 5s，多留 1s 余量
+
+    # ==================== Part 1: Metrics ====================
+    def _metrics_show():
+        print(f"\n{SEP}")
+        print("  PART 1: Metrics — Counter (同步)")
+        print(SEP)
+        metrics_api_counter_usage()
+        time.sleep(sleep_seconds)
+
+        print(f"\n{SEP}")
+        print("  PART 1: Metrics — Counter (异步/可观测)")
+        print(SEP)
+        metrics_api_counter_usage_async()
+        time.sleep(sleep_seconds)
+
+        print(f"\n{SEP}")
+        print("  PART 1: Metrics — Gauge (同步)")
+        print(SEP)
+        metrics_api_gauge_usage()
+        time.sleep(sleep_seconds)
+
+        print(f"\n{SEP}")
+        print("  PART 1: Metrics — Gauge (异步/可观测)")
+        print(SEP)
+        metrics_api_gauge_usage_async()
+        time.sleep(sleep_seconds)
+
+        print(f"\n{SEP}")
+        print("  PART 1: Metrics — Histogram")
+        print(SEP)
+        metrics_api_histogram_usage()
+        time.sleep(sleep_seconds)
+
+        print(f"\n{SEP}")
+        print("  PART 1: Metrics — View (属性过滤 & 重命名)")
+        print(SEP)
+        metrics_sdk_view_usage()
+        time.sleep(sleep_seconds)
+
+        print(f"\n{SEP}")
+        print("  PART 1: Metrics — View Aggregation (自定义桶边界)")
+        print(SEP)
+        metrics_sdk_view_aggregate_usage()
+        time.sleep(sleep_seconds)
+
+    # ==================== Part 2: Traces ====================
+    def _traces_show():
+        print(f"\n{SEP}")
+        print("  PART 2: Traces — Span 创建 & 嵌套")
+        print(SEP)
+        traces_api_usage()
+        # SimpleSpanProcessor 是同步导出，无需 sleep
+
+    # ==================== Part 3: Logs ====================
+    def _logs_show():
+        print(f"\n{SEP}")
+        print("  PART 3: Logs — 桥接模式 (stdlib logging → OTel)")
+        print(SEP)
+        logs_sdk_usage()
+        time.sleep(sleep_seconds)  # BatchLogRecordProcessor 异步导出
+
+    # ==================== Part 4: Context ====================
+    def _context_show():
+        print(f"\n{SEP}")
+        print("  PART 4: Context Propagation (概念说明)")
+        print(SEP)
+        context_usage()
+
+    _metrics_show()
+    _traces_show()
+    _logs_show()
+    _context_show()
+
+    print(f"\n{SEP}")
+    print("  全部演示完成！")
+    print(SEP)
 
 
 if __name__ == "__main__":
