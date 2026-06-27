@@ -24,6 +24,9 @@ async def task_cancel_usage():
     注意事项：
       - 不要在 except CancelledError 中吞掉异常而不重新抛出，否则 Task 不会被标记为已取消。
       - 使用 asyncio.shield() 可以保护关键操作不被取消。
+      - 取消父 Task 不会自动取消其内部通过 create_task 创建的子 Task，需要手动管理。
+      - Python < 3.9 中 CancelledError 继承自 Exception，except Exception 会误吞取消信号。
+      - gather() 中取消一个 Task 不会影响其他 Task，它们继续运行但结果被丢弃。
 
     FAQ：
       Q: task.cancel() 的返回值是什么？是协程的 return 值吗？
@@ -105,6 +108,116 @@ async def task_cancel_usage():
     results = await asyncio.gather(*tasks, return_exceptions=True)
     for i, r in enumerate(results):
         print(f"  Batch-{i}: {type(r).__name__}")
+
+    # 示例4：坑点1 - 取消父Task不会自动取消子Task
+    #   - 父协程内部通过 create_task 创建的子 Task 是独立的，不受父 Task 取消影响
+    #   - 如果父 Task 被取消，子 Task 会变成"孤儿"继续在后台运行
+    #   - 正确做法：在 except CancelledError 中手动取消所有子 Task
+    print("\n--- 示例4：取消父Task不会自动取消子Task ---")
+    async def parent_with_child():
+        """父协程内部创建子Task，父被取消时子Task不会自动取消"""
+        child_tasks = []
+        try:
+            # 父协程内部创建子Task
+            for i in range(2):
+                t = asyncio.create_task(do_work(f"Child-{i}", 3.0))
+                child_tasks.append(t)
+            print("  父Task: 子Task已创建，开始等待...")
+            await asyncio.sleep(10)  # 模拟长时间等待
+        except asyncio.CancelledError:
+            print("  父Task: 被取消了！")
+            # 关键：必须手动取消子Task，否则它们会变成孤儿继续运行
+            for t in child_tasks:
+                if not t.done():
+                    t.cancel()
+                    print(f"  父Task: 手动取消 {t.get_name()}")
+            # 等待子Task完成清理（可选，但推荐）
+            if child_tasks:
+                await asyncio.gather(*child_tasks, return_exceptions=True)
+            raise  # 重新抛出，标记父Task为已取消
+
+    parent_task = asyncio.create_task(parent_with_child())
+    await asyncio.sleep(0.3)  # 让父Task创建子Task
+    parent_task.cancel()
+    try:
+        await parent_task
+    except asyncio.CancelledError:
+        print("  外部: 父Task已取消，子Task也已被手动清理")
+    # 再等一会儿确认没有孤儿Task在运行
+    await asyncio.sleep(0.5)
+    print("  验证：没有孤儿Task的残留输出")
+
+    # 示例5：except Exception 误吞 CancelledError（Python < 3.9）
+    #   - Python 3.8 及以前：CancelledError 继承自 Exception
+    #   - 如果代码中有 except Exception，会误捕获 CancelledError
+    #   - Python 3.9+：CancelledError 改为继承 BaseException，不再被 except Exception 捕获
+    #   - 本示例模拟 Python < 3.9 的行为，展示这个坑
+    print("\n--- 示例5：except Exception 误吞 CancelledError ---")
+    async def bad_pattern():
+        """错误示范：用 except Exception 吞掉了取消信号"""
+        try:
+            await asyncio.sleep(10)
+            return "done"
+        except Exception:  # Python < 3.9 中这会捕获 CancelledError！
+            print("  [BadPattern] except Exception 捕获了异常（可能是 CancelledError！）")
+            return "fallback"  # 吞掉异常，Task 伪装成正常完成
+
+    async def good_pattern():
+        """正确示范：先单独捕获 CancelledError"""
+        try:
+            await asyncio.sleep(10)
+            return "done"
+        except asyncio.CancelledError:
+            print("  [GoodPattern] 正确捕获 CancelledError，执行清理...")
+            raise  # 重新抛出
+        except Exception:
+            print("  [GoodPattern] 捕获其他异常")
+            return "fallback"
+
+    # 错误模式：cancel 后 task.cancelled() 返回 False（被吞掉了）
+    bad_task = asyncio.create_task(bad_pattern())
+    await asyncio.sleep(0.2)
+    bad_task.cancel()
+    try:
+        result = await bad_task
+        print(f"  错误模式结果: {result}")
+        print(f"  bad_task.cancelled()={bad_task.cancelled()} ← False！取消被吞掉了！")
+    except asyncio.CancelledError:
+        print("  （不会到这里）")
+
+    # 正确模式：cancel 后 task.cancelled() 返回 True
+    good_task = asyncio.create_task(good_pattern())
+    await asyncio.sleep(0.2)
+    good_task.cancel()
+    try:
+        await good_task
+    except asyncio.CancelledError:
+        print(f"  正确模式: good_task.cancelled()={good_task.cancelled()} ← True")
+
+    # 示例6：gather 中取消一个 Task 不影响其他 Task
+    #   - 对 gather 返回的 Future 调用 cancel()，或取消 gather 中的某个 Task
+    #   - 其他 Task 继续运行，结果被静默丢弃
+    #   - 这与 gather 默认异常传播的行为类似，但触发方式不同
+    print("\n--- 示例6：gather中取消一个Task不影响其他 ---")
+    t1 = asyncio.create_task(do_work("KeepRunning", 1.0))
+    t2 = asyncio.create_task(do_work("WillBeCancelled", 0.5))
+    t3 = asyncio.create_task(do_work("AlsoRunning", 1.0))
+
+    # 只取消 t2
+    await asyncio.sleep(0.2)
+    t2.cancel()
+    print("  已取消 WillBeCancelled，但 KeepRunning 和 AlsoRunning 继续运行...")
+
+    # gather 默认行为：t2 的 CancelledError 会传播，但 t1/t3 继续运行
+    try:
+        await asyncio.gather(t1, t2, t3)
+    except asyncio.CancelledError:
+        print("  gather 因 CancelledError 传播而返回")
+        # t1 和 t3 仍在后台运行！它们的完成输出会混入后续输出
+        print("  注意：KeepRunning 和 AlsoRunning 仍在后台运行！")
+    # 等待它们完成，避免输出交叠
+    await asyncio.sleep(1.5)
+    print("  验证：t1 和 t3 实际已执行完毕（输出混在上方）")
         
 
 async def task_timeout_usage():
