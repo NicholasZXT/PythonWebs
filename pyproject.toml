@@ -21,11 +21,14 @@ authors = [
 readme = "README.md"
 
 #requires-python = ">=3.10,<4.0"
-requires-python = "==3.10.*"
+#requires-python = "==3.10.*"
+requires-python = "~=3.12.10"
 
 dependencies = [
-    "setuptools",
-    "wheel",
+# build-system 的依赖不需要出现在这里
+#    "setuptools",
+#    "wheel",
+#    "hatchling",
     "pip",
     "psutil >= 5.9.8"
 ]
@@ -33,7 +36,7 @@ dependencies = [
 [project.optional-dependencies]
 
 [dependency-groups]
-db  = [
+db = [
     "requests >= 2.32.0",
     "httpx >= 0.24.1",
     "pymysql >= 1.0.0",
@@ -52,6 +55,7 @@ db  = [
 #    "py2neo >= 2021.2.3",
 #    "happybase >= 1.2.0",
 #    "minio >= 7.1.0",
+     "chromadb",
 ]
 ds = [
     "numpy >= 1.25.0",
@@ -83,7 +87,7 @@ flask = [
     "flask-compress     >= 1.13",
     "python-jose >= 3.3.0",
 ]
-fastapi  = [
+fastapi = [
 #    "anyio >= 4.9.0",  # 不显示指定版本时，下面的Starlette、mcp、httpx都会会使用此版本
     "anyio >= 4.12.0",
     "uvicorn >= 0.20.0",
@@ -109,18 +113,77 @@ django = [
     "djangorestframework >= 3.14",
     "djangorestframework-simplejwt >= 5.3.1",
 ]
-litestar  = [
+litestar = [
     "litestar[standard] >= 2.12.1"
 ]
 tornado = [
-    "tornado == 6.5.1",
-#    "tornado-swagger == 1.5.1",
-#    "tornado-rest-swagger == 1.2.1",
+    "tornado ~= 6.5.1",
+#    "tornado-swagger ~= 1.5.1",
+#    "tornado-rest-swagger ~= 1.2.1",
 ]
-mcp = [
+transformer = [
+    "transformers >= 4.23.1",
+	"tokenizers",
+	"sentence-transformers <= 5.2.0",
+]
+nlp = [
+	# "nltk",
+    "gensim",
+	"spacy >= 3.4.2 ",
+	"spacy-pkuseg >= 1.0.0",
+]
+llms = [
+    "openai >= 1.0.0",
+    "litellm ~= 1.88.0",
     "mcp[cli] >= 1.12.0",
 #   另一个 MCP package
     "fastmcp >= 2.10.0"
+]
+# --- langchain v0.3.x 版本 ---
+#langchain = [
+##	"langchain-core <= 0.3.79",  # 无需显式指定版本
+#	"langchain ==0.3.27",  # v0.3.x 最后一个版本
+#	"langchain-community >=0.3.21, <=0.4.1",
+#	"langgraph >=0.4.7, <= 0.6.11",
+#	"langchain-openai >=0.3.12, <=0.3.35",
+#	"langchain-ollama >=0.3.3, <= 0.3.10",
+#]
+# --- langchain v1.0.x 版本，发布于 2025-10-18 ---
+langchain = [
+#	"langchain-core",  # 无需显式指定版本
+	"langchain-classic >= 1.0.0",  # 为了兼容 v0.3 代码，v1.0.0 提供了一个兼容模块
+	"langchain >=1.0.0",
+	"langchain-community >= 0.4.1",
+	"langgraph >= 1.0.0",
+	"deepagents",
+	"langchain-openai >= 1.0.0",
+	"langchain-ollama >= 1.0.0",
+	"langchain-mcp-adapters >= 0.1.10",
+	"langchain-elasticsearch >= 1.0.0",
+]
+rag = [
+    # llama-index 只是一个starter，包含了 llama-index-core + 插件package
+#	"llama-index >= 0.14.0",
+    # core 才是核心
+	"llama-index-core >= 0.14.0",
+#	"llama-index-cli",
+    # 以下都是扩展package，参见 https://llamahub.ai/
+	"llama-index-llms-openai",
+	"llama-index-embeddings-openai",
+	"llama-index-llms-ollama",
+	"llama-index-embeddings-ollama",
+#    "llama-index-embeddings-huggingface",
+	"llama-index-readers-file",
+	"llama-index-vector-stores-chroma",
+#	"llama-index-vector-stores-elasticsearch",
+#	"llama-index-vector-stores-milvus",
+#	"llama-index-vector-stores-neo4jvector",
+    # ------ 文件处理package ------
+    "python-docx",
+    "pymupdf",
+    "pymupdf4llm",
+#    "markitdown[all]",
+    "markitdown[pdf, docx, pptx, xlsx, xls]",
 ]
 cloud = [
     "prometheus-client",
@@ -137,10 +200,12 @@ cloud = [
 #    "opentelemetry-instrumentation-starlette",
     "opentelemetry-instrumentation-fastapi",
 #    "opentelemetry-instrumentation-django",
+	"opentelemetry-exporter-otlp-proto-http",
     "opentelemetry-exporter-prometheus",
+	"llama-index-observability-otel",
 ]
 test = [
-    "pytest == 7.4.4",
+    "pytest ~= 7.4.4",
 #    "pytest >= 8.2.0",
 ]
 other = [
@@ -159,11 +224,18 @@ managed = true
 package = false
 index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
 python-downloads = "manual"
-python-preference = "system"
-#python-preference = "managed"
-#link-mode = "copy"
+#python-preference = "system"
+python-preference = "managed"
+link-mode = "copy"
 
-default-groups = ["db", "ds", "flask", "fastapi", "django", "litestar", "tornado", "mcp", "cloud", "test", "other"]
+default-groups = [
+    "db", "ds",
+    "flask", "fastapi", "django", "litestar", "tornado",
+#    "transformer",
+    "nlp", "llms", "langchain", "rag",
+    "cloud",
+    "test", "other"
+]
 
 # 适用于 uv pip 系列命令的配置
 [tool.uv.pip]
@@ -173,5 +245,12 @@ system = true
 break-system-packages = true
 all-extras = true
 # group 配置对于 uv pip sync 命令不生效
-group = ["db", "ds", "flask", "fastapi", "django", "litestar", "tornado", "mcp", "cloud", "test", "other"]
+group = [
+    "db", "ds",
+    "flask", "fastapi", "django", "litestar", "tornado",
+#    "transformer",
+    "nlp", "llms", "langchain", "rag",
+    "cloud",
+    "test", "other"
+]
 #torch-backend = "auto"
