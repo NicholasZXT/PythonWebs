@@ -158,8 +158,11 @@ langchain = [
 	"deepagents",
 	"langchain-openai >= 1.0.0",
 	"langchain-ollama >= 1.0.0",
+    "langchain-text-splitters",
 	"langchain-mcp-adapters >= 0.1.10",
 	"langchain-elasticsearch >= 1.0.0",
+#    "langgraph-checkpoint-sqlite",
+#    "langgraph-checkpoint-postgres",
 ]
 rag = [
     # llama-index 只是一个starter，包含了 llama-index-core + 插件package

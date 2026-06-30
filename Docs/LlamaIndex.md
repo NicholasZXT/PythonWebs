@@ -1459,12 +1459,15 @@ if __name__ == "__main__":
 ---
 ## Event-Based 模式
 
-根据Llama-Agent官方文档的说法，和LangGraph那样基于DAG的Agent架构不一样，Llama-Agent的设计思路是 **基于Event + asyncio异步队列的生产者/消费者模式**。
+根据Llama-Agent官方文档的说法，和LangGraph那样基于DAG的Agent架构不一样，
+Llama-Agent的设计思路是 **基于Event + asyncio异步队列的生产者/消费者模式**。
 
 > 个人感觉Llama-Agent相比LangGraph来说容易上手使用，但底层封装似乎比LangGraph还要深：
-> 稍微看了下底层执行的源码，采用事件驱动 + asyncio的异步生产者/消费者的方式，但是**将Agent控制流逻辑 和 异步队列生产消费的逻辑 交叉耦合在一起**，看着就头大，感觉极难调试。
+> 稍微看了下底层执行的源码，采用事件驱动 + asyncio的异步生产者/消费者的方式，
+> 但是**将Agent控制流逻辑 和 异步队列生产消费的逻辑 交叉耦合在一起**，看着就头大，感觉极难调试。
 
 实际使用起来的模式如下（官方示例）：
+
 ```python
 from workflows import Workflow, step
 from workflows.events import Event, StartEvent, StopEvent
