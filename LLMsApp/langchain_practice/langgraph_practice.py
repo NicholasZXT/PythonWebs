@@ -14,6 +14,8 @@
 from typing import Annotated, List, TypedDict, Dict, Union, Iterator
 from dataclasses import dataclass
 # from typing_extensions import TypedDict
+import time
+import asyncio
 # ---------- LangGraph Graph 组件 ----------
 from langgraph.constants import START, END
 # from langgraph.graph.graph import Graph, CompiledGraph  # 这两个类只有 v0.4.10 版本之前有，v0.5.0开始被删除了
@@ -29,14 +31,18 @@ from langgraph.store.base import BaseStore
 from langgraph.store.memory import InMemoryStore
 from langgraph.config import get_store
 from langgraph.types import StateSnapshot
-# ---------- LangGraph HIL 工具 ----------
-from langgraph.types import interrupt, Command, Send
 # ---------- LangGraph Tool 组件 ----------
 from langgraph.prebuilt import ToolNode, tools_condition, create_react_agent, InjectedState, InjectedStore
 from langgraph.runtime import Runtime
 from langchain.tools import ToolRuntime  # LangChain 里也提供了一个类似的 ToolRuntime 类
 from langgraph.utils.runnable import RunnableCallable
 # from langgraph.prebuilt.chat_agent_executor import AgentState
+# ---------- LangGraph HIL工具 & 容错处理 ----------
+from langgraph.types import (
+    interrupt, Command, Send,
+    default_retry_on, RetryPolicy, TimeoutPolicy
+)
+from langgraph.errors import GraphDrained, NodeError, NodeTimeoutError
 # ---------- langchain-core 组件 ----------
 from langchain_core.runnables import RunnableConfig
 from langchain_core.language_models.chat_models import BaseChatModel, SimpleChatModel
@@ -319,6 +325,7 @@ def graph_checkpoint_usage():
             state_msg = state['messages'][-1].content
         else:
             # message没有消息，则默认为 Hello
+            # 这里可以直接返回 str，不需要封装成 BaseMessage，因为 add_messages 函数会自动将 str 转换成 BaseMessage
             state_msg = 'Hello'
         if len(state["num"]) > 0:
             # 获取状态里的 num 列表的最后一个数字（如果有）
@@ -368,8 +375,10 @@ def graph_checkpoint_usage():
     # print(f"u1_r1 state: {u1_r1}")
     print(f"==> u1_r1 state:")
     for msg, num in zip(u1_r1["messages"], u1_r1["num"]):
-        msg.pretty_print()
-        print(f"num: {num}")
+        # msg.pretty_print()
+        print(f"  message: {msg.content}")
+        print(f"  num: {num}")
+        print("  ------")
 
     # 获取当前的状态，必须要使用 invoke 时同样的 config
     u1_r1_state: StateSnapshot = compile_graph.get_state(config=u1_config)
@@ -380,7 +389,23 @@ def graph_checkpoint_usage():
     print('  u1_r1_state.metadata: ', u1_r1_state.metadata)
     # 下面就是当前 state 对象的值，应该和 u1_r1 的内容是一样的
     print('  type(u1_r1_state.values): ', type(u1_r1_state.values))  # <class 'dict'>
-    print('  u1_r1_state.values:\n', u1_r1_state.values)
+    print('  u1_r1_state.values: ', u1_r1_state.values)
+
+    # ---- 获取历史状态，这也是 TimeTravel 的原理，获取历史状态，然后Replay ----
+    print("\n-------- History State After User-1-Call-1 ------------")
+    history_states: Iterator[StateSnapshot] = compile_graph.get_state_history(u1_config)
+    # 下面展示的state顺序是 逆序的 ---------- KEY
+    for index, state in enumerate(history_states, start=1):
+        # print(type(state))  # <class 'langgraph.types.StateSnapshot'>
+        # print(state)
+        print(f"==> [{index}] state show:")
+        print('  state.metadata: ', state.metadata)  # 这个有用，注意其中的 step 字段
+        print('  state.values:   ', state.values)    # 这个有用，内容就是 StateSchema 定义的内容
+        # print('  state.config: ', state.config)
+        # print('  state.tasks: ', state.tasks)
+        # print('  state.next: ', state.next)
+        # print('  state.parent_config: ', state.parent_config)
+        print("  ------")
 
     print("\n-------- user-1 call-2 ------------")
     u1_input_2 = {"messages": ["Call-2"], "num": [10]}
@@ -389,23 +414,25 @@ def graph_checkpoint_usage():
     # print(f"u1_r2 state: {u1_r2}")
     print("==> u1_r2 state:")
     for msg, num in zip(u1_r2["messages"], u1_r2["num"]):
-        msg.pretty_print()
-        print(f"num: {num}")
+        # msg.pretty_print()
+        print(f"  message: {msg.content}")
+        print(f"  num: {num}")
+        print("  ------")
     u1_r2_state = compile_graph.get_state(config=u1_config)
     print("\n==> u1_r2_state show:")
     # print('  u1_r2_state.config: ', u1_r2_state.config)
     # print('  u1_r2_state.metadata: ', u1_r2_state.metadata)
-    print('  u1_r2_state.values:\n', u1_r2_state.values)
+    print('  u1_r2_state.values: ', u1_r2_state.values)
 
-    # ---- 获取历史状态，这也是 TimeTravel 的原理，获取历史状态，然后Replay ----
-    print("\n-------- History State ------------")
+    # ---- 获取第2次调用后的历史状态，状态是追加的 ----
+    print("\n-------- History State After User-1-Call-2 ------------")
     history_states: Iterator[StateSnapshot] = compile_graph.get_state_history(u1_config)
-    for state in history_states:
+    for index, state in enumerate(history_states, start=1):
         # print(type(state))  # <class 'langgraph.types.StateSnapshot'>
         # print(state)
-        print("==> state show:")
-        print('  state.metadata: ', state.metadata)  # 这个有用
-        print('  state.values: ', state.values)  # 这个有用
+        print(f"==> [{index}] state show:")
+        print('  state.metadata: ', state.metadata)
+        print('  state.values:   ', state.values)
         # print('  state.config: ', state.config)
         # print('  state.tasks: ', state.tasks)
         # print('  state.next: ', state.next)
@@ -414,16 +441,21 @@ def graph_checkpoint_usage():
     # ---- 从 Memory 对象里获取所有 checkpoint 列表 ----
     print("\n-------- Checkpoints ------------")
     checkpoint_iter: Iterator[CheckpointTuple] = memory.list(config=u1_config)
-    # 下面展示的checkpoint顺序是倒序的 ---------- KEY
-    for checkpoint in checkpoint_iter:
+    # 下面展示的checkpoint顺序是 逆序的 ---------- KEY
+    for index, checkpoint in enumerate(checkpoint_iter, start=1):
         # print(type(checkpoint))   # <class 'langgraph.checkpoint.base.CheckpointTuple'>
         # print(checkpoint)
-        print("==> checkpoint show:")
-        print('  checkpoint.config: ', checkpoint.config)
-        print('  checkpoint.metadata: ', checkpoint.metadata)  # 这个信息最有用
-        # print('  checkpoint.pending_writes: ', checkpoint.pending_writes)
-        # print('  checkpoint.checkpoint: ', checkpoint.checkpoint)
+        print(f"==> [{index}] checkpoint show:")
         # print('  checkpoint.parent_config: ', checkpoint.parent_config)
+        print('  checkpoint.config:   ', checkpoint.config)
+        print('  checkpoint.metadata: ', checkpoint.metadata)  # 这个信息有用，注意其中的 step 字段
+        print('  checkpoint.checkpoint: ', checkpoint.checkpoint)  # 检查点内容类型是 Checkpoint 对象
+        print('    checkpoint.checkpoint[id]: ', checkpoint.checkpoint['id'])
+        print('    checkpoint.checkpoint[ts]: ', checkpoint.checkpoint['ts'])
+        print('    checkpoint.checkpoint[updated_channels]: ', checkpoint.checkpoint['updated_channels'])
+        print('    checkpoint.checkpoint[channel_values]: ', checkpoint.checkpoint['channel_values'])
+        print('    checkpoint.checkpoint[channel_versions]: ', checkpoint.checkpoint['channel_versions'])
+        # print('  checkpoint.pending_writes: ', checkpoint.pending_writes)
 
 
 # %% ======================= Graph Store（长期记忆） 使用 =======================
@@ -447,9 +479,15 @@ def graph_store_usage():
         key="db-k-1",
         value={"some": "some-value"}
     )
-    print(memory_store.list_namespaces())
+    print("==> list namespaces: ")
+    # print(memory_store.list_namespaces())
+    for namespace in memory_store.list_namespaces():
+        print(f"  namespace: {namespace}")
+        print("  ---")
+
+    print("==> get item: ")
     print(memory_store.get(namespace=("user-1", "web"),  key="web-k-1"))
-    print("----------------------------")
+    print("----------------------------\n")
 
     def some_node(state: MessagesState, config: RunnableConfig, store: BaseStore) -> Dict[str, List[BaseMessage]]:
         """
@@ -482,8 +520,11 @@ def graph_store_usage():
     config = {"configurable": {"user_id": "user-1"}}
     res = compile_graph.invoke(input=input_msg, config=config)
     # print(res)
+    print("==> res:")
     for msg in res['messages']:
-        msg.pretty_print()
+        # msg.pretty_print()
+        print('  msg.content:', msg.content)
+        print('  ---')
 
 
 # %% ======================= Interrupt/Command (HIL) 机制 =======================
@@ -523,7 +564,7 @@ def graph_dynamic_interrupt_usage():
         # 使用 interrupt 函数打断图的执行，等待人工输入 --------------- KEY
         # interrupt() 函数的参数 value 会被返回
         human_response = interrupt(value=value)
-        # interrupt() 函数的返回值就是断点恢复执行时通过 Command 对象的 resume 参数设置的值
+        # interrupt() 函数的返回值就是断点恢复执行时通过 Command 对象的 resume 参数设置的值 --------- KEY
         print(f"  <== greet_node received human interrupt response: {human_response}")
         # 但是有一点需要特别注意：断点恢复执行时，整个 greet_node 里的逻辑都会被重新执行，
         # 而不是从 interrupt() 函数返回后的部分继续执行（类似于 yield 的效果）
@@ -568,7 +609,7 @@ def graph_dynamic_interrupt_usage():
 
 
 # %%
-def graph_fixed_interrupt_usage():
+def graph_fixed_breakpoint_usage():
     """
     展示 LangGraph 的 Human-Interrupt 使用 —— 固定断点设置。
     在 Graph.compile() 方法里通过 interrupt_before 参数，指定在某些 node 前/后 设置断点。
@@ -599,7 +640,8 @@ def graph_fixed_interrupt_usage():
     # HIL 需要借助 checkpointer 才能使用
     memory = MemorySaver()
     compile_graph: CompiledStateGraph = graph.compile(
-        name='StateGraphWithFixedHIL', checkpointer=memory,
+        name='StateGraphWithFixedHIL',
+        checkpointer=memory,
         interrupt_before=["show_node"],  # 指定在某些节点前设置断点
         # interrupt_after=["greet_node"]    # 指定在某些节点后设置断点
     )
@@ -625,7 +667,8 @@ def graph_fixed_interrupt_usage():
     s = compile_graph.get_state(config=u1_config)
     print(s.values)
     # -------------------------
-    # 恢复执行，input输入 None，这里恢复时，会从上次中断点继续执行，即从 show_node 节点开始执行，而不会再次执行 greet_node 节点
+    # 恢复执行，input输入 None，
+    # 这里恢复时，会从上次中断点继续执行，即从 show_node 节点开始执行，而不会再次执行 greet_node 节点
     u1_r1_continue = compile_graph.invoke(input=None, config=u1_config)
     print(f"u1_r1_continue: {u1_r1_continue}")
 
@@ -892,6 +935,303 @@ def react_agent_usage():
         msg.pretty_print()
 
 
+# %% ======================= Graph Fault Tolerance =======================
+def graph_fault_tolerance_timeout_usage() -> None:
+    """
+    展示 Graph Node 执行超时时的容错处理。
+
+    LangGraph 提供两种超时机制：
+    1. run_timeout: 硬性墙上时钟上限，单次尝试的总时长限制，不会被任何进度信号重置
+    2. idle_timeout: 进度重置上限，当节点停止产生可观察的进度信号达到指定时长时触发
+
+    两者可以组合使用，哪个先触发就取消当前尝试。
+    超时后会抛出 NodeTimeoutError，该异常默认是可重试的（在 default_retry_on 范围内）。
+
+    注意：timeout 仅支持 async 节点，同步节点设置 timeout 会在 compile 时报错。
+    """
+    # ---- 1. run_timeout 示例：硬性时间上限 ----
+    class TimeoutState(TypedDict):
+        result: str
+        attempts: Annotated[List[int], lambda prev, curr: prev + curr]
+
+    async def slow_node(state: TimeoutState, runtime: Runtime) -> Dict[str, str]:
+        """模拟一个耗时过长的节点"""
+        print(f"  [slow_node] attempt #{runtime.execution_info.node_attempt} start, sleeping 3s...")
+        await asyncio.sleep(3)  # 模拟耗时操作，超过了 run_timeout=1
+        print(f"  [slow_node] finished (should not reach here)")
+        return {"result": "done"}
+
+    async def fast_node(state: TimeoutState) -> Dict[str, str]:
+        """正常速度的节点"""
+        print(f"  [fast_node] running...")
+        return {"result": "fast-done"}
+
+    graph = StateGraph(TimeoutState)
+    graph.add_node(
+        "slow_node", slow_node,
+        timeout=TimeoutPolicy(run_timeout=1),      # 1秒超时
+        retry_policy=RetryPolicy(max_attempts=2),  # 最多尝试2次（含首次）
+    )
+    graph.add_node("fast_node", fast_node)
+    graph.add_edge(START, "slow_node")
+    graph.add_edge("slow_node", "fast_node")
+    graph.add_edge("fast_node", END)
+    compile_graph = graph.compile(name='TimeoutGraph')
+
+    print("==> run_timeout 示例：slow_node 设置 run_timeout=1s，但 sleep 3s")
+    try:
+        res = asyncio.run(compile_graph.ainvoke(input={"result": "", "attempts": []}))
+        print(f"  result: {res}")
+    except NodeTimeoutError as e:
+        print(f"  NodeTimeoutError caught: node={e.node}, kind={e.kind}, elapsed={e.elapsed:.2f}s")
+        print(f"  run_timeout={e.run_timeout}s, idle_timeout={e.idle_timeout}")
+
+    # ---- 2. idle_timeout + heartbeat 示例 ----
+    print("\n==> idle_timeout + heartbeat 示例")
+
+    class IdleState(TypedDict):
+        result: str
+
+    async def long_running_with_heartbeat(state: IdleState, runtime: Runtime) -> Dict[str, str]:
+        """模拟长时间运行但定期发送心跳的节点"""
+        print(f"  [long_running] start, will run ~2s with heartbeats every 0.5s...")
+        for i in range(4):
+            await asyncio.sleep(0.5)
+            runtime.heartbeat()  # 手动重置 idle 时钟
+            print(f"    heartbeat #{i+1} sent")
+        print(f"  [long_running] finished")
+        return {"result": "completed-with-heartbeats"}
+
+    graph2 = StateGraph(IdleState)
+    graph2.add_node(
+        "long_running", long_running_with_heartbeat,
+        timeout=TimeoutPolicy(idle_timeout=1, refresh_on="heartbeat"),  # idle_timeout=1s，仅 heartbeat 刷新
+    )
+    graph2.add_edge(START, "long_running")
+    graph2.add_edge("long_running", END)
+    compile_graph2 = graph2.compile(name='IdleTimeoutGraph')
+
+    res2 = asyncio.run(compile_graph2.ainvoke(input={"result": ""}))
+    print(f"  result: {res2}")
+
+    # ---- 3. timeout + retry 组合 ----
+    print("\n==> timeout + retry 组合示例")
+
+    class RetryTimeoutState(TypedDict):
+        result: str
+        attempts: Annotated[List[int], lambda prev, curr: prev + curr]
+
+    async def flaky_node(state: RetryTimeoutState, runtime: Runtime) -> Dict[str, str]:
+        """模拟一个偶尔超时的节点，通过 runtime 检查当前尝试次数"""
+        attempt = runtime.execution_info.node_attempt
+        print(f"  [flaky_node] attempt #{attempt}")
+        if attempt < 3:
+            print(f"    simulating timeout (sleep 2s, run_timeout=1s)...")
+            await asyncio.sleep(2)
+        print(f"    success on attempt #{attempt}!")
+        return {"result": f"success-on-attempt-{attempt}", "attempts": [attempt]}
+
+    graph3 = StateGraph(RetryTimeoutState)
+    graph3.add_node(
+        "flaky_node", flaky_node,
+        timeout=TimeoutPolicy(run_timeout=1),
+        retry_policy=RetryPolicy(max_attempts=3, initial_interval=0.3, backoff_factor=1.5),
+    )
+    graph3.add_edge(START, "flaky_node")
+    graph3.add_edge("flaky_node", END)
+    compile_graph3 = graph3.compile(name='RetryTimeoutGraph')
+
+    try:
+        res3 = asyncio.run(compile_graph3.ainvoke(input={"result": "", "attempts": []}))
+        print(f"  result: {res3}")
+    except NodeTimeoutError as e:
+        print(f"  All retries exhausted: {e}")
+
+
+def graph_fault_tolerance_error_usage() -> None:
+    """
+    展示 Graph Node 执行抛出异常时的容错处理。
+
+    LangGraph 提供三种可组合的容错机制：
+    1. RetryPolicy: 根据异常类型和退避设置自动重试失败的尝试
+    2. error_handler: 在所有重试耗尽后运行恢复函数，可更新状态并路由到其他节点
+    3. set_node_defaults: 为所有节点统一配置默认的 retry_policy / error_handler / timeout
+
+    执行顺序：节点异常 → retry_policy 判断是否重试 → 重试耗尽后 → error_handler 处理
+    """
+    # ---- 1. RetryPolicy 基本使用 + 自定义 retry_on ----
+    print("==> 1. RetryPolicy 基本使用 + 自定义 retry_on")
+
+    class RetryState(TypedDict):
+        status: str
+        call_count: Annotated[int, lambda prev, curr: prev + curr]
+
+    # 自定义一个业务异常
+    class TransientAPIError(Exception):
+        """可重试的临时 API 错误"""
+        pass
+
+    class FatalConfigError(Exception):
+        """不可重试的致命配置错误"""
+        pass
+
+    def custom_retry_on(exc: BaseException) -> bool:
+        """自定义重试判断：只重试 TransientAPIError，其他异常不重试"""
+        if isinstance(exc, TransientAPIError):
+            return True
+        if isinstance(exc, FatalConfigError):
+            return False
+        # 其他异常使用默认策略
+        return default_retry_on(exc)
+
+    call_counter = {"count": 0}
+
+    def call_external_api(state: RetryState) -> Dict[str, str]:
+        """模拟调用外部 API，前2次抛出可重试异常，第3次成功"""
+        call_counter["count"] += 1
+        cnt = call_counter["count"]
+        print(f"  [call_external_api] call #{cnt}")
+        if cnt < 3:
+            print(f"    -> raising TransientAPIError (retryable)")
+            raise TransientAPIError(f"API temporarily unavailable (attempt #{cnt})")
+        print(f"    -> success!")
+        return {"status": "api-ok", "call_count": cnt}
+
+    graph = StateGraph(RetryState)
+    graph.add_node(
+        "call_external_api", call_external_api,
+        retry_policy=RetryPolicy(
+            max_attempts=4,
+            initial_interval=0.2,
+            backoff_factor=2.0,
+            retry_on=custom_retry_on,
+        ),
+    )
+    graph.add_edge(START, "call_external_api")
+    graph.add_edge("call_external_api", END)
+    compile_graph = graph.compile(name='RetryGraph')
+
+    res = compile_graph.invoke(input={"status": "", "call_count": 0})
+    print(f"  result: {res}")
+
+    # ---- 2. error_handler + Command 路由（Saga 补偿模式） ----
+    print("\n==> 2. error_handler + Command 路由（Saga 补偿模式）")
+
+    class SagaState(TypedDict):
+        status: str
+
+    def reserve_inventory(state: SagaState) -> Dict[str, str]:
+        """预留库存 —— 总是成功"""
+        print(f"  [reserve_inventory] inventory reserved")
+        return {"status": "reserved"}
+
+    def charge_payment(state: SagaState) -> Dict[str, str]:
+        """扣款 —— 模拟失败"""
+        print(f"  [charge_payment] charging... FAILED!")
+        raise RuntimeError("payment gateway timeout")
+
+    def payment_error_handler(state: SagaState, error: NodeError) -> Command:
+        """扣款失败后的补偿处理：释放库存并路由到最终节点"""
+        print(f"  [payment_error_handler] compensating for node '{error.node}': {error.error}")
+        return Command(
+            update={"status": f"compensated: released inventory after {error.node} failure"},
+            goto="finalize",
+        )
+
+    def finalize(state: SagaState) -> Dict[str, str]:
+        """最终节点"""
+        print(f"  [finalize] order finalized with status: {state['status']}")
+        return state
+
+    graph2 = StateGraph(SagaState)
+    graph2.add_node("reserve_inventory", reserve_inventory)
+    graph2.add_node(
+        "charge_payment", charge_payment,
+        retry_policy=RetryPolicy(max_attempts=2, retry_on=ConnectionError),  # 只重试 ConnectionError
+        error_handler=payment_error_handler,  # 重试耗尽后执行补偿
+    )
+    graph2.add_node("finalize", finalize)
+    graph2.add_edge(START, "reserve_inventory")
+    graph2.add_edge("reserve_inventory", "charge_payment")
+    # charge_payment 的 error_handler 通过 Command(goto="finalize") 路由到 finalize
+    graph2.add_edge("finalize", END)
+    compile_graph2 = graph2.compile(name='SagaGraph')
+
+    res2 = compile_graph2.invoke(input={"status": ""})
+    print(f"  result: {res2}")
+
+    # ---- 3. set_node_defaults 统一默认配置 ----
+    print("\n==> 3. set_node_defaults 统一默认配置")
+
+    class DefaultState(TypedDict):
+        status: str
+
+    def default_error_handler(state: DefaultState, error: NodeError) -> Dict[str, str]:
+        """全局默认错误处理器"""
+        print(f"  [default_error_handler] recovered from '{error.node}': {error.error}")
+        return {"status": f"recovered: {error.error}"}
+
+    def step_a(state: DefaultState) -> Dict[str, str]:
+        print(f"  [step_a] running...")
+        return {"status": "step-a-ok"}
+
+    def step_b(state: DefaultState) -> Dict[str, str]:
+        print(f"  [step_b] running... FAILED!")
+        raise ValueError("step_b something went wrong")
+
+    def step_c(state: DefaultState) -> Dict[str, str]:
+        print(f"  [step_c] running...")
+        return {"status": "step-c-ok"}
+
+    graph3 = (
+        StateGraph(DefaultState)
+        .set_node_defaults(
+            retry_policy=RetryPolicy(max_attempts=2),
+            error_handler=default_error_handler,
+        )
+        .add_node("step_a", step_a)
+        .add_node("step_b", step_b)  # 使用默认的 error_handler
+        .add_node("step_c", step_c)
+        .add_edge(START, "step_a")
+        .add_edge("step_a", "step_b")
+        .add_edge("step_b", "step_c")
+        .add_edge("step_c", END)
+        .compile(name='DefaultsGraph')
+    )
+
+    res3 = graph3.invoke(input={"status": ""})
+    print(f"  result: {res3}")
+
+    # ---- 4. 不可重试异常直接触发 error_handler ----
+    print("\n==> 4. 不可重试异常直接触发 error_handler")
+
+    class ImmediateErrorState(TypedDict):
+        status: str
+
+    def node_with_fatal_error(state: ImmediateErrorState) -> Dict[str, str]:
+        print(f"  [node_with_fatal_error] raising FatalConfigError...")
+        raise FatalConfigError("invalid configuration: missing API key")
+
+    def fatal_error_handler(state: ImmediateErrorState, error: NodeError) -> Command:
+        print(f"  [fatal_error_handler] fatal error in '{error.node}': {error.error}")
+        return Command(
+            update={"status": f"aborted: {error.error}"},
+            goto=END,
+        )
+
+    graph4 = StateGraph(ImmediateErrorState)
+    graph4.add_node(
+        "node_with_fatal_error", node_with_fatal_error,
+        retry_policy=RetryPolicy(max_attempts=3, retry_on=custom_retry_on),
+        error_handler=fatal_error_handler,
+    )
+    graph4.add_edge(START, "node_with_fatal_error")
+    compile_graph4 = graph4.compile(name='FatalErrorGraph')
+
+    res4 = compile_graph4.invoke(input={"status": ""})
+    print(f"  result: {res4}")
+
+
 # %% ======================= Graph Stream =======================
 def graph_stream_usage():
     """
@@ -1027,11 +1367,13 @@ def main():
     # graph_checkpoint_usage()
     # graph_store_usage()
     # graph_dynamic_interrupt_usage()
-    # graph_fixed_interrupt_usage()
+    # graph_fixed_breakpoint_usage()
     # chatbot_example()
     # chatbot_tool_usage_manual()
     # chatbot_tool_usage_prebuilt()
     # react_agent_usage()
+    # graph_fault_tolerance_timeout_usage()
+    # graph_fault_tolerance_error_usage()
     # graph_stream_usage()
     # graph_custom_node_with_class_usage()
 
