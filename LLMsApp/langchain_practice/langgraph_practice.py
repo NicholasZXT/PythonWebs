@@ -29,7 +29,7 @@ from langgraph.checkpoint.base import CheckpointTuple, Checkpoint, CheckpointMet
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.store.base import BaseStore
 from langgraph.store.memory import InMemoryStore
-from langgraph.config import get_store
+from langgraph.config import get_store, get_stream_writer
 from langgraph.types import StateSnapshot
 # ---------- LangGraph Tool 组件 ----------
 from langgraph.prebuilt import ToolNode, tools_condition, create_react_agent, InjectedState, InjectedStore
@@ -40,7 +40,8 @@ from langgraph.utils.runnable import RunnableCallable
 # ---------- LangGraph HIL工具 & 容错处理 ----------
 from langgraph.types import (
     interrupt, Command, Send,
-    default_retry_on, RetryPolicy, TimeoutPolicy
+    default_retry_on, RetryPolicy, TimeoutPolicy,
+    StreamWriter,
 )
 from langgraph.errors import GraphDrained, NodeError, NodeTimeoutError
 # ---------- langchain-core 组件 ----------
@@ -1240,69 +1241,531 @@ def graph_fault_tolerance_usage() -> None:
 
 
 # %% ======================= Graph Stream =======================
-def graph_stream_usage():
+def graph_stream_usage_v1():
     """
-    展示 Graph 的 stream 接口使用。
+    展示 LangGraph 的 Stream API V1 使用（默认版本）。
+    LangGraph的 StateGraph 提供了 同步stream() 和 异步astream() 方法，用于配合LLM的流式输出。
+
+    LangGraph v1.1+ 版本引入了新的统一Stream返回格式，可以通过 version="v2" 参数指定，不过目前还是默认使用 version="v1"。
+    此示例主要基于 V1 版本，V2 版本参见下面的 graph_stream_usage_v2() 示例。
+
+    V1 版本的输出格式特点：
+    - 单个 stream_mode：直接返回原始数据（dict）
+    - 多个 stream_mode：返回 (mode, data) 元组
+    - 子图 (subgraphs=True)：返回 (namespace, data) 或 (namespace, mode, data) 元组
+
+    Stream的模式可以使用 stream_mode 参数指定，支持的模式有：
+    - updates: 每个步骤后流式传输状态的更新（增量）
+    - values: 每个步骤后流式传输状态的完整值
+    - messages: 流式传输 LLM 的 token 级别输出，返回 (message_chunk, metadata) 元组
+    - custom: 自定义流，通过 get_stream_writer() 在节点内发送自定义数据
+    - checkpoints: 流式传输 checkpoint 事件（需要 checkpointer）
+    - tasks: 流式传输任务开始/完成事件（需要 checkpointer）
+    - debug: 流式传输尽可能多的调试信息（结合 checkpoints + tasks + 额外元数据）
     """
-    @tool(description="使用龙球(DragonBall)算法计算两个数字的结果")
-    def dragon_ball_algorithm(x: Annotated[int, "第一个数字"], y: Annotated[int, "第二个数字"]) -> int:
-        return x + y + 1
 
-    @tool(description="检查龙球(DragonBall)算法的结果是否正确")
-    def dragon_ball_check(x: Annotated[int, "第一个数字"], y: Annotated[int, "第二个数字"], z: Annotated[int, "结果数字"]) -> int:
-        return x + y + 1 == z
+    # ======================= 1. updates / values 模式（fake demo，不调用模型） =======================
+    print("=" * 30 + " V1: updates / values 模式 " + "=" * 30)
 
-    tools = [dragon_ball_algorithm, dragon_ball_check]
-    tool_node = ToolNode(tools=tools)
+    class SimpleState(TypedDict):
+        topic: str
+        result: str
+
+    def refine_topic(state: SimpleState) -> Dict[str, str]:
+        """模拟对 topic 进行加工"""
+        return {"topic": state["topic"] + " and cats"}
+
+    def generate_result(state: SimpleState) -> Dict[str, str]:
+        """模拟生成结果"""
+        return {"result": f"This is a result about {state['topic']}"}
+
+    graph = (
+        StateGraph(SimpleState)
+        .add_node("refine_topic", refine_topic)
+        .add_node("generate_result", generate_result)
+        .add_edge(START, "refine_topic")
+        .add_edge("refine_topic", "generate_result")
+        .add_edge("generate_result", END)
+        .compile()
+    )
+
+    # --- updates 模式：只返回每个节点对状态的更新（增量） ---
+    print("\n--- updates 模式（增量更新） ---")
+    input_updates = {"topic": "ice cream", "result": ""}
+    print(f"  input: {input_updates}")
+    for chunk in graph.stream(input_updates, stream_mode="updates"):
+        # V1: 单模式直接返回 dict，key 为节点名，value 为该节点的更新
+        print(f"  chunk: {chunk}")
+
+    # --- values 模式：返回每个步骤后的完整状态 ---
+    print("\n--- values 模式（完整状态） ---")
+    input_values = {"topic": "ice cream", "result": ""}
+    print(f"  input: {input_values}")
+    for chunk in graph.stream(input_values, stream_mode="values"):
+        # V1: 单模式直接返回完整 state dict
+        print(f"  chunk: {chunk}")
+
+    # ======================= 2. custom 模式（fake demo） =======================
+    print("\n" + "=" * 30 + " V1: custom 模式 " + "=" * 30)
+
+    class CustomState(TypedDict):
+        query: str
+        answer: str
+
+    def custom_node(state: CustomState) -> Dict[str, str]:
+        """在节点内通过 get_stream_writer() 发送自定义进度数据"""
+        writer = get_stream_writer()
+        writer({"progress": "step-1: thinking..."})
+        writer({"progress": "step-2: generating..."})
+        return {"answer": f"Answer to: {state['query']}"}
+
+    graph_custom = (
+        StateGraph(CustomState)
+        .add_node("custom_node", custom_node)
+        .add_edge(START, "custom_node")
+        .add_edge("custom_node", END)
+        .compile()
+    )
+
+    print("\n--- custom 模式 ---")
+    input_custom = {"query": "hello", "answer": ""}
+    print(f"  input: {input_custom}")
+    for chunk in graph_custom.stream(input_custom, stream_mode="custom"):
+        # V1: custom 模式直接返回 writer 发送的 dict
+        print(f"  custom event: {chunk}")
+
+    # ======================= 3. messages 模式（需要调用模型） =======================
+    print("\n" + "=" * 30 + " V1: messages 模式 " + "=" * 30)
+
+    class MsgState(TypedDict):
+        topic: str
+        joke: str
+
     client_chat = get_client_chat()
-    client_chat_tool = client_chat.bind_tools(tools=tools)
-    memory = MemorySaver()
-    agent = create_react_agent(name='ReAct-Agent', model=client_chat_tool, tools=tool_node, checkpointer=memory)
 
-    # 输入
-    input_msgs = [
-        SystemMessage(content='你是一个算术专家'),
-        HumanMessage(content='请使用龙球(DragonBall)算法计算一下 2019 和 2022 的结果，并检查算法的结果是否正确'),
-    ]
-    config = {"configurable": {"thread_id": "1"}}
+    def call_model(state: MsgState) -> Dict[str, str]:
+        """调用 LLM 生成内容 —— messages 模式会捕获 token 级别的输出"""
+        response = client_chat.invoke(
+            [{"role": "user", "content": f"Generate a short joke about {state['topic']}"}]
+        )
+        return {"joke": response.content}
 
-    # Stream调用
-    # 可接受的模式有：["values", "updates", "debug", "messages", "custom"]，参见 langgraph.types.StreamMode
+    graph_msg = (
+        StateGraph(MsgState)
+        .add_node("call_model", call_model)
+        .add_edge(START, "call_model")
+        .add_edge("call_model", END)
+        .compile()
+    )
 
-    # None：也是默认模式，此时每次输出一个 Message
-    print("------- Stream with None -------")
-    for chunk in agent.stream(input={"messages": input_msgs}, config=config):
-        # print(f"type(chunk): {type(chunk)}")   # <class 'langgraph.pregel.io.AddableUpdatesDict'>
-        print(chunk.keys())
-        print(chunk)
+    print("\n--- messages 模式（LLM token 级别流式输出） ---")
+    input_msg = {"topic": "ice cream", "joke": ""}
+    print(f"  input: {input_msg}")
+    first_chunk = True
+    for msg_chunk, metadata in graph_msg.stream(input_msg, stream_mode="messages"):
+        # V1: messages 模式返回 (message_chunk, metadata) 元组
+        # msg_chunk: AIMessageChunk 对象，主要字段有 .content (str, token文本), .type (str, "AIMessageChunk"),
+        #            .tool_calls (list, 工具调用信息), .additional_kwargs (dict, 额外参数)
+        # metadata: dict，重要字段包括:
+        #   - "langgraph_node": str, 产生该 token 的节点名称
+        #   - "langgraph_step": int, 当前步骤编号
+        #   - "langgraph_triggers": list[str], 触发该节点的上游节点
+        #   - "langgraph_path": tuple, 当前执行路径
+        #   - "langgraph_checkpoint_ns": str, checkpoint 命名空间
+        #   - "ls_model_name": str, 模型名称
+        #   - "ls_provider": str, 模型提供商 (如 "ollama")
+        #   - "ls_tags": list[str], 模型标签
+        if first_chunk:
+            print(f"  [metadata keys]: {list(metadata.keys())}")
+            print(f"  [metadata sample]: langgraph_node={metadata.get('langgraph_node')}, "
+                  f"langgraph_step={metadata.get('langgraph_step')}, "
+                  f"langgraph_triggers={metadata.get('langgraph_triggers')}, "
+                  f"ls_model_name={metadata.get('ls_model_name')}, "
+                  f"ls_provider={metadata.get('ls_provider')}")
+            print(f"  [msg_chunk type]: {type(msg_chunk).__name__}")
+            first_chunk = False
+        if msg_chunk.content:
+            print(msg_chunk.content, end="", flush=True)
+    print()
 
-    # values 模式：在图中的每个步骤之后流式传输状态的完整值
-    print("\n------- Stream with values -------")
-    for chunk in agent.stream(input={"messages": input_msgs}, config=config, stream_mode="values"):
-        print(chunk.keys())
-        print(chunk)
+    # ======================= 4. checkpoints / tasks / debug 模式（需要 checkpointer） =======================
+    print("\n" + "=" * 30 + " V1: checkpoints / tasks / debug 模式 " + "=" * 30)
 
-    # updates 模式：在图中的每个步骤之后将更新流式传输到状态。
-    print("\n------- Stream with update -------")
-    for chunk in agent.stream(input={"messages": input_msgs}, config=config, stream_mode="updates"):
-        print(chunk.keys())
-        print(chunk)
+    class CkState(TypedDict):
+        topic: str
+        result: str
 
-    # messages 模式：记录每个 messages 中的增量 token。
-    print("\n------- Stream with messages -------")
-    for token, metadata in agent.stream(input={"messages": input_msgs}, config=config, stream_mode="messages"):
-        print("Token: ", token)
-        print("Metadata: ", metadata)
+    def step_a(state: CkState) -> Dict[str, str]:
+        return {"result": f"step-a: {state['topic']}"}
 
-    # debug 模式：在整个图的执⾏过程中流式传输尽可能多的信息，主要⽤于调试程序。
-    # print("------- Stream with debug -------")
-    # for chunk in agent.stream(input={"messages": input_msgs}, config=config, stream_mode="debug"):
-    #     print(chunk)
+    def step_b(state: CkState) -> Dict[str, str]:
+        return {"result": state["result"] + " -> step-b"}
 
-    # custom 模式：⾃定义流，通过 LangGraph 的 StreamWriter ⽅法
-    # print("------- Stream with custom -------")
-    # for chunk in agent.stream(input={"messages": input_msgs}, config=config, stream_mode="custom"):
-    #     print(chunk)
+    graph_ck = (
+        StateGraph(CkState)
+        .add_node("step_a", step_a)
+        .add_node("step_b", step_b)
+        .add_edge(START, "step_a")
+        .add_edge("step_a", "step_b")
+        .add_edge("step_b", END)
+        .compile(checkpointer=MemorySaver())
+    )
+
+    ck_config = {"configurable": {"thread_id": "ck-1"}}
+
+    # --- checkpoints 模式：每个步骤后输出 checkpoint 事件 ---
+    print("\n--- checkpoints 模式 ---")
+    input_ck = {"topic": "demo", "result": ""}
+    print(f"  input: {input_ck}, config: {ck_config}")
+    for chunk in graph_ck.stream(
+        input_ck, config=ck_config, stream_mode="checkpoints"
+    ):
+        # V1: checkpoints 模式返回 checkpoint 数据（与 get_state() 格式相同）
+        print(f"  checkpoint: {chunk}")
+
+    # --- tasks 模式：任务开始/完成事件 ---
+    print("\n--- tasks 模式 ---")
+    input_tasks = {"topic": "demo", "result": ""}
+    print(f"  input: {input_tasks}, config: {ck_config}")
+    for chunk in graph_ck.stream(
+        input_tasks, config=ck_config, stream_mode="tasks"
+    ):
+        # V1: tasks 模式返回任务事件
+        print(f"  task: {chunk}")
+
+    # --- debug 模式：尽可能多的调试信息 ---
+    print("\n--- debug 模式 ---")
+    input_debug = {"topic": "demo", "result": ""}
+    print(f"  input: {input_debug}, config: {ck_config}")
+    for chunk in graph_ck.stream(
+        input_debug, config=ck_config, stream_mode="debug"
+    ):
+        # V1: debug 模式返回详细的调试信息
+        print(f"  debug: {chunk}")
+
+    # ======================= 5. 多模式同时使用 =======================
+    print("\n" + "=" * 30 + " V1: 多模式同时使用 " + "=" * 30)
+
+    print("\n--- stream_mode=['updates', 'custom'] ---")
+    input_multi = {"query": "multi-mode", "answer": ""}
+    print(f"  input: {input_multi}")
+    for chunk in graph_custom.stream(
+        input_multi, stream_mode=["updates", "custom"]
+    ):
+        # V1: 多模式时返回 (mode, data) 元组
+        print(f"  chunk: {chunk}")
+
+    # ======================= 6. 子图 (subgraphs) 模式 =======================
+    print("\n" + "=" * 30 + " V1: 子图 (subgraphs) 模式 " + "=" * 30)
+
+    class SubState(TypedDict):
+        foo: str
+        bar: str
+
+    def sub_node_1(state: SubState) -> Dict[str, str]:
+        return {"bar": "bar-from-sub"}
+
+    def sub_node_2(state: SubState) -> Dict[str, str]:
+        return {"foo": state["foo"] + "+" + state["bar"]}
+
+    subgraph_builder = StateGraph(SubState)
+    subgraph_builder.add_node("sub_node_1", sub_node_1)
+    subgraph_builder.add_node("sub_node_2", sub_node_2)
+    subgraph_builder.add_edge(START, "sub_node_1")
+    subgraph_builder.add_edge("sub_node_1", "sub_node_2")
+    subgraph_builder.add_edge("sub_node_2", END)
+    subgraph = subgraph_builder.compile()
+
+    class ParentState(TypedDict):
+        foo: str
+
+    def parent_node(state: ParentState) -> Dict[str, str]:
+        return {"foo": "hi! " + state["foo"]}
+
+    parent_graph = (
+        StateGraph(ParentState)
+        .add_node("parent_node", parent_node)
+        .add_node("sub_node", subgraph)  # 将子图作为节点添加
+        .add_edge(START, "parent_node")
+        .add_edge("parent_node", "sub_node")
+        .add_edge("sub_node", END)
+        .compile()
+    )
+
+    print("\n--- subgraphs=True, stream_mode='updates' ---")
+    input_sub = {"foo": "foo"}
+    print(f"  input: {input_sub}")
+    for chunk in parent_graph.stream(
+        input_sub, stream_mode="updates", subgraphs=True
+    ):
+        # V1: 子图模式返回 (namespace, data) 元组，namespace 标识来源图
+        print(f"  chunk: {chunk}")
+
+
+def graph_stream_usage_v2() -> None:
+    """
+    展示 LangGraph 的 Stream API V2 使用。
+    LangGraph v1.1+ 版本引入了新的统一Stream返回格式，可以通过 version="v2" 参数指定。
+
+    V2 版本的输出格式特点：
+    - 所有 chunk 都是统一的 StreamPart dict，包含三个字段：
+      - "type": 字符串，标识 stream mode（"values" | "updates" | "messages" | "custom" | "checkpoints" | "tasks" | "debug"）
+      - "ns": 元组，命名空间（子图事件时填充，根图为空元组）
+      - "data": 实际负载数据，类型随 mode 不同而变化
+    - 无论单模式、多模式、子图，格式始终一致，通过 chunk["type"] 区分
+    - 支持类型窄化（type narrowing），编辑器/类型检查器可以正确推断 data 类型
+    - invoke() 返回 GraphOutput 对象（含 .value 和 .interrupts 属性）
+    - Pydantic/dataclass 状态在 values 模式下自动强制转换为对应类型
+    """
+
+    # ======================= 1. updates / values 模式（fake demo） =======================
+    print("=" * 30 + " V2: updates / values 模式 " + "=" * 30)
+
+    class SimpleState(TypedDict):
+        topic: str
+        result: str
+
+    def refine_topic(state: SimpleState) -> Dict[str, str]:
+        return {"topic": state["topic"] + " and cats"}
+
+    def generate_result(state: SimpleState) -> Dict[str, str]:
+        return {"result": f"This is a result about {state['topic']}"}
+
+    graph = (
+        StateGraph(SimpleState)
+        .add_node("refine_topic", refine_topic)
+        .add_node("generate_result", generate_result)
+        .add_edge(START, "refine_topic")
+        .add_edge("refine_topic", "generate_result")
+        .add_edge("generate_result", END)
+        .compile()
+    )
+
+    # --- updates 模式 ---
+    print("\n--- updates 模式 ---")
+    input_updates = {"topic": "ice cream", "result": ""}
+    print(f"  input: {input_updates}")
+    for chunk in graph.stream(
+        input_updates, stream_mode="updates", version="v2"
+    ):
+        # V2: 统一格式，chunk["type"] == "updates"，chunk["data"] 是 {node_name: update_dict}
+        if chunk["type"] == "updates":
+            for node_name, state_update in chunk["data"].items():
+                print(f"  Node '{node_name}' updated: {state_update}")
+
+    # --- values 模式 ---
+    print("\n--- values 模式 ---")
+    input_values = {"topic": "ice cream", "result": ""}
+    print(f"  input: {input_values}")
+    for chunk in graph.stream(
+        input_values, stream_mode="values", version="v2"
+    ):
+        # V2: chunk["type"] == "values"，chunk["data"] 是完整 state dict
+        if chunk["type"] == "values":
+            print(f"  State: topic={chunk['data']['topic']}, result={chunk['data']['result']}")
+
+    # ======================= 2. custom 模式（fake demo） =======================
+    print("\n" + "=" * 30 + " V2: custom 模式 " + "=" * 30)
+
+    class CustomState(TypedDict):
+        query: str
+        answer: str
+
+    def custom_node(state: CustomState) -> Dict[str, str]:
+        writer = get_stream_writer()
+        writer({"progress": "step-1: thinking..."})
+        writer({"progress": "step-2: generating..."})
+        return {"answer": f"Answer to: {state['query']}"}
+
+    graph_custom = (
+        StateGraph(CustomState)
+        .add_node("custom_node", custom_node)
+        .add_edge(START, "custom_node")
+        .add_edge("custom_node", END)
+        .compile()
+    )
+
+    print("\n--- custom 模式 ---")
+    input_custom = {"query": "hello", "answer": ""}
+    print(f"  input: {input_custom}")
+    for chunk in graph_custom.stream(
+        input_custom, stream_mode="custom", version="v2"
+    ):
+        # V2: chunk["type"] == "custom"，chunk["data"] 是 writer 发送的 dict
+        if chunk["type"] == "custom":
+            print(f"  Custom event: {chunk['data']}")
+
+    # ======================= 3. messages 模式（需要调用模型） =======================
+    print("\n" + "=" * 30 + " V2: messages 模式 " + "=" * 30)
+
+    class MsgState(TypedDict):
+        topic: str
+        joke: str
+
+    client_chat = get_client_chat()
+
+    def call_model(state: MsgState) -> Dict[str, str]:
+        response = client_chat.invoke(
+            [{"role": "user", "content": f"Generate a short joke about {state['topic']}"}]
+        )
+        return {"joke": response.content}
+
+    graph_msg = (
+        StateGraph(MsgState)
+        .add_node("call_model", call_model)
+        .add_edge(START, "call_model")
+        .add_edge("call_model", END)
+        .compile()
+    )
+
+    print("\n--- messages 模式（LLM token 级别流式输出） ---")
+    input_msg = {"topic": "ice cream", "joke": ""}
+    print(f"  input: {input_msg}")
+    first_chunk = True
+    for chunk in graph_msg.stream(
+        input_msg, stream_mode="messages", version="v2"
+    ):
+        # V2: chunk["type"] == "messages"，chunk["data"] 是 (message_chunk, metadata) 元组
+        if chunk["type"] == "messages":
+            msg_chunk, metadata = chunk["data"]
+            if first_chunk:
+                print(f"  [chunk keys]: {list(chunk.keys())}")  # ['type', 'ns', 'data']
+                print(f"  [metadata keys]: {list(metadata.keys())}")
+                print(f"  [metadata sample]: langgraph_node={metadata.get('langgraph_node')}, "
+                      f"langgraph_step={metadata.get('langgraph_step')}, "
+                      f"langgraph_triggers={metadata.get('langgraph_triggers')}, "
+                      f"ls_model_name={metadata.get('ls_model_name')}, "
+                      f"ls_provider={metadata.get('ls_provider')}")
+                print(f"  [msg_chunk type]: {type(msg_chunk).__name__}")
+                first_chunk = False
+            if msg_chunk.content:
+                print(msg_chunk.content, end="", flush=True)
+    print()
+
+    # ======================= 4. checkpoints / tasks / debug 模式 =======================
+    print("\n" + "=" * 30 + " V2: checkpoints / tasks / debug 模式 " + "=" * 30)
+
+    class CkState(TypedDict):
+        topic: str
+        result: str
+
+    def step_a(state: CkState) -> Dict[str, str]:
+        return {"result": f"step-a: {state['topic']}"}
+
+    def step_b(state: CkState) -> Dict[str, str]:
+        return {"result": state["result"] + " -> step-b"}
+
+    graph_ck = (
+        StateGraph(CkState)
+        .add_node("step_a", step_a)
+        .add_node("step_b", step_b)
+        .add_edge(START, "step_a")
+        .add_edge("step_a", "step_b")
+        .add_edge("step_b", END)
+        .compile(checkpointer=MemorySaver())
+    )
+
+    ck_config = {"configurable": {"thread_id": "ck-v2-1"}}
+
+    print("\n--- checkpoints 模式 ---")
+    input_ck = {"topic": "demo", "result": ""}
+    print(f"  input: {input_ck}, config: {ck_config}")
+    for chunk in graph_ck.stream(
+        input_ck, config=ck_config, stream_mode="checkpoints", version="v2"
+    ):
+        if chunk["type"] == "checkpoints":
+            print(f"  checkpoint: {chunk['data']}")
+
+    print("\n--- tasks 模式 ---")
+    input_tasks = {"topic": "demo", "result": ""}
+    print(f"  input: {input_tasks}, config: {ck_config}")
+    for chunk in graph_ck.stream(
+        input_tasks, config=ck_config, stream_mode="tasks", version="v2"
+    ):
+        if chunk["type"] == "tasks":
+            print(f"  task: {chunk['data']}")
+
+    print("\n--- debug 模式 ---")
+    input_debug = {"topic": "demo", "result": ""}
+    print(f"  input: {input_debug}, config: {ck_config}")
+    for chunk in graph_ck.stream(
+        input_debug, config=ck_config, stream_mode="debug", version="v2"
+    ):
+        if chunk["type"] == "debug":
+            print(f"  debug: {chunk['data']}")
+
+    # ======================= 5. 多模式同时使用 =======================
+    print("\n" + "=" * 30 + " V2: 多模式同时使用 " + "=" * 30)
+
+    print("\n--- stream_mode=['updates', 'custom'] ---")
+    input_multi = {"query": "multi-mode", "answer": ""}
+    print(f"  input: {input_multi}")
+    for chunk in graph_custom.stream(
+        input_multi, stream_mode=["updates", "custom"], version="v2"
+    ):
+        # V2: 多模式时格式不变，通过 chunk["type"] 区分
+        if chunk["type"] == "updates":
+            for node_name, state_update in chunk["data"].items():
+                print(f"  [updates] Node '{node_name}': {state_update}")
+        elif chunk["type"] == "custom":
+            print(f"  [custom] {chunk['data']}")
+
+    # ======================= 6. 子图 (subgraphs) 模式 =======================
+    print("\n" + "=" * 30 + " V2: 子图 (subgraphs) 模式 " + "=" * 30)
+
+    class SubState(TypedDict):
+        foo: str
+        bar: str
+
+    def sub_node_1(state: SubState) -> Dict[str, str]:
+        return {"bar": "bar-from-sub"}
+
+    def sub_node_2(state: SubState) -> Dict[str, str]:
+        return {"foo": state["foo"] + "+" + state["bar"]}
+
+    subgraph_builder = StateGraph(SubState)
+    subgraph_builder.add_node("sub_node_1", sub_node_1)
+    subgraph_builder.add_node("sub_node_2", sub_node_2)
+    subgraph_builder.add_edge(START, "sub_node_1")
+    subgraph_builder.add_edge("sub_node_1", "sub_node_2")
+    subgraph_builder.add_edge("sub_node_2", END)
+    subgraph = subgraph_builder.compile()
+
+    class ParentState(TypedDict):
+        foo: str
+
+    def parent_node(state: ParentState) -> Dict[str, str]:
+        return {"foo": "hi! " + state["foo"]}
+
+    parent_graph = (
+        StateGraph(ParentState)
+        .add_node("parent_node", parent_node)
+        .add_node("sub_node", subgraph)
+        .add_edge(START, "parent_node")
+        .add_edge("parent_node", "sub_node")
+        .add_edge("sub_node", END)
+        .compile()
+    )
+
+    print("\n--- subgraphs=True, stream_mode='updates' ---")
+    input_sub = {"foo": "foo"}
+    print(f"  input: {input_sub}")
+    for chunk in parent_graph.stream(
+        input_sub, stream_mode="updates", subgraphs=True, version="v2"
+    ):
+        # V2: 子图事件通过 chunk["ns"] 标识来源，根图为空元组
+        if chunk["type"] == "updates":
+            if chunk["ns"]:
+                print(f"  Subgraph {chunk['ns']}: {chunk['data']}")
+            else:
+                print(f"  Root: {chunk['data']}")
+
+
+def graph_event_stream_usage() -> None:
+    """
+    展示Graph 的 EventStream 使用.
+    EventStream 是 LangGraph v1.2 新增的特性。
+    """
 
 
 # %% ======================= Graph Node 自定义 =======================
@@ -1368,7 +1831,7 @@ def show_graph(graph: CompiledStateGraph):
 
 # %% ======================= Main =======================
 def main():
-    stateful_graph_usage()
+    # stateful_graph_usage()
     # message_graph_usage()
     # graph_conditional_usage()
     # graph_checkpoint_usage()
@@ -1381,7 +1844,9 @@ def main():
     # react_agent_usage()
     # graph_fault_tolerance_timeout_usage()
     # graph_fault_tolerance_usage()
-    # graph_stream_usage()
+    # graph_stream_usage_v1()
+    graph_stream_usage_v2()
+    # graph_event_stream_usage()
     # graph_custom_node_with_class_usage()
 
 
