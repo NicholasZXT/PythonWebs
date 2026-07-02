@@ -93,6 +93,7 @@ def stateless_graph_usage():
     Graph / CompiledGraph 只有 v0.4.10 版本之前有，v0.5.0 版本开始删除了这两个类所在的 langgraph.graph.graph.py 文件.
     因此这两个类不需要关注了。
     """
+    print("\n" + "*" * 30 + "stateless_graph_usage" + "*" * 30 + "\n")
     ...
     # 创建一个 Graph，这个Graph类不接受任何初始化参数，所以说它是无状态的。
     # graph = Graph()
@@ -122,6 +123,8 @@ def stateful_graph_usage():
     """
     LangGraph 的 StateGraph 基本使用
     """
+    print("\n" + "*" * 30 + "stateful_graph_usage" + "*" * 30 + "\n")
+    
     # 1. 首先定义整个 Graph 的状态表示，可以直接用dict，也可以用 TypedDict，或者是 Pydantic的 BaseModel —— 状态表示完全由用户自定义
     class SimpleState(TypedDict):
         """
@@ -219,6 +222,8 @@ def message_graph_usage():
      合并逻辑则是：如果right的消息与left的消息具有相同的 ID，则right的消息将替换left的消息，否则作为⼀条新的消息进⾏追加。
      返回值是合并后的 List[BaseMessage]。
     """
+    print("\n" + "*" * 30 + "message_graph_usage" + "*" * 30 + "\n")
+    
     def some_node(state: MessagesState):
         print("--> some_node start...")
         print(f"  state: {state}")
@@ -254,6 +259,8 @@ def graph_conditional_usage():
       - 以 dict 形式给出时，会将 path 的返回值作为 key，获取实际待执行的下一个 Node 名称
       - 以 list[str] 形式给出时，则表示后续执行的Node名称。实际上在 BranchSpec.from_path() 方法里会被转换成 {item: item} 的恒等映射dict
     """
+    print("\n" + "*" * 30 + "graph_conditional_usage" + "*" * 30 + "\n")
+    
     class SimpleState(TypedDict):
         messages: List[str]
         count: int
@@ -310,6 +317,8 @@ def graph_checkpoint_usage():
     2. LangGraph提供的 add_messages(left: List[BaseMessage], right: List[BaseMessage]) -> List[BaseMessage] 函数
     reducer 函数是为了保存/合并 本次对话历史，但它不能保存之前的对话历史。
     """
+    print("\n" + "*" * 30 + "graph_checkpoint_usage" + "*" * 30 + "\n")
+    
     def num_reducer(prev_num: List[int], curr_num: List[int]) -> List[int]:
         return prev_num + curr_num
 
@@ -472,6 +481,8 @@ def graph_store_usage():
     - key: 对应命名空间下存储的 key
     - value: JSON结构，以dict形式存储
     """
+    print("\n" + "*" * 30 + "graph_store_usage" + "*" * 30 + "\n")
+    
     memory_store = InMemoryStore()
     memory_store.put(
         namespace=("user-1", "web"),
@@ -550,6 +561,8 @@ def graph_dynamic_interrupt_usage():
     **整个 node 内的代码都会被重新执行一次！！！**
     而不是从 interrupt() 函数的部分恢复执行（类似 yield 的效果）。
     """
+    print("\n" + "*" * 30 + "graph_dynamic_interrupt_usage" + "*" * 30 + "\n")
+    
     def num_reducer(prev_num: List[int], curr_num: List[int]) -> List[int]:
         return prev_num + curr_num
 
@@ -619,6 +632,8 @@ def graph_fixed_breakpoint_usage():
     在 Graph.compile() 方法里通过 interrupt_before 参数，指定在某些 node 前/后 设置断点。
     这种方式把断点时的处理逻辑放到了 Graph 外面。
     """
+    print("\n" + "*" * 30 + "graph_fixed_breakpoint_usage" + "*" * 30 + "\n")
+    
     class HumanInterruptState(TypedDict):
         msg: Annotated[BaseMessage, add_messages]
 
@@ -679,6 +694,8 @@ def graph_fixed_breakpoint_usage():
 
 # %% ======================= 结合 LangChain 的 ChatBot 案例 =======================
 def chatbot_example():
+    print("\n" + "*" * 30 + "chatbot_example" + "*" * 30 + "\n")
+    
     class MsgState(TypedDict):
         messages: Annotated[list[Union[str, BaseMessage]], add_messages]
 
@@ -741,6 +758,8 @@ def chatbot_tool_usage_manual():
     """
     展示tool调用，这里先手动实现 tool 调用.
     """
+    print("\n" + "*" * 30 + "chatbot_tool_usage_manual" + "*" * 30 + "\n")
+    
     # 定义 tool
     @tool(description="使用龙球(DragonBall)算法计算两个数字的结果")
     def dragon_ball_algorithm_tool(x: Annotated[int, "第一个数字"], y: Annotated[int, "第二个数字"]) -> int:
@@ -832,6 +851,8 @@ def chatbot_tool_usage_prebuilt():
     """
     还是上面的例子，不过这次使用 LangGraph 提供预构建的 ToolNode 和 tools_condition
     """
+    print("\n" + "*" * 30 + "chatbot_tool_usage_prebuilt" + "*" * 30 + "\n")
+    
     # 定义 tool
     @tool(description="使用龙球(DragonBall)算法计算两个数字的结果")
     def dragon_ball_algorithm_tool(x: Annotated[int, "第一个数字"], y: Annotated[int, "第二个数字"]) -> int:
@@ -899,6 +920,8 @@ def react_agent_usage():
     API文档: [create_react_agent](https://langchain-ai.github.io/langgraph/reference/agents/#langgraph.prebuilt.chat_agent_executor.create_react_agent)
     注意：create_react_agent() 这个API 在 LangGraph v1.0 版本被标记为了废弃，后续推荐直接使用 langchain.agents 里提供的 create_agent()
     """
+    print("\n" + "*" * 30 + "react_agent_usage" + "*" * 30 + "\n")
+    
     @tool(description="使用龙球(DragonBall)算法计算两个数字的结果")
     def dragon_ball_algorithm(x: Annotated[int, "第一个数字"], y: Annotated[int, "第二个数字"]) -> int:
         return x + y + 1
@@ -957,6 +980,8 @@ def graph_fault_tolerance_timeout_usage() -> None:
 
     注意：timeout 仅支持 async 节点，同步节点设置 timeout 会在 compile 时报错。
     """
+    print("\n" + "*" * 30 + "graph_fault_tolerance_timeout_usage" + "*" * 30 + "\n")
+    
     # ---- 1. run_timeout 示例：硬性时间上限 ----
     class TimeoutState(TypedDict):
         result: str
@@ -1070,6 +1095,8 @@ def graph_fault_tolerance_usage() -> None:
     上述3种方式可以在每个节点单独配置，使用Graph.add_node() 方法提供的 retry_policy / timeout / error_handler 参数。
     也可以使用 StateGraph.set_node_defaults()方法为所有节点统一配置默认的 retry_policy / timeout / error_handler。
     """
+    print("\n" + "*" * 30 + "graph_fault_tolerance_usage" + "*" * 30 + "\n")
+    
     # ---- 1. RetryPolicy 基本使用 + 自定义 retry_on ----
     print("==> 1. RetryPolicy 基本使用 + 自定义 retry_on")
 
@@ -1266,6 +1293,7 @@ def graph_stream_usage_v1():
     - tasks: 流式传输任务开始/完成事件（需要 checkpointer）
     - debug: 流式传输尽可能多的调试信息（结合 checkpoints + tasks + 额外元数据）
     """
+    print("\n" + "*" * 30 + "graph_stream_usage_v1" + "*" * 30 + "\n")
 
     # ======================= 1. updates / values 模式（fake demo，不调用模型） =======================
     print("=" * 30 + " V1: updates / values 模式 " + "=" * 30)
@@ -1520,6 +1548,7 @@ def graph_stream_usage_v2() -> None:
     - invoke() 返回 GraphOutput 对象（含 .value 和 .interrupts 属性）
     - Pydantic/dataclass 状态在 values 模式下自动强制转换为对应类型
     """
+    print("\n" + "*" * 30 + "graph_stream_usage_v2" + "*" * 30 + "\n")
 
     # ======================= 1. updates / values 模式（fake demo） =======================
     print("=" * 30 + " V2: updates / values 模式 " + "=" * 30)
@@ -1774,6 +1803,7 @@ def graph_stream_event_v1_v2_usage() -> None:
 
     :return:
     """
+    print("\n" + "*" * 30 + "graph_stream_event_v1_v2_usage" + "*" * 30 + "\n")
 
 
 def graph_stream_event_v3_usage() -> None:
@@ -1803,6 +1833,8 @@ def graph_stream_event_v3_usage() -> None:
     底层架构：
     Pregel 引擎 → 原始事件 (updates/values/messages/custom/...) → Event Router → Stream Transformers → Event Stream (typed projections)
     """
+    print("\n" + "*" * 30 + "graph_stream_event_v3_usage" + "*" * 30 + "\n")
+    
     client_chat: BaseChatModel = get_client_chat()
 
     # ======================= 1. 基本使用：stream.messages + stream.output =======================
@@ -1986,6 +2018,8 @@ def graph_stream_event_v3_advanced_usage():
     EventStream 是 LangGraph v1.2 新增的推荐流式 API，通过 stream_events() / astream_events() 方法使用。
     :return:
     """
+    print("\n" + "*" * 30 + "graph_stream_event_v3_advanced_usage" + "*" * 30 + "\n")
+    
     class SimpleState(TypedDict):
         topic: str
         result: str
@@ -2153,6 +2187,8 @@ def graph_custom_node_with_class_usage():
     1. 类似于 chatbot_tool_usage_manual 示例中那样，定义一个 class，需要实现其中的 __call__ 方法，使其称为一个 Callable 对象，这种方式比较简单
     2. 类似于 chatbot_tool_usage_prebuilt 示例中那样，参考其中 ToolNode 类的实现，继承 langgraph 提供的 RunnableCallable 抽象类，实现
     """
+    print("\n" + "*" * 30 + "graph_custom_node_with_class_usage" + "*" * 30 + "\n")
+    
     class State(TypedDict):
         messages: Annotated[list, add_messages]
 
@@ -2193,6 +2229,7 @@ def show_graph(graph: CompiledStateGraph):
     绘制LangGraph 的 Graph 图结构.
     参考官方文档[Graph API -> Use the graph API -> Visualize your graph](https://docs.langchain.com/oss/python/langgraph/use-graph-api#visualize-your-graph)
     """
+    print("\n" + "*" * 30 + "show_graph" + "*" * 30 + "\n")
     try:
         from IPython.display import Image, display
         # display(Image(graph.get_graph().draw_mermaid_png()))
@@ -2206,7 +2243,7 @@ def show_graph(graph: CompiledStateGraph):
 
 # %% ======================= Main =======================
 def main():
-    # stateful_graph_usage()
+    stateful_graph_usage()
     # message_graph_usage()
     # graph_conditional_usage()
     # graph_checkpoint_usage()
@@ -2222,8 +2259,8 @@ def main():
     # graph_stream_usage_v1()
     # graph_stream_usage_v2()
     # graph_stream_event_v1_v2_usage()
-    graph_stream_event_v3_usage()
-    graph_stream_event_v3_advanced_usage()
+    # graph_stream_event_v3_usage()
+    # graph_stream_event_v3_advanced_usage()
     # graph_custom_node_with_class_usage()
 
 
