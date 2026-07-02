@@ -32,10 +32,12 @@ from langgraph.store.memory import InMemoryStore
 from langgraph.config import get_store, get_stream_writer
 from langgraph.types import StateSnapshot
 # ---------- LangGraph Tool 组件 ----------
-from langgraph.prebuilt import ToolNode, tools_condition, create_react_agent, InjectedState, InjectedStore
+from langgraph.prebuilt import ToolNode, tools_condition, create_react_agent, InjectedState, InjectedStore, ToolCallTransformer
 from langgraph.runtime import Runtime
 from langchain.tools import ToolRuntime  # LangChain 里也提供了一个类似的 ToolRuntime 类
 from langgraph.utils.runnable import RunnableCallable
+# --- EventStream ---
+from langgraph.stream import StreamChannel, StreamTransformer, ProtocolEvent, GraphRunStream
 # from langgraph.prebuilt.chat_agent_executor import AgentState
 # ---------- LangGraph HIL工具 & 容错处理 ----------
 from langgraph.types import (
@@ -46,6 +48,7 @@ from langgraph.types import (
 from langgraph.errors import GraphDrained, NodeError, NodeTimeoutError
 # ---------- langchain-core 组件 ----------
 from langchain_core.runnables import RunnableConfig
+from langchain_core.runnables.schema import StreamEvent
 from langchain_core.language_models.chat_models import BaseChatModel, SimpleChatModel
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage, ToolMessage
 from langchain_openai.chat_models import ChatOpenAI
@@ -1279,7 +1282,7 @@ def graph_stream_usage_v1():
         """模拟生成结果"""
         return {"result": f"This is a result about {state['topic']}"}
 
-    graph = (
+    graph: CompiledStateGraph = (
         StateGraph(SimpleState)
         .add_node("refine_topic", refine_topic)
         .add_node("generate_result", generate_result)
@@ -1319,7 +1322,7 @@ def graph_stream_usage_v1():
         writer({"progress": "step-2: generating..."})
         return {"answer": f"Answer to: {state['query']}"}
 
-    graph_custom = (
+    graph_custom: CompiledStateGraph = (
         StateGraph(CustomState)
         .add_node("custom_node", custom_node)
         .add_edge(START, "custom_node")
@@ -1341,16 +1344,16 @@ def graph_stream_usage_v1():
         topic: str
         joke: str
 
-    client_chat = get_client_chat()
+    client_chat: BaseChatModel = get_client_chat()
 
     def call_model(state: MsgState) -> Dict[str, str]:
         """调用 LLM 生成内容 —— messages 模式会捕获 token 级别的输出"""
-        response = client_chat.invoke(
+        response: AIMessage = client_chat.invoke(
             [{"role": "user", "content": f"Generate a short joke about {state['topic']}"}]
         )
         return {"joke": response.content}
 
-    graph_msg = (
+    graph_msg: CompiledStateGraph = (
         StateGraph(MsgState)
         .add_node("call_model", call_model)
         .add_edge(START, "call_model")
@@ -1401,7 +1404,7 @@ def graph_stream_usage_v1():
     def step_b(state: CkState) -> Dict[str, str]:
         return {"result": state["result"] + " -> step-b"}
 
-    graph_ck = (
+    graph_ck: CompiledStateGraph = (
         StateGraph(CkState)
         .add_node("step_a", step_a)
         .add_node("step_b", step_b)
@@ -1411,7 +1414,7 @@ def graph_stream_usage_v1():
         .compile(checkpointer=MemorySaver())
     )
 
-    ck_config = {"configurable": {"thread_id": "ck-1"}}
+    ck_config: RunnableConfig = {"configurable": {"thread_id": "ck-1"}}
 
     # --- checkpoints 模式：每个步骤后输出 checkpoint 事件 ---
     print("\n--- checkpoints 模式 ---")
@@ -1468,13 +1471,13 @@ def graph_stream_usage_v1():
     def sub_node_2(state: SubState) -> Dict[str, str]:
         return {"foo": state["foo"] + "+" + state["bar"]}
 
-    subgraph_builder = StateGraph(SubState)
+    subgraph_builder: StateGraph = StateGraph(SubState)
     subgraph_builder.add_node("sub_node_1", sub_node_1)
     subgraph_builder.add_node("sub_node_2", sub_node_2)
     subgraph_builder.add_edge(START, "sub_node_1")
     subgraph_builder.add_edge("sub_node_1", "sub_node_2")
     subgraph_builder.add_edge("sub_node_2", END)
-    subgraph = subgraph_builder.compile()
+    subgraph: CompiledStateGraph = subgraph_builder.compile()
 
     class ParentState(TypedDict):
         foo: str
@@ -1482,7 +1485,7 @@ def graph_stream_usage_v1():
     def parent_node(state: ParentState) -> Dict[str, str]:
         return {"foo": "hi! " + state["foo"]}
 
-    parent_graph = (
+    parent_graph: CompiledStateGraph = (
         StateGraph(ParentState)
         .add_node("parent_node", parent_node)
         .add_node("sub_node", subgraph)  # 将子图作为节点添加
@@ -1531,7 +1534,7 @@ def graph_stream_usage_v2() -> None:
     def generate_result(state: SimpleState) -> Dict[str, str]:
         return {"result": f"This is a result about {state['topic']}"}
 
-    graph = (
+    graph: CompiledStateGraph = (
         StateGraph(SimpleState)
         .add_node("refine_topic", refine_topic)
         .add_node("generate_result", generate_result)
@@ -1577,7 +1580,7 @@ def graph_stream_usage_v2() -> None:
         writer({"progress": "step-2: generating..."})
         return {"answer": f"Answer to: {state['query']}"}
 
-    graph_custom = (
+    graph_custom: CompiledStateGraph = (
         StateGraph(CustomState)
         .add_node("custom_node", custom_node)
         .add_edge(START, "custom_node")
@@ -1602,15 +1605,15 @@ def graph_stream_usage_v2() -> None:
         topic: str
         joke: str
 
-    client_chat = get_client_chat()
+    client_chat: BaseChatModel = get_client_chat()
 
     def call_model(state: MsgState) -> Dict[str, str]:
-        response = client_chat.invoke(
+        response: AIMessage = client_chat.invoke(
             [{"role": "user", "content": f"Generate a short joke about {state['topic']}"}]
         )
         return {"joke": response.content}
 
-    graph_msg = (
+    graph_msg: CompiledStateGraph = (
         StateGraph(MsgState)
         .add_node("call_model", call_model)
         .add_edge(START, "call_model")
@@ -1655,7 +1658,7 @@ def graph_stream_usage_v2() -> None:
     def step_b(state: CkState) -> Dict[str, str]:
         return {"result": state["result"] + " -> step-b"}
 
-    graph_ck = (
+    graph_ck: CompiledStateGraph = (
         StateGraph(CkState)
         .add_node("step_a", step_a)
         .add_node("step_b", step_b)
@@ -1665,7 +1668,7 @@ def graph_stream_usage_v2() -> None:
         .compile(checkpointer=MemorySaver())
     )
 
-    ck_config = {"configurable": {"thread_id": "ck-v2-1"}}
+    ck_config: RunnableConfig = {"configurable": {"thread_id": "ck-v2-1"}}
 
     print("\n--- checkpoints 模式 ---")
     input_ck = {"topic": "demo", "result": ""}
@@ -1723,13 +1726,13 @@ def graph_stream_usage_v2() -> None:
     def sub_node_2(state: SubState) -> Dict[str, str]:
         return {"foo": state["foo"] + "+" + state["bar"]}
 
-    subgraph_builder = StateGraph(SubState)
+    subgraph_builder: StateGraph = StateGraph(SubState)
     subgraph_builder.add_node("sub_node_1", sub_node_1)
     subgraph_builder.add_node("sub_node_2", sub_node_2)
     subgraph_builder.add_edge(START, "sub_node_1")
     subgraph_builder.add_edge("sub_node_1", "sub_node_2")
     subgraph_builder.add_edge("sub_node_2", END)
-    subgraph = subgraph_builder.compile()
+    subgraph: CompiledStateGraph = subgraph_builder.compile()
 
     class ParentState(TypedDict):
         foo: str
@@ -1737,7 +1740,7 @@ def graph_stream_usage_v2() -> None:
     def parent_node(state: ParentState) -> Dict[str, str]:
         return {"foo": "hi! " + state["foo"]}
 
-    parent_graph = (
+    parent_graph: CompiledStateGraph = (
         StateGraph(ParentState)
         .add_node("parent_node", parent_node)
         .add_node("sub_node", subgraph)
@@ -1761,11 +1764,383 @@ def graph_stream_usage_v2() -> None:
                 print(f"  Root: {chunk['data']}")
 
 
-def graph_event_stream_usage() -> None:
+def graph_stream_event_v1_v2_usage() -> None:
     """
-    展示Graph 的 EventStream 使用.
-    EventStream 是 LangGraph v1.2 新增的特性。
+    展示 Graph 的 EventStream 使用。
+
+    EventStream也有多个版本，由 version 参数控制：
+    - version="v1" / "v2": 实际转发给底层的 langchain_core.runnables.base.Runnable 类的对应方法。
+    - version="v3": LangGraph内部实现，参见下面的示例。
+
+    :return:
     """
+
+
+def graph_stream_event_v3_usage() -> None:
+    """
+    展示 Graph 的 EventStream-v3 基本使用。
+    EventStream 是 LangGraph v1.2 新增的推荐流式 API，通过 stream_events() / astream_events() 方法使用。
+
+    这里主要介绍 version="v3" 版本。
+
+    EventStream 是基于Stream API的高层抽象：
+    - Stream API 返回的是Graph底层Pregel引擎的原始执行事件
+    - EventStream 在StreamAPI基础上进行了封装，新增了 EventRouter 和 StreamTransformer，
+      用于将原始事件转换为更易用的类型化投影（typed projections）。
+
+    与 stream() 的 stream_mode 方式不同，EventStream(v3版本) 返回一个 GraphRunStream 对象，提供类型化的投影（projections）：
+    - stream: 迭代所有原始协议事件（ProtocolEvent）
+    - stream.messages: 流式传输聊天模型消息和 token 增量
+    - stream.values: 迭代状态快照，并等待最终值
+    - stream.output: 等待最终输出
+    - stream.subgraphs: 发现和观察嵌套图执行
+    - stream.interrupts: 检查 HIL 中断负载
+    - stream.interrupted: 检查运行是否因人工输入而暂停
+    - stream.extensions: 消费自定义流转换器投影
+
+    多个消费者可以并发读取这些投影，互不干扰。
+
+    底层架构：
+    Pregel 引擎 → 原始事件 (updates/values/messages/custom/...) → Event Router → Stream Transformers → Event Stream (typed projections)
+    """
+    client_chat: BaseChatModel = get_client_chat()
+
+    # ======================= 1. 基本使用：stream.messages + stream.output =======================
+    print("=" * 30 + " EventStream: 基本使用 (messages + output) " + "=" * 30)
+
+    class MsgState(TypedDict):
+        topic: str
+        joke: str
+
+    def call_model(state: MsgState) -> Dict[str, str]:
+        response: AIMessage = client_chat.invoke(
+            [{"role": "user", "content": f"Generate a short joke about {state['topic']}"}]
+        )
+        return {"joke": response.content}
+
+    graph: CompiledStateGraph = (
+        StateGraph(MsgState)
+        .add_node("call_model", call_model)
+        .add_edge(START, "call_model")
+        .add_edge("call_model", END)
+        .compile()
+    )
+
+    input_msg = {"topic": "ice cream", "joke": ""}
+    print(f"  input: {input_msg}")
+
+    # version="v2"/"v1" 时返回的是 Iterator[StreamEvent] | Iterator[Any]
+    # version="v3" 时，stream_events() 返回 Run 对象
+    stream: GraphRunStream = graph.stream_events(input_msg, version="v3")
+    print("  type(stream):", type(stream))
+
+    # --- stream.messages: 流式传输 LLM token ---
+    print("\n--- stream.messages (LLM token 级别流式输出) ---")
+    for message in stream.messages:
+        # message.text 是可迭代的，逐 token 输出
+        for token in message.text:
+            print(token, end="", flush=True)
+    print()
+
+    # --- stream.output: 获取最终状态 ---
+    final_state = stream.output
+    print(f"\n--- stream.output (最终状态) ---")
+    print(f"  final_state: {final_state}")
+
+    # ======================= 2. stream.values：状态快照 =======================
+    print("\n" + "=" * 30 + " EventStream: stream.values " + "=" * 30)
+
+    class SimpleState(TypedDict):
+        topic: str
+        result: str
+
+    def refine_topic(state: SimpleState) -> Dict[str, str]:
+        return {"topic": state["topic"] + " and cats"}
+
+    def generate_result(state: SimpleState) -> Dict[str, str]:
+        return {"result": f"This is a result about {state['topic']}"}
+
+    graph2: CompiledStateGraph = (
+        StateGraph(SimpleState)
+        .add_node("refine_topic", refine_topic)
+        .add_node("generate_result", generate_result)
+        .add_edge(START, "refine_topic")
+        .add_edge("refine_topic", "generate_result")
+        .add_edge("generate_result", END)
+        .compile()
+    )
+
+    input_values = {"topic": "ice cream", "result": ""}
+    print(f"  input: {input_values}")
+    stream2: GraphRunStream = graph2.stream_events(input_values, version="v3")
+
+    print("\n--- stream.values (状态快照) ---")
+    for snapshot in stream2.values:
+        print(f"  snapshot: {snapshot}")
+
+    print(f"\n--- stream.output ---")
+    print(f"  final: {stream2.output}")
+
+    # ======================= 3. HIL 中断检测 =======================
+    print("\n" + "=" * 30 + " EventStream: HIL 中断检测 " + "=" * 30)
+
+    class HILState(TypedDict):
+        msg: str
+
+    def interrupt_node(state: HILState) -> Dict[str, str]:
+        human_response = interrupt(value={"question": "请确认是否继续?"})
+        return {"msg": f"received: {human_response}"}
+
+    graph_hil: CompiledStateGraph = (
+        StateGraph(HILState)
+        .add_node("interrupt_node", interrupt_node)
+        .add_edge(START, "interrupt_node")
+        .add_edge("interrupt_node", END)
+        .compile(checkpointer=MemorySaver())
+    )
+
+    hil_config: RunnableConfig = {"configurable": {"thread_id": "hil-ev-1"}}
+    input_hil = {"msg": ""}
+    print(f"  input: {input_hil}")
+
+    stream_hil: GraphRunStream = graph_hil.stream_events(input_hil, config=hil_config, version="v3")
+
+    # 消费 stream 以触发中断
+    for _ in stream_hil.values:
+        pass
+
+    # stream.interrupted: 检查是否因中断而暂停
+    if stream_hil.interrupted:
+        print(f"\n  [interrupted] True — 图已暂停，等待人工输入")
+        # stream.interrupts: 获取中断负载
+        for interrupt_item in stream_hil.interrupts:
+            print(f"  interrupt value: {interrupt_item.value}")
+
+        # 通过 Command 恢复执行
+        stream_hil_resume = graph_hil.stream_events(
+            Command(resume="确认继续"), config=hil_config, version="v3"
+        )
+        print(f"  resumed output: {stream_hil_resume.output}")
+    else:
+        print(f"\n  [interrupted] False — 图已完成，无需人工输入")
+
+
+    # ======================= 3. stream.subgraphs：子图观察 =======================
+    print("\n" + "=" * 30 + " EventStream: stream.subgraphs " + "=" * 30)
+
+    class SubState(TypedDict):
+        foo: str
+        bar: str
+
+    def sub_node_1(state: SubState) -> Dict[str, str]:
+        return {"bar": "bar-from-sub"}
+
+    def sub_node_2(state: SubState) -> Dict[str, str]:
+        return {"foo": state["foo"] + "+" + state["bar"]}
+
+    subgraph_builder: StateGraph = StateGraph(SubState)
+    subgraph_builder.add_node("sub_node_1", sub_node_1)
+    subgraph_builder.add_node("sub_node_2", sub_node_2)
+    subgraph_builder.add_edge(START, "sub_node_1")
+    subgraph_builder.add_edge("sub_node_1", "sub_node_2")
+    subgraph_builder.add_edge("sub_node_2", END)
+    subgraph: CompiledStateGraph = subgraph_builder.compile(name="MySubgraph")
+
+    class ParentState(TypedDict):
+        foo: str
+
+    def parent_node(state: ParentState) -> Dict[str, str]:
+        return {"foo": "hi! " + state["foo"]}
+
+    parent_graph: CompiledStateGraph = (
+        StateGraph(ParentState)
+        .add_node("parent_node", parent_node)
+        .add_node("sub_node", subgraph)
+        .add_edge(START, "parent_node")
+        .add_edge("parent_node", "sub_node")
+        .add_edge("sub_node", END)
+        .compile()
+    )
+
+    input_sub = {"foo": "foo"}
+    print(f"  input: {input_sub}")
+
+    stream_sub: GraphRunStream = parent_graph.stream_events(input_sub, version="v3")
+
+    print("\n--- stream.subgraphs (子图观察) ---")
+    for sub in stream_sub.subgraphs:
+        # sub.graph_name: 子图的名称
+        # sub.path: 子图在父图中的路径
+        print(f"  subgraph: name={sub.graph_name}, path={sub.path}")
+        # 也可以访问子图的 values
+        for snapshot in sub.values:
+            print(f"    sub-snapshot: {snapshot}")
+
+    print(f"\n--- stream.output ---")
+    print(f"  final: {stream_sub.output}")
+
+
+def graph_stream_event_v3_advanced_usage():
+    """
+    展示 Graph 的 EventStream 的进阶使用。
+    EventStream 是 LangGraph v1.2 新增的推荐流式 API，通过 stream_events() / astream_events() 方法使用。
+    :return:
+    """
+    class SimpleState(TypedDict):
+        topic: str
+        result: str
+
+    def refine_topic(state: SimpleState) -> Dict[str, str]:
+        return {"topic": state["topic"] + " and cats"}
+
+    def generate_result(state: SimpleState) -> Dict[str, str]:
+        return {"result": f"This is a result about {state['topic']}"}
+
+    graph: CompiledStateGraph = (
+        StateGraph(SimpleState)
+        .add_node("refine_topic", refine_topic)
+        .add_node("generate_result", generate_result)
+        .add_edge(START, "refine_topic")
+        .add_edge("refine_topic", "generate_result")
+        .add_edge("generate_result", END)
+        .compile()
+    )
+
+    input_values = {"topic": "ice cream", "result": ""}
+
+    # ======================= 1. stream.interleave()：多投影同步消费 =======================
+    print("\n" + "=" * 30 + " EventStream: stream.interleave() " + "=" * 30)
+    print(f"  input: {input_values}")
+
+    stream_inter = graph.stream_events(input_values, version="v3")
+
+    print("\n--- interleave('values', 'messages') ---")
+    # interleave() 按严格到达顺序交错消费多个投影
+    for name, item in stream_inter.interleave("values"):
+        if name == "values":
+            print(f"  [values] keys={list(item.keys()) if isinstance(item, dict) else item}")
+
+    # ======================= 2. 原始协议事件迭代 =======================
+    print("\n" + "=" * 30 + " EventStream: 原始协议事件 " + "=" * 30)
+    print(f"  input: {input_values}")
+    stream_proto: GraphRunStream = graph.stream_events(input_values, version="v3")
+
+    print("\n--- 直接迭代 stream（原始 ProtocolEvent） ---")
+    event_count: int = 0
+    for event in stream_proto:
+        # ProtocolEvent 结构: {"seq": int, "method": str, "params": {"namespace": [...], "timestamp": int, "data": ...}}
+        # method 即 channel 名称: "values", "updates", "messages", "custom", "tools", "lifecycle", ...
+        if event_count < 3:  # 只展示前3个事件
+            print(f"  event: method={event['method']}, "
+                  f"namespace={event['params']['namespace']}, "
+                  f"seq={event['seq']}")
+        event_count += 1
+    print(f"  ... total events: {event_count}")
+
+
+    # ======================= 3. 自定义 StreamTransformer =======================
+    print("\n" + "=" * 30 + " EventStream: 自定义 StreamTransformer " + "=" * 30)
+
+    class ProgressTransformer(StreamTransformer):
+        """
+        自定义转换器：监听 custom 通道事件，将进度信息收集到 StreamChannel 中。
+
+        StreamTransformer 接口：
+        - init() -> dict: 创建投影对象，返回的 dict 会出现在 stream.extensions 下
+        - process(event: ProtocolEvent) -> bool: 处理每个协议事件，返回 False 可抑制该事件
+        - finalize() -> None: 运行成功结束后调用
+        - fail(err: BaseException) -> None: 运行失败时调用
+        - required_stream_modes: 声明需要的 Pregel stream mode，未声明的 mode 不会被发出
+        """
+        required_stream_modes: tuple[str, ...] = ("custom",)
+
+        def __init__(self, scope: tuple[str, ...] = ()) -> None:
+            super().__init__(scope)
+            # StreamChannel: 投影原语，用于流式传输值
+            # 传入 name 参数时，push() 的值也会作为 custom:<name> 事件流入主事件流
+            self.progress: StreamChannel[dict] = StreamChannel[dict]("progress")
+
+        def init(self) -> dict:
+            return {"progress": self.progress}
+
+        def process(self, event: ProtocolEvent) -> bool:
+            if event["method"] == "custom":
+                data = event["params"]["data"]
+                self.progress.push(data)
+            return True
+
+    class CustomState(TypedDict):
+        query: str
+        answer: str
+
+    def custom_node(state: CustomState) -> Dict[str, str]:
+        writer = get_stream_writer()
+        writer({"step": 1, "msg": "thinking..."})
+        writer({"step": 2, "msg": "generating..."})
+        return {"answer": f"Answer to: {state['query']}"}
+
+    graph_custom: CompiledStateGraph = (
+        StateGraph(CustomState)
+        .add_node("custom_node", custom_node)
+        .add_edge(START, "custom_node")
+        .add_edge("custom_node", END)
+        .compile()
+    )
+
+    input_custom = {"query": "hello", "answer": ""}
+    print(f"  input: {input_custom}")
+
+    # 通过 transformers 参数注册自定义转换器
+    stream_custom: GraphRunStream = graph_custom.stream_events(
+        input_custom, version="v3", transformers=[ProgressTransformer]
+    )
+
+    print("\n--- stream.extensions['progress'] (自定义投影) ---")
+    for item in stream_custom.extensions["progress"]:
+        print(f"  progress: {item}")
+
+    print(f"\n--- stream.output ---")
+    print(f"  final: {stream_custom.output}")
+
+    # ======================= 4. ToolCallTransformer（内置） =======================
+    print("\n" + "=" * 30 + " EventStream: ToolCallTransformer " + "=" * 30)
+
+    @tool(description="使用龙球(DragonBall)算法计算两个数字的结果")
+    def dragon_ball_algorithm(x: Annotated[int, "第一个数字"], y: Annotated[int, "第二个数字"]) -> int:
+        return x + y + 1
+
+    tools: list = [dragon_ball_algorithm]
+    tool_node: ToolNode = ToolNode(tools=tools)
+    client_chat_tool: BaseChatModel = get_client_chat().bind_tools(tools=tools)
+    memory: MemorySaver = MemorySaver()
+    agent: CompiledStateGraph = create_react_agent(
+        name='ReAct-Agent', model=client_chat_tool, tools=tool_node, checkpointer=memory
+    )
+
+    input_agent: dict[str, list[BaseMessage]] = {
+        "messages": [
+            SystemMessage(content='你是一个算术专家'),
+            HumanMessage(content='请使用龙球(DragonBall)算法计算一下 2019 和 2022 的结果'),
+        ]
+    }
+    config: RunnableConfig = {"configurable": {"thread_id": "evt-1"}}
+    print(f"  input: {input_agent}")
+
+    # ToolCallTransformer 是内置转换器，注册后可通过 stream.tool_calls 访问工具调用信息
+    stream_agent: GraphRunStream = agent.stream_events(
+        input_agent, config=config, version="v3", transformers=[ToolCallTransformer]
+    )
+
+    print("\n--- stream.tool_calls (工具调用投影) ---")
+    for tool_call in stream_agent.tool_calls:
+        print(f"  tool_call: name={tool_call.tool_name}, input={tool_call.input}")
+
+    print(f"\n--- stream.output ---")
+    final: dict = stream_agent.output
+    if isinstance(final, dict) and "messages" in final:
+        for msg in final["messages"]:
+            msg.pretty_print()
+
 
 
 # %% ======================= Graph Node 自定义 =======================
@@ -1845,8 +2220,10 @@ def main():
     # graph_fault_tolerance_timeout_usage()
     # graph_fault_tolerance_usage()
     # graph_stream_usage_v1()
-    graph_stream_usage_v2()
-    # graph_event_stream_usage()
+    # graph_stream_usage_v2()
+    # graph_stream_event_v1_v2_usage()
+    graph_stream_event_v3_usage()
+    graph_stream_event_v3_advanced_usage()
     # graph_custom_node_with_class_usage()
 
 

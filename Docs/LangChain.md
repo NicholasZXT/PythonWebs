@@ -2628,6 +2628,26 @@ LangGraph的常量字符串定义，这些字符串使用了`sys.intern()`函数
 
 
 ---------------------------------------------------
+## `runtime.py` - KEY
+
+此文件中定义了一些LangGraph运行时环境的类。
+
+定义了 `Runtime` 泛型类，也是一个 `dataclass` 对象。
+
+> 这个 `Runtime` 类的介绍反倒在 LangChain v1.x 的文档里：[Runtime](https://docs.langchain.com/oss/python/langchain/runtime).
+
+`Runtime[ContextT]` 泛型类定义了如下属性：
+- `context`: 这个对象就是泛型类型对象 `ContextT`，它必须是一个 `TypedDict`/`dataclass`/pydantic `BaseModel` 对象。
+- `store`: LangGraph的 `BaseStore`
+- `stream_writer`: `StreamWriter` 对象，用于流式输出的`custom`模式使用。
+- `previous`
+
+这个 `Runtime` 类对象可以在 Tool 函数中获取，用于访问运行时上下文环境。
+
+不过似乎一般使用LangChain里提供的 `langchian.tools.tool_node.py` 里的 `ToolRuntime` 对象比较多。
+
+
+---------------------------------------------------
 ## `graph`模块 - KEY
 
 ### ~~`graph.py`~~
@@ -2711,7 +2731,7 @@ LangGraph的常量字符串定义，这些字符串使用了`sys.intern()`函数
 ---------------------------------------------------
 ## `types.py` - KEY
 
-此源文件里定义了LangGraph 里重要的数据类型。
+此源文件里定义了 LangGraph 里重要的数据类型。
 
 常用的有如下数据类型：
 
@@ -2879,22 +2899,6 @@ class ToolNode(RunnableCallable):
 - `InjectedState`
 - `InjectedStore`
 
----------------------------------------------------
-## `runtime.py`
-
-定义了 `Runtime` 泛型类，也是一个 `dataclass` 对象。
-
-> 这个 `Runtime` 类的介绍反倒在 LangChain v1.x 的文档里：[Runtime](https://docs.langchain.com/oss/python/langchain/runtime).
-
-`Runtime[ContextT]` 泛型类定义了如下属性：
-- `context`: 这个对象就是泛型类型对象 `ContextT`，它必须是一个 `TypedDict`/`dataclass`/pydantic `BaseModel` 对象。
-- `store`: LangGraph的 `BaseStore`
-- `stream_writer`: `StreamWriter` 对象，用于流式输出的`custom`模式使用。
-- `previous`
-
-这个 `Runtime` 类对象可以在 Tool 函数中获取，用于访问运行时上下文环境。
-
-不过似乎一般使用LangChain里提供的 `langchian.tools.tool_node.py` 里的 `ToolRuntime` 对象比较多。
 
 ---------------------------------------------------
 ## `utils`模块
