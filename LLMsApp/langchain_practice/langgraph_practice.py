@@ -946,6 +946,10 @@ def graph_fault_tolerance_timeout_usage() -> None:
 
     两者可以组合使用，哪个先触发就取消当前尝试。
     超时后会抛出 NodeTimeoutError，该异常默认是可重试的（在 default_retry_on 范围内）。
+    
+    idle_time的刷新方式可以通过 TimeoutPolicy 的 refresh_on 参数指定，有如下取值：
+    - auto：默认值，当节点有任何进度行为（比如stream返回、更新状态、回调函数执行等），都会刷新 idle_timeout 时钟。
+    - heartbeat：只有当用户在节点内部调用 Runtime.heartbeat() 时，才会刷新 idle_timeout 时钟。
 
     注意：timeout 仅支持 async 节点，同步节点设置 timeout 会在 compile 时报错。
     """
@@ -997,7 +1001,7 @@ def graph_fault_tolerance_timeout_usage() -> None:
         print(f"  [long_running] start, will run ~2s with heartbeats every 0.5s...")
         for i in range(4):
             await asyncio.sleep(0.5)
-            runtime.heartbeat()  # 手动重置 idle 时钟
+            runtime.heartbeat()  # 手动重置 idle 时钟 -------- KEY
             print(f"    heartbeat #{i+1} sent")
         print(f"  [long_running] finished")
         return {"result": "completed-with-heartbeats"}
@@ -1048,16 +1052,19 @@ def graph_fault_tolerance_timeout_usage() -> None:
         print(f"  All retries exhausted: {e}")
 
 
-def graph_fault_tolerance_error_usage() -> None:
+def graph_fault_tolerance_usage() -> None:
     """
-    展示 Graph Node 执行抛出异常时的容错处理。
+    展示 Graph Node 执行抛出异常（包含超时异常）时的容错处理。
 
     LangGraph 提供三种可组合的容错机制：
     1. RetryPolicy: 根据异常类型和退避设置自动重试失败的尝试
-    2. error_handler: 在所有重试耗尽后运行恢复函数，可更新状态并路由到其他节点
-    3. set_node_defaults: 为所有节点统一配置默认的 retry_policy / error_handler / timeout
-
-    执行顺序：节点异常 → retry_policy 判断是否重试 → 重试耗尽后 → error_handler 处理
+    2. Timeouts: 针对超时异常的处理策略，见上面的 graph_fault_tolerance_timeout_usage() 示例
+    3. error_handler: 在所有重试耗尽后运行的异常处理函数，用于恢复或更新状态并路由到其他节点
+    
+    这3种机制是递进式的：节点异常（包括超时异常） → retry_policy 判断是否重试 → 重试耗尽后 → error_handler 处理 。   
+    
+    上述3种方式可以在每个节点单独配置，使用Graph.add_node() 方法提供的 retry_policy / timeout / error_handler 参数。
+    也可以使用 StateGraph.set_node_defaults()方法为所有节点统一配置默认的 retry_policy / timeout / error_handler。
     """
     # ---- 1. RetryPolicy 基本使用 + 自定义 retry_on ----
     print("==> 1. RetryPolicy 基本使用 + 自定义 retry_on")
@@ -1373,7 +1380,7 @@ def main():
     # chatbot_tool_usage_prebuilt()
     # react_agent_usage()
     # graph_fault_tolerance_timeout_usage()
-    # graph_fault_tolerance_error_usage()
+    # graph_fault_tolerance_usage()
     # graph_stream_usage()
     # graph_custom_node_with_class_usage()
 
