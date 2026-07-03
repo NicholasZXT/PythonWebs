@@ -4,6 +4,62 @@
 ------
 # LiteLLM - TODO
 
+官方文档 [LiteLLM](https://docs.litellm.ai/).
+
+## 介绍
+
+### 定位
+
+LiteLLM **不是一个全栈 LLM 应用框架**，而是一个**轻量级的 LLM API 统一封装层**（或称为“适配器”、“翻译器”）。
+
+它的唯一使命是：
+
+> **让开发者用一套 OpenAI 风格的 API 调用，无缝对接 100+ 家不同厂商的大语言模型服务。**
+
+它不关心你的应用逻辑、数据处理、Agent 编排或 RAG 流程，只专注于解决“**如何调用模型**”这一底层问题。
+
+### 特点
+
+（1）**统一接口，兼容 OpenAI SDK**
+
+- 所有调用都遵循 `openai.ChatCompletion.create()` 或 `client.chat.completions.create()` 的格式。
+- 开发者只需学习 OpenAI 一种 API，即可调用所有支持的模型。
+
+（2）**支持超 100+ 模型提供商**
+
+（3）**两种使用方式**
+
+- Python SDK：嵌入到应用代码中，作为函数库使用。
+- Proxy Server（API 网关）：部署为独立服务，提供统一的 `/v1/chat/completions` 端点，后端可路由到多个模型，支持负载均衡、故障转移、密钥管理等企业级功能。
+
+（4）**企业级能力**
+
+- 成本追踪：自动计算每次调用的 token 消耗和费用。
+- 预算控制：可设置项目/用户级别的花费上限。
+- 可观测性：集成 Prometheus、Datadog、LangSmith 等日志与监控系统。
+- 高可用：内置重试、超时、降级策略。
+
+（5）**容易上手，入侵性极低**
+
+- 几乎零学习成本，代码改动极小。
+- 可与任何上层框架（如 LangChain、LlamaIndex、FastAPI、Flask）无缝集成。
+
+------
+
+## Python SDK
+
+> LiteLLM官方只提供了Python SDK，没有提供其他语言的SDK。
+>
+> 看了下源码，**LiteLLM Python SDK并不是一个轻量级的包**，内容比我以为的要多不少。
+
+
+
+------
+
+## Proxy Server
+
+
+
 
 ------
 # MCP
