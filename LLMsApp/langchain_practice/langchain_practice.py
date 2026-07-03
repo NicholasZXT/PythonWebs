@@ -133,18 +133,18 @@ from mcp.types import LoggingMessageNotificationParams
 # ======================================================================================================================
 # %%
 # --- 阿里百炼 ---
-API_KEY = ''
-LLM_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
-MODEL = 'qwen-max'
+# API_KEY = ''
+# LLM_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
+# MODEL = 'qwen-max'
 # --- vLLM 部署 ---
 # API_KEY = 'Empty'
 # LLM_URL = 'http://172.16.0.32:10086/v1'
 # MODEL = 'Qwen2.5-32B'
 # MODEL = 'Qwen3-32B'
 # --- Ollama 本地部署 ---
-# API_KEY = 'Empty'
-# LLM_URL = 'http://localhost:11434'
-# MODEL = 'qwen2.5:7b'
+API_KEY = 'Empty'
+LLM_URL = 'http://localhost:11434'
+MODEL = 'qwen2.5:7b'
 # MODEL = 'qwen3:8b'
 # MODEL = 'qwen2.5:14b'
 # MODEL = 'qwen3:14b'
