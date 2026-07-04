@@ -79,7 +79,8 @@ LangChain的LLM/ChatModel的Response里，引入`.content_blocks`属性：
 注意：
 
 - `langchain-core`包依然存在，并且依旧定义了`langchain`所有抽象组件，包括v0.3版本的`Runnable`接口抽象，但是变化不大。
-- `langchain-community`包也依旧存在，不过一个重要变化是：之前在`langchain`v0.3版本，会直接导入`langchain-community`里的内容，v1.0版本不再直接导出了，需要用户手动显式直接从`langchain-community`里导入。
+- `langchain-community`包也依旧存在，不过一个重要变化是：之前在`langchain`v0.3版本，会直接导入`langchain-community`里的内容，
+   v1.0版本不再直接导出了，需要用户手动显式直接从`langchain-community`里导入。
 
 
 ------
@@ -228,7 +229,7 @@ package名称为`langchain_core`，需要关注的有如下内容。
 
 
 ---------------------------------------------------
-## Chain基础
+## Chain基础 - KEY
 
 这部分的内容是LangChain里的基础，主要用于 Chain 的构建，并支持 LangChain Expression Language (LCEL) 语法。
 
@@ -340,8 +341,11 @@ package名称为`langchain_core`，需要关注的有如下内容。
 
 #### `config.py`和`configurable.py`
 
-`config.py`模块定义了`RunnableConfig`类 —— 它实际上就是一个Dict对象（`TypedDict`），用于封装`Runnable`对象运行时参数。    
-默认定义的`Runnable`参数如下：
+一、`config.py`模块
+
+定义了`RunnableConfig`类 —— 它实际上就是一个Dict对象（`TypedDict`），用于封装`Runnable`对象运行时参数。    
+
+`RunnableConfig`默认定义的`Runnable`参数如下：
 - run_id: UUID类型
 - run_name: str类型，Runnable对象名称
 - metadata: dict
@@ -351,7 +355,10 @@ package名称为`langchain_core`，需要关注的有如下内容。
 - max_concurrency
 - recursion_limit
 
-`configurable.py`里提供了如下两个常用类，
+二、`configurable.py`
+
+提供了如下两个常用类。
+
 配合上面`RunnableSerializable`的`configurable_fields`和`configurable_alternatives`方法使用：
 
 - `RunnableConfigurableFields`
@@ -443,6 +450,7 @@ package名称为`langchain_core`，需要关注的有如下内容。
 ### `callbacks`模块 - KEY
 
 callbacks模块一般是由`BaseLLM`/`BaseChatModel`/`Chain`对象封装，不直接和Runnable基础类配合使用。
+因为接收callbacks的属性是在 `BaseLLM` 里定义的，在底层的 `Runnable`系列 对象中没有定义相关属性。
 
 module主要内容有：
 
@@ -531,9 +539,9 @@ module主要内容有：
 
 
 ---------------------------------------------------
-## Model IO相关
+## Model IO相关 - KEY
 
-### `language_model`模块
+### `language_model`模块 - KEY
 
 主要有两类：
 - LLMs: 生成式模型，对应于 Completion 任务
@@ -549,7 +557,8 @@ module主要内容有：
   - `BaseChatModel`，所有聊天模型的基类，定义了使用时的方法。
   - `SimpleChatModel`，继承自`BaseChatModel`，**自定义ChatModel时，应当继承此类**。
 
-**使用说明**
+
+#### 主要属性
 
 一、`class BaseLanguageModel(RunnableSerializable[LanguageModelInput, LanguageModelOutputVar], ABC)`是所有LLM的基类。
 
@@ -567,7 +576,7 @@ module主要内容有：
 
   不过**这个属性和`BaseLanguageModel`的`callbacks`属性功能重复了，所以被标识为废弃的，建议使用`callback_manager`属性**。
 
-三、使用接口
+#### 主要接口
 
 通常使用时，需要关注的是 `BaseLLM` 和 `BastChatModel` 提供的一些方法，列举如下：
 
@@ -596,7 +605,8 @@ module主要内容有：
 - `_generate`/`_agenerate`: 必须要实现的模型调用方法
 - `_stream`/`_astream`: 可选方法
 
-四、结构化输出
+
+#### 其他接口
 
 `BastChatModel`类还定义了如下两个抽象方法（`BaseLLM`没有）：
 
@@ -605,7 +615,7 @@ module主要内容有：
 （2）`with_structured_output`，处理结构化输出。
 
 
-### `messages`模块
+### `messages`模块 - KEY
 
 用于封装 prompts 和 chat conversations 中的信息。
 
@@ -613,39 +623,39 @@ module主要内容有：
 
 > 此模块只在`langchain_core`模块中有，可以直接使用，不需要在`langchain`等模块中继承。
 
-一、**主要内容**
+#### 主要内容
 
 - `base.py`
   - `BaseMessage`，所有消息的基类——注意，**它并不是抽象类**。
-  - `BaseMessageChunk`，所有消息块的基类，大致类似于 `List[BaseMessage]`，这个**也不是抽象类**。
+  - `BaseMessageChunk`，所有流式消息块的基类，继承自`BaseMessage`，大致类似于 `List[BaseMessage]`，这个**也不是抽象类**。
 
-> 实际上 `BaseMessage` 也是 pydantic的`BaseModel`子类。
+> 实际上 `BaseMessage` 也是 pydantic 的`BaseModel`子类。
 
 - `chat.py`, 通用 Message 类
   - `ChatMessage`
   - `ChatMessageChunk`
 
-- `human.py`
-  - `HumanMessage`，继承自`BaseMessage`
-  - `HumanMessageChunk`，继承自`BaseMessageChunk`
-
-- `system.py`
+- `system.py`，系统提示词消息
   - `SystemMessage`,
   - `SystemMessageChunk`
 
-- `ai.py`
+- `human.py`，人类输入提示词消息
+  - `HumanMessage`，继承自`BaseMessage`
+  - `HumanMessageChunk`，继承自`BaseMessageChunk`
+
+- `ai.py`，模型输出消息
   - `AIMessage` 
   - `AIMessageChunk`
 
-- `function.py`
+- `function.py`，模型输出的函数调用消息
   - `FunctionMessage`
   - `FunctionMessageChunk`
 
-- `tools.py`
+- `tools.py`，返回给模型的函数调用结果消息
   - `ToolMessage`
   - `ToolMessageChunk`
 
-二、**使用说明**
+#### 使用说明
 
 `BaseMessage`/`BaseMessageChunk`两个类已经定义好了重要的属性和方法，其他的Message类大部分都是简单的封装。
 
@@ -658,8 +668,18 @@ module主要内容有：
 - `model_config`:
 - `response_metadata`:
 
+在 LangChain-v1.0 里，还引入了一个property `content_blocks`，它是基于 `content` 属性动态计算的特性，
+主要用于将 `content` 里存放的原生消息内容（可能是普通消息、图片、音频）等转换成固定格式和类型的结构。
+
+`content_blocks` 类型是 `List[ContentBlock]`，其中的 `ContentBlock` 定义在 `langchain_core.messages.content.py`里，
+是一个联合类型，根据消息的不同有不同的字段，但是有一些公用的字段如下：
+- `id`
+- `type`
+- `index`
+- `extral`
+
 （2）常用方法：
-- `text`: 获取消息内容(`BaseMessage.content`)，返回一个字符串。 
+- `text`: 这是一个property，基于消息内容(`BaseMessage.content`)，处理并返回一个字符串。 
 - `pretty_repr(html: bool = False)`:
 - `pretty_print()`:
 
@@ -677,28 +697,22 @@ module主要内容有：
 
 ### `prompts`模块
 
-一、**主要内容**
+> LangChain-v1.0 里似乎弱化了 prompts 模块的使用，因为v1.0的官方文档中并没有介绍此模块。
+> 可能官方也觉得此模块的引入属于过度设计了。
+
+#### 主要内容
+
 - `base.py`
-  - `BasePromptTemplate`, 所有Completion prompt模板的基类，这是个**抽象类**，不能直接使用。
+  - `BasePromptTemplate`, 所有**Completion** prompt模板的基类，这是个**抽象类**，不能直接使用。
 
 - `message.py`
-  - `BaseMessagePromptTemplate`，所有ChatModel的 Message prompt模板的基类，这是个**抽象类**，不能直接使用。
+  - `BaseMessagePromptTemplate`，所有**ChatModel** Message prompt模板的基类，这是个**抽象类**，不能直接使用。
 
 - `string.py`
   - `StringPromptTemplate`，继承自`BasePromptTemplate`，也是个**抽象类**，不能直接使用。
 
 - `prompt.py`
   - `PromptTemplate`, 继承自`StringPromptTemplate`，这个类是**最基础的prompt模板，适用于Completion任务（普通的LLM模型）**。
-
-- `few_shot.py`
-  - `FewShotPromptTemplate`
-  - `FewShotChatMessagePromptTemplate`
-
-- `few_shot_with_templates.py`
-  - `FewShotPromptWithTemplates`
-
-- `pipeline.py`
-  - `PipelinePromptTemplate`
 
 - `chat.py`, 定义了ChatModel使用的Prompt模板
   - `BaseStringMessagePromptTemplate`: 继承了`message.py`里的`BaseMessagePromptTemplate`抽象类，它本身也是抽象类。      
@@ -716,24 +730,50 @@ module主要内容有：
     - `ChatPromptTemplate`: 用于组合 多个ChatMessagePromptTemplate 或者其他类型的提示模板（例如文本提示模板），形成一个完整的对话上下文。
       - 持有一个 `messages` 属性，类型是`List[Union[BaseMessagePromptTemplate, BaseMessage, BaseChatPromptTemplate]]` 
 
+- `few_shot.py`
+  - `FewShotPromptTemplate`
+  - `FewShotChatMessagePromptTemplate`
+
+- `few_shot_with_templates.py`
+  - `FewShotPromptWithTemplates`
+
+- `pipeline.py`
+  - `PipelinePromptTemplate`
+
 > 注意：
->
 > `ChatMessagePromptTemplate`返回的是`ChatMessage`，有 role 属性，type属性是'chat';
->
 > `HumanMessagePromptTemplate`返回的是`HumanMessage`，type属性是'human'，**没有 role 属性**。
 
 
-二、**使用说明**
+#### 使用说明
 
-所有继承`BasePromptTemplate`的类，需要关注如下方法：
-- `invoke`/`ainvoke`: 返回值是`PromptValue`及其子类。
-- `format_prompt`/`afomat_prompt`: 返回值是`PromptValue`及其子类。
-- `format`/`afomat`: 直接返回字符串
-- `save`
+一、**`BasePromptTemplate`及其子类使用**
 
-`BaseMessagePromptTemplate`类虽然是ChatModel的模板基类，但是一般主要使用它的子类`BaseStringMessagePromptTemplate`，需要关注如下方法：
+（1）定义了如下常用属性：
+- `input_variables: list[str]`: 模板里必填占位符的变量名称
+- `optional_variables: list[str]`: 模板里可选占位符的变量名称
+- `partial_variables: Mapping[str, Any]`
+- `output_parser: BaseOutputParser | None`: 此提示词输入模型后，针对模型输出内容的解析器
+
+（2）需要关注如下方法：
+- `format`/`afomat`: **最基础的方法**，基类里也是抽象方法，返回的是泛型`FormatOutputType`，一般就是 str。
+- `format_prompt`/`afomat_prompt`: 基类里是抽象方法，返回值是`PromptValue`及其子类。一般它也是对 `format`/`aformat` 方法的封装。
+- `invoke`/`ainvoke`: 返回值是`PromptValue`及其子类。它内部一般是对`format_prompt`/`aformat_prompt`方法的封装 —— 只是实现基类的抽象方法。
+- `save`: 保存提示词到本地。
+
+（3）主要使用类：`PromptTemplate`
+
+对于Completion LLM来说，就用这个类就行。
+
+二、**`BaseMessagePromptTemplate`及其子类使用**
+
+它虽然是ChatModel的模板基类，但是一般主要使用它的子类`BaseStringMessagePromptTemplate`。
+
+（1）主要属性 —— 无。
+
+（2）需要关注如下方法：
+- `format`/`afomat`: 返回值是单条`BaseMessage`
 - `format_messages`/`afomat_messages`: 返回值是`List[BaseMessage]`
-- `format`/`afomat`: 返回值是`BaseMessage`
 - `pretty_repr`/`pretty_print`
 
 
@@ -742,6 +782,7 @@ module主要内容有：
 封装了 Prompt Template 的输出值。
 
 一、**主要内容**
+
 - `PromptValue`: 封装了 prompt 的输出值，这个类是一个**抽象类**
   - 它继承自`Serializable` —— 也是pydantic的`BaseModel`子类，它也是下面所有类的基类。
   - 主要定义了两个方法：
@@ -769,6 +810,8 @@ module主要内容有：
 
 
 ### `output` 和 `output_parsers` 模块
+
+> 这两个模块是早期用于解决大模型结构化输出的方案，但在 LangChain-v1.0 里，推荐使用 StructuredOutput 方式。
 
 `output`模块用于封装LLM输出的内容。
 - `chat_generation.py`
@@ -1069,7 +1112,7 @@ v1.0版本的`langchain`包只有如下模块了。
 - chat_models
 - tools
 - embeddings
-- agents
+- agents   # ---------- KEY
 - rate_limiters
 
 ### 根目录文件
@@ -1078,16 +1121,16 @@ v1.0版本的`langchain`包只有如下模块了。
 ```
 
 相比于 **v0.3.80** 版本里，删除了如下模块：
-- `langchain.chains`
+- `langchain.prompts`
+- `langchain.output_parsers`
+- `langchain.chains`: chains抽象模块，LCEL语法支持，这个抽象在 V1.0 版本也不提倡了
 - `langchain.memory`
 - `langchain.callbacks`
 - `langchain.document_loaders`
 - `langchain.document_transformers`
-- `langchain.evaluation`
-- `langchain.output_parsers`
-- `langchain.prompts`
 - `langchain.retrievers`
 - `langchain.vectorstores`
+- `langchain.evaluation`
 - ...
 
 应该说，`langchain` v1.x 的包里，只有 `agents` 和 `tools` 模块有实质性的内容，其他的模块都很简略，大部分是从 langchain-core 中导入。
@@ -1247,11 +1290,13 @@ LangChain 默认提供了如下built-in middleware：
 
 Agent捕获到结构化输出之后，会存放在state对象的`'structured_response'`这个Key中。
 
-该文件里定义了如下4种结构化输出处理策略——对应`create_agent()`方法的`response_format`取值，其中`SchemaT`是泛型表示，需要用户自己定义一个数据类，用于封装结构化输出结果。
+该文件里定义了如下4种结构化输出处理策略 —— 对应`create_agent()`方法的`response_format`取值，其中`SchemaT`是泛型表示，需要用户自己定义一个数据类，用于封装结构化输出结果。
 - `None`: 默认值，不处理输出结果
-- `ProviderStrategy[SchemaT]`: 使用**模型提供商（Model Provider）**原生的结构化输出结构，这是**最可靠的方式**，使用起来也比较简单，推荐优先使用。
+- `ProviderStrategy[SchemaT]`: 使用**模型提供商（Model Provider）**原生的结构化输出结构，这是**最可靠的方式**。
 - `ToolStrategy[SchemaT]`: 采用 **Tool calling 方式**处理结构化输出结果。当模型提供商不支持原生结构化输出时，可以采用此方式，但是不那么稳定。
-- `AutoStrategy[SchemaT]`: 自动选择处理策略，此时也可以简单的使用 `type[SchemaT]`
+- `AutoStrategy[SchemaT]`: 可以省略简写为 `type[SchemaT]`。自动选择处理策略，会根据模型的能力进行选择 —— 推荐使用此种方式。
+  - 如果模型支持原生结构化输出，则使用 `ProviderStrategy`
+  - 如果模型不支持原生结构化输出，则回退到 `ToolStrategy`
 
 对于 `ToolStrategy[SchemaT]`（它其实是一个`dataclass`类），它定义了如下属性：
 - `schema: type[SchemaT]`: 必填属性，存放结构化输出结果的数据类，可以是 `TypedDict`/`dataclass`/pydantic `BaseModel`类。
@@ -2273,13 +2318,12 @@ Module名称为`langchain`，源码内容如下：
 所有的模块可以分为如下6大类：
 
 
-## Chain核心模块-KEY
+## Chain核心模块 - KEY
 
 > `langchain_core`没有chains模块，因为 `langchain_core.runnables` 定义的就是chains相关的核心接口/抽象类。
->
 > **`chains` 模块是 langchain 包的核心内容**。
 
-### `chains`模块-
+### `chains`模块 - KEY
 
 一、**主要内容**
 
@@ -2302,11 +2346,11 @@ Module名称为`langchain`，源码内容如下：
 抽象基类`Chain`定义了如下抽象方法：
 
 - Callable调用: 执行Chain组件
-  - 已被标记为废弃，后续不再支持，代替方法是`invoke`/`ainvoke`。
+  - **已被标记为废弃**，后续不再支持，代替方法是`invoke`/`ainvoke`。
   - 输入的`inputs`是一个`Union[Dict[str, Any], Any]`，应当包含`Chain.input_keys`里的所有key（Memory使用的key除外），如果只有一个参数，则可以直接传入。
   - 返回值是`Dict[str, Any]`，A dict of named outputs，包含了`Chain.output_keys`属性指定的所有key
 - `run`/`arun`: 执行Chain组件
-  - 已被标记为废弃，后续不再支持，代替方法是`invoke`/`ainvoke`。
+  - **已被标记为废弃**，后续不再支持，代替方法是`invoke`/`ainvoke`。
   - 和Callable调用的区别是，它接受的输入不是像`__call__`中那样的`Dict[str, Any]`，而是必须拆开以关键字参数的形式传入，如果只有一个参数，则采用位置参数（第1个）传入.
   - 返回值是`Any`，要看具体的`Chain`和配置的LLM
 - `save`: 保存Chain，可以传入一个`file_path`
@@ -2331,7 +2375,9 @@ Module名称为`langchain`，源码内容如下：
 ---------------------------------------------------
 ## Model IO模块
 
-> `langchain`包的`llm`/`chat_models`模块里都只是提供了模型定义、加载初始化的内容，返回的模型都是 `langchain_core.language_model`模块的抽象类及其子类。研究调用过程，应该看`langchain_core.language_model`模块里的源码。
+> `langchain`包的`llm`/`chat_models`模块里都只是提供了模型定义、加载初始化的内容，
+> 返回的模型都是 `langchain_core.language_model`模块的抽象类及其子类。
+> 研究调用过程，应该看`langchain_core.language_model`模块里的源码。
 
 ### `llms` 模块
 
@@ -2424,14 +2470,10 @@ Module名称为`langchain`，源码内容如下：
 
 
 ------
-
-
 ## 数据检索（RAG）相关模块
 
 > 以下模块，从 v0.3.x 升级到 v1.x 版本，除了 `embeddings` 模块依旧保留外，其他模块都移动到 `langchain_community`包了。
->
 > 实际上，即使是在 v0.3.x 模块，以下大部分模块也都是从 `langchain_community`包里导入的功能。
->
 > 由于 `langchain_community` 包并没有升级到 v1.x，所以可以认为 RAG 相关的模块变化不大。
 
 ### `document_loaders`模块
@@ -2507,7 +2549,6 @@ Module名称为`langchain`，源码内容如下：
 ## Agent相关模块
 
 > LangChain的 Agent 相关模块在 0.3 版本之后有较大改动：
->
 > - `langchain.agents`模块里内容是之前构建Agent的方式，已被标记为废弃的，在 1.0.0 版本之前都会被保留，参见官方文档 [How to migrate from legacy LangChain agents to LangGraph](https://python.langchain.com/docs/how_to/migrate_agent/).
 > - 后续LangChain官方推荐转向使用 LangGraph 构建 Agent 应用，因此这里就**不再详细介绍 agents 模块相关内容了**。
 
@@ -2942,7 +2983,7 @@ class ToolNode(RunnableCallable):
 
 # DeepAgents
 
-`deepagents`包是LangChain官方配合LangChain-V1.0提供的用于编写复杂Agent的包，它底层基于`langchain`+`langgraph`包进行的构建。
+`deepagents`包是LangChain官方配合 LangChain-v1.0 提供的用于编写复杂Agent的包，它底层基于`langchain`+`langgraph`包进行的构建。
 
 简单看了下`deepagents`的源码，以 **v0.5.2版本** 为例，源码内容并不多，不像langchain/langgraph那样复杂，主要内容如下：
 

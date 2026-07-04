@@ -8,6 +8,7 @@ from typing import Optional, Dict, List, Union, Any, Callable
 from typing_extensions import Annotated, TypedDict
 from pydantic import BaseModel, Field
 from dataclasses import dataclass
+# %% =============== Model组件 ===============
 # ---------- 模型包装器抽象基类（langchain-core提供） ----------
 from langchain_core.language_models.base import BaseLanguageModel  # 下面所有模型的抽象基类
 from langchain_core.language_models.llms import BaseLLM, LLM  # LLM 继承自 BaseLLM
@@ -33,17 +34,17 @@ from langchain_openai.chat_models import ChatOpenAI
 from langchain_ollama.chat_models import ChatOllama
 # ---- langchain v1.x 提供的模型统一初始化函数 ---
 from langchain.chat_models import init_chat_model
-# ---------- Message + Prompt 核心抽象 ----------
+# %% =============== Message + Prompt 核心抽象 ===============
 from langchain_core.messages import ChatMessage, SystemMessage, HumanMessage, AIMessage, ToolMessage, FunctionMessage
 from langchain_core.prompts import StringPromptTemplate, PromptTemplate
 from langchain_core.prompts import MessagesPlaceholder, ChatMessagePromptTemplate, HumanMessagePromptTemplate, \
     AIMessagePromptTemplate, SystemMessagePromptTemplate, ChatPromptTemplate
 from langchain_core.prompts import FewShotPromptTemplate, FewShotChatMessagePromptTemplate
 # from langchain_core.prompts import PipelinePromptTemplate
-# ---------- OutputParser  ----------
+# %% =============== OutputParser  ===============
 from langchain_core.output_parsers import StrOutputParser, JsonOutputParser, PydanticOutputParser, MarkdownListOutputParser
 from langchain_core.output_parsers import JsonOutputKeyToolsParser, JsonOutputToolsParser, PydanticToolsParser
-# ---------- 工具调用相关组件 ----------
+# %% =============== 工具调用相关组件 ===============
 from langchain_core.tools import BaseTool, BaseToolkit, Tool, StructuredTool, tool, InjectedToolArg, ToolException
 # langchain.tools 包里也导入了 langchian_core.tools 包里的一些内容
 # from langchain.tools import BaseTool, tool, InjectedToolArg, ToolException
@@ -51,12 +52,12 @@ from langchain.tools import InjectedState, InjectedStore, ToolRuntime
 from langchain.tools.tool_node import ToolCallRequest
 # community 包里提供了一些常用工具的实现
 from langchain_community.tools import ListDirectoryTool, ReadFileTool, WriteFileTool, HumanInputRun, ShellTool
-# ---------- 底层Runnable抽象接口 ----------
+# %% =============== 底层Runnable抽象接口 ===============
 from langchain_core.runnables import RunnableConfig, RunnableLambda, RunnableSequence, RunnableBinding, RunnableParallel
 from langchain_core.runnables.passthrough import RunnablePassthrough, RunnableAssign, RunnablePick
 from langchain_core.callbacks import BaseCallbackHandler, CallbackManager, StdOutCallbackHandler
 # from langchain_core.tracers.schemas import Run
-# ---------- 对话历史相关组件 ----------
+# %% =============== 对话历史相关组件 ===============
 # --- 以下两个组件在 v1.x 版本继续存在 ---
 from langchain_core.runnables import RunnableWithMessageHistory
 # chat_history 里的组件是配合早期的 memory 模块使用的，由于 memory 模块被废弃了，所以相关组件也不推荐使用了。
@@ -70,7 +71,7 @@ from langchain_community.chat_message_histories import ChatMessageHistory, FileC
 from langchain_classic.chains.llm import LLMChain
 from langchain_classic.base_memory import BaseMemory
 from langchain_classic.memory import ConversationBufferMemory
-# ---------- 文档解析及加载（RAG相关） ----------
+# %% =============== 文档解析及加载（RAG相关） ===============
 # langchain-core定义了相关的接口，具体实现大部分都交给了 langchain_community 包
 # --- 文档加载&转换 ---
 from langchain_core.documents import Document, BaseDocumentCompressor, BaseDocumentTransformer
@@ -108,7 +109,7 @@ from langchain_elasticsearch import ElasticsearchRetriever
 # ---------- 其他 ----------
 # from langchain.globals import set_verbose
 # from langchain.callbacks.tracers import ConsoleCallbackHandler
-# ---------- v1.0 里统一的 agent 创建API ----------
+# %% =============== v1.0 里统一的 agent 创建API ===============
 from langchain.agents import create_agent
 from langchain.agents.structured_output import ToolStrategy, ProviderStrategy
 # ---------- middleware，v1.0版本一个更新亮点 ----------
@@ -126,12 +127,11 @@ from langgraph.runtime import Runtime
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.store.memory import InMemoryStore
 from langgraph.types import Command
-# ---------- v1.0版本 Auto-Agent 搭配 MCP ----------
+# %% =============== v1.0版本 Auto-Agent 搭配 MCP ===============
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_mcp_adapters.callbacks import Callbacks, CallbackContext, ProgressCallback, LoggingMessageCallback
 from mcp.types import LoggingMessageNotificationParams
-# ======================================================================================================================
-# %%
+# %% ===================================================================================================================
 # --- 阿里百炼 ---
 # API_KEY = ''
 # LLM_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
@@ -305,7 +305,7 @@ def simple_chat():
         print(chunk.content, end='')
 
 
-# %% ======================= Message + PromptTemplate 使用 =======================
+# %% ======================= Message 使用 =======================
 def message_usage():
     """
     对于 ChatModel 来说，每次对话的最小单元就是 Message；Completion的LLM模型不需要使用 Message。
@@ -372,10 +372,12 @@ def message_usage():
     # 对 content 字段进行解析，返回一个标准的、类型安全的 内容表示。
 
 
-# %%
+# %% ======================= PromptTemplate / ChatPromptTemplate 使用 =======================
+# LangChain-v1.0 里，似乎弱化了提示词封装相关类的使用，因为v1.0的官方文档没有提到。
+# 可能是官方也意识到此处的封装有些过度设计了。
 def prompt_template_usage():
     """
-    Completion的LLM模型使用 PromptTemplate。
+    Completion LLM 模型使用 PromptTemplate。
     """
     print("===> prompt_template_usage()")
     # StringPromptTemplate含有抽象方法，不能实例化
@@ -384,21 +386,40 @@ def prompt_template_usage():
     # PromptTemplate 是 Completion 模型使用的基础模版
     template = "Tell me a {adjective} joke about {content}."
 
-    # 第1种：直接实例化
-    pt1 = PromptTemplate(input_variables=["adjective", "content"], template=template)
+    # 第1种：直接实例化，可以控制所有参数
+    pt1 = PromptTemplate(
+        template=template,
+        template_format='f-string',  # 默认的字符串格式化方式
+        validate_template=False,     # 是否对模板进行验证
+        # 模板中的占位符名称
+        input_variables=["adjective", "content"],
+        # 其他可配置变量
+        optional_variables=[],
+        partial_variables={},
+        output_parser=None,
+        input_types={},
+        tags=[],
+        metadata={},
+    )
     # 一般使用如下两个方法：
-    # 1. format方法直接返回字符串
+    # 1. format方法直接返回字符串 —— 感觉一般使用这个就行
     pt1.format(adjective="funny", content="chickens")
-    # 2. format_prompt方法返回 <class 'langchain_core.prompt_values.StringPromptValue'>
+    # 2. format_prompt方法返回 PromptValue及其子类
     pv1 = pt1.format_prompt(adjective="funny", content="chickens")
-    print(type(pv1))
-    print(pv1)  # text='Tell me a funny joke about chickens.'
+    print(type(pv1))  # <class 'langchain_core.prompt_values.StringPromptValue'>
+    print(pv1)        # text='Tell me a funny joke about chickens.'
     # StringPromptValue 只需要关注如下两个方法：
     print(pv1.to_string())
     print(pv1.to_messages())
 
     # 第2种：使用类方法 from_template —— 推荐这种方式
-    pt2 = PromptTemplate.from_template(template=template)
+    pt2 = PromptTemplate.from_template(
+        template=template,
+        template_format='f-string',
+        # input_variables 会自动从template中解析，省去手动指定
+        partial_variables=None,
+        # 也可以传入初始化时的其他参数
+    )
     pt2.format(adjective="nice", content="dog")
     print(pt2.template)
     print(pt2.template_format)
@@ -408,11 +429,13 @@ def prompt_template_usage():
 def chat_prompt_template_usage():
     """
     聊天模型（ChatModel）使用的 PromptTemplate 模版主要有如下几个：
+
     - 单条消息（抽象类 BaseStringMessagePromptTemplate 的子类）：
       - ChatMessagePromptTemplate，通用消息模版，下面3个是专用的
       - HumanMessagePromptTemplate
       - AIMessagePromptTemplate
       - SystemMessagePromptTemplate
+
     - 多条消息，使用 ChatPromptTemplate 对上面的单条消息进行 List 封装
     """
     print("===> chat_prompt_template_usage()")
@@ -440,7 +463,7 @@ def chat_prompt_template_usage():
     print(cmpt_msg.pretty_repr())
     cmpt_msg.pretty_print()
 
-    # ----- HumanMessagePromptTemplate/AIMessagePromptTemplate/SystemMessagePromptTemplate 使用 -----
+    # ----- HumanMessagePromptTemplate / AIMessagePromptTemplate / SystemMessagePromptTemplate 使用 -----
     template2 = "Tell me a {desc} joke about {something}."
     hmpt = HumanMessagePromptTemplate.from_template(template=template2)
     hmpt_msg = hmpt.format(desc="good", something="dog")
@@ -458,7 +481,7 @@ def chat_prompt_template_usage():
     # 接收一个 List，其中的元素可以是：Union[BaseMessagePromptTemplate, BaseMessage, BaseChatPromptTemplate]
     # 使用 List[BaseMessagePromptTemplate]/List[BaseChatPromptTemplate] 创建时，后续的 format方法会起作用
     # print(type(cmpt), type(hmpt))
-    cpt = ChatPromptTemplate.from_messages(messages=[cmpt, hmpt])
+    cpt = ChatPromptTemplate.from_messages(messages=[cmpt, hmpt], template_format='f-string')
     # 使用 List[BaseMessage] 创建时，后续的 format方法就没啥用了
     cpt = ChatPromptTemplate.from_messages(messages=[cmpt_msg, hmpt_msg])
     print(cpt.messages)
@@ -632,7 +655,7 @@ def output_parser_usage():
 
     参考 v1.x 版本的OutputParser接口说明：https://reference.langchain.com/python/langchain_core/output_parsers/
     OutputParser 是早期用于解决获取模型输出格式的方案，随着大模型的发展，大部分模型都原生支持了 Structured Output 功能，
-    OutputParser 的使用似乎没有那么必要了，但是Langchain选择保留下来，是为了兼容那些暂时不支持 Structured Output 的模型，
+    OutputParser 的使用似乎没有那么必要了，但是LangChain选择保留下来，是为了兼容那些暂时不支持 Structured Output 的模型，
     以及提供更加深入自定义解析的功能。
     """
     print("===> output_parser_usage()")
@@ -712,12 +735,13 @@ def structured_output_usage():
 
     with_structured_output() 方法的实现交给了具体的模型类，但不是所有的模型类都支持此方法：
     - LLM 类模型的基类 BaseLLM 没有定义此方法，因此大部分 LLM 都没有实现此方法。
-    - ChatLLM 类模型的基类 BaseChatModel 提供了一个默认实现，所以大部分 ChatModel 支持方法。
+    - ChatLLM 类模型的基类 BaseChatModel 提供了一个默认实现，所以大部分 ChatModel 支持此方法。
     此外，查看源码可以发现，with_structured_output() 需要该模型实现 bind_tools() 方法（一般也只有 ChatLLM 类有此方法）。
 
     具体有哪些模型实现了，可以参考 https://python.langchain.com/docs/integrations/chat/#featured-providers 表格。
     """
     print("===> structured_output_usage()")
+
     class JokeDict(TypedDict):
         """Joke to tell user."""
         setup: Annotated[str, ..., "The setup of the joke"]
@@ -784,7 +808,7 @@ def tool_wrapper_usage():
 
     一般使用 langchain.tools.convert.py 提供的 @tool 装饰器来将一个函数封装为 BaseTool 的子类（Tool、StructuredTool）：
     - 如果 infer_schema=true (默认值) 或者提供了 args_schema 参数，那么就使用 StructuredTool 来封装function；
-    - 不满足上面的条件，则使用 Tool 类来封装function，此时会认为该function是一个 “a simple string->string function”
+    - 不满足上面的条件，则使用 Tool 类来封装function，此时会认为该function是一个 “a simple string -> string function”
     """
     print("===> tool_wrapper_usage()")
     # ----------- Tool 使用 -----------
@@ -1617,7 +1641,7 @@ def retriever_usage():
     print(doc)
 
 
-# %% ======================= Langchain v1.x 的 Agent使用 =======================
+# %% ======================= LangChain v1.x 的 Agent 使用 =======================
 def auto_agent_usage():
     """
     展示 LangChain-v1.x 的 Agent 使用。
@@ -1916,8 +1940,8 @@ def main():
     # vector_store_usage()
     # retriever_usage()
     # -----------------------------
-    # auto_agent_usage()
-    asyncio.run(auto_agent_with_mcp_usage())
+    auto_agent_usage()
+    # asyncio.run(auto_agent_with_mcp_usage())
 
 
 if __name__ == '__main__':
