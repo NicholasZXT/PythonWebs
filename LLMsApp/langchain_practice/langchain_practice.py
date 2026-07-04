@@ -4,7 +4,7 @@ LangChain 入门使用练习，适用于 v0.3.x 和 v1.x 版本.
 # %%
 import os
 import asyncio
-from typing import Optional, Dict, List, Union, Any, Callable
+from typing import Optional, Dict, List, Union, Any, Callable, cast, TypeAlias
 from typing_extensions import Annotated, TypedDict
 from pydantic import BaseModel, Field
 from dataclasses import dataclass
@@ -96,7 +96,7 @@ from langchain_ollama.embeddings import OllamaEmbeddings
 # --- 向量化存储&检索 ---
 from langchain_core.vectorstores import VectorStore, InMemoryVectorStore, VectorStoreRetriever
 from langchain_community.vectorstores import (
-    Chroma, FAISS, Milvus, DuckDB, Redis, SKLearnVectorStore,
+    Chroma, FAISS, DuckDB, Redis, SKLearnVectorStore,
     ElasticsearchStore, ElasticVectorSearch, ElasticKnnSearch
 )
 from langchain_elasticsearch import ElasticsearchStore
@@ -128,26 +128,29 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.store.memory import InMemoryStore
 from langgraph.types import Command
 # %% =============== v1.0版本 Auto-Agent 搭配 MCP ===============
-from langchain_mcp_adapters.client import MultiServerMCPClient
-from langchain_mcp_adapters.callbacks import Callbacks, CallbackContext, ProgressCallback, LoggingMessageCallback
-from mcp.types import LoggingMessageNotificationParams
+# from langchain_mcp_adapters.client import MultiServerMCPClient
+# from langchain_mcp_adapters.callbacks import Callbacks, CallbackContext, ProgressCallback, LoggingMessageCallback
+# from mcp.types import LoggingMessageNotificationParams
 # %% ===================================================================================================================
-# --- 阿里百炼 ---
-# API_KEY = ''
-# LLM_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1'
-# MODEL = 'qwen-max'
-# --- vLLM 部署 ---
-# API_KEY = 'Empty'
-# LLM_URL = 'http://172.16.0.32:10086/v1'
-# MODEL = 'Qwen2.5-32B'
-# MODEL = 'Qwen3-32B'
+API_KEY = os.getenv('API_KEY', 'EMPTY')
+print(f">>> API_KEY:", API_KEY)
 # --- Ollama 本地部署 ---
-API_KEY = 'Empty'
-LLM_URL = 'http://localhost:11434'
-MODEL = 'qwen2.5:7b'
+# LLM_URL = 'http://localhost:11434'
+# MODEL = 'qwen2.5:7b'
 # MODEL = 'qwen3:8b'
 # MODEL = 'qwen2.5:14b'
 # MODEL = 'qwen3:14b'
+# --- 在线模型服务 ---
+# LLM_URL = 'https://api.deepseek.com'  # DeepSeek
+# LLM_URL = 'https://ark.cn-beijing.volces.com/api/v3'  # 火山引擎
+LLM_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1'  # 阿里百炼
+MODEL = 'deepseek-v4-flash'
+# MODEL = 'deepseek-v4-pro'
+# --- vLLM 部署 ---
+# LLM_URL = 'http://172.16.0.32:10086/v1'
+# MODEL = 'Qwen2.5-32B'
+# MODEL = 'Qwen3-32B'
+
 
 
 # %% ======================= LLM + ChatLLM 模型包装器 使用 =======================
@@ -263,14 +266,14 @@ def get_client_llm() -> Union[BaseLLM, LLM]:
         keep_alive='30m',
         think=False
     )
-    print(f"\n===> Using model '{MODEL}' with {client_llm.get_name()}\n")
+    print(f"{'-'*50}\n===> Using model '{MODEL}' with {client_llm.get_name()}\n{'-'*50}")
     return client_llm
 
 def get_client_chat() -> Union[BaseChatModel, SimpleChatModel]:
     client_chat = ChatOpenAI(
-        openai_api_key=API_KEY,
-        openai_api_base=LLM_URL,
-        model_name=MODEL,
+        base_url=LLM_URL,
+        api_key=API_KEY,
+        model=MODEL,
         # temperature=0.7,
         # top_p=1,
         # streaming=False,
@@ -284,7 +287,7 @@ def get_client_chat() -> Union[BaseChatModel, SimpleChatModel]:
     #     # 控制模型是否进行think，只对支持think的模型有效，但是似乎对 qwen3 的think模式无效
     #     think=False
     # )
-    print(f"\n===> Using model '{MODEL}' with {client_chat.get_name()}\n")
+    print(f"{'-'*55}\n===> Using model '{MODEL}' with {client_chat.get_name()}\n{'-'*55}")
     return client_chat
 
 # %% --------- ChatLLM调试 -----------
@@ -295,9 +298,9 @@ def simple_chat():
     # issubclass(type(client_chat), BaseChatModel)
     # print(hasattr(client_chat, 'profile'))
     msg = [
-        HumanMessage(content='RTX 4060 Ti 16GB跑本地大模型怎么样？'),
+        HumanMessage(content='RTX 4060-Ti 16GB跑本地大模型怎么样？'),
         # 只有手动在消息前面加上 /no_think，对于 qwen3 的think模式才会有效，但是此时仍然会输出一个空的 <think></think> 块
-        # HumanMessage(content='/no_think RTX 4060 Ti 16GB跑本地大模型怎么样？'),
+        # HumanMessage(content='/no_think RTX 4060-Ti 16GB跑本地大模型怎么样？'),
     ]
     # res = client_chat.invoke(input=msg)
     # print(res)
@@ -1642,6 +1645,8 @@ def retriever_usage():
 
 
 # %% ======================= LangChain v1.x 的 Agent 使用 =======================
+MyResponse: TypeAlias = Dict[str, Any]
+
 def auto_agent_usage():
     """
     展示 LangChain-v1.x 的 Agent 使用。
@@ -1658,7 +1663,7 @@ def auto_agent_usage():
     class UserContext:
         user_name: str
 
-    class MyAgentState(AgentState):
+    class MyAgentState(AgentState[MyResponse]):
         """
         Graph State 表示类，必须要继承自 AgentState 类，本质上是一个 TypedDict。
         它是一个 base schema，后续所有middleware里定义的schema都会被合并到这个base schema里
@@ -1673,66 +1678,78 @@ def auto_agent_usage():
         """
         model_hook_state: str
 
-    class AgentHook(AgentMiddleware[MyAgentState, UserContext]):
+    class AgentHook(AgentMiddleware[MyAgentState, UserContext, MyResponse]):
+        """
+        自定义中间件，展示 before_agent / after_agent 两个 hook 方法的使用。
+        """
         def before_agent(self, state: MyAgentState, runtime: Runtime[UserContext]) -> dict[str, Any] | None:
             print(f"--> before_agent called with context: {runtime.context}...")
             # print(f"--> before_agent state.__class__: {type(state)}")  # <class 'dict'>
-            print(f"--> before_agent state.keys: {state.keys()}")
+            print(f"    before_agent state.keys: {state.keys()}")
             # 如果想更新状态里的某个 key ，不要直接更新，应当返回一个 dict
             # state["base_state"] += ";before_agent"
             base_state_update = state["base_state"] + ";before_agent"
             return {'base_state': base_state_update}
 
         def after_agent(self, state: MyAgentState, runtime: Runtime[UserContext]) -> dict[str, Any] | None:
-            print(f"--> after_agent called with context: {runtime.context}...")
+            print(f"<-- after_agent called with context: {runtime.context}...")
             # print(f"--> after_agent state.__class__: {type(state)}")  # <class 'dict'>
-            print(f"--> after_agent state.keys: {state.keys()}")
+            print(f"    after_agent state.keys: {state.keys()}")
             # state["base_state"] += ";after_agent"
             base_state_update = state["base_state"] + ";after_agent"
             return {'base_state': base_state_update}
 
-    class ModelHook(AgentMiddleware[ModelHookState, UserContext]):
+    class ModelHook(AgentMiddleware[ModelHookState, UserContext, MyResponse]):
+        """
+        自定义中间件，展示 before_model / after_model 两个 hook 方法的使用。
+        """
         # 这个 Middleware 也定义了自己的 state_schema
         state_schema = ModelHookState
 
         def before_model(self, state: ModelHookState, runtime: Runtime[UserContext]) -> dict[str, Any] | None:
-            print(f"--> before_model called with context: {runtime.context}...")
-            # print(f"--> before_model state.__class__: {type(state)}")
-            print(f"--> before_model state.keys: {state.keys()}")
-            print(f"--> before_model called with state.base_state: {state.get('base_state', None)}")
+            print(f"  --> before_model called with context: {runtime.context}...")
+            # print(f"    before_model state.__class__: {type(state)}")
+            print(f"      before_model state.keys: {state.keys()}")
+            print(f"      before_model called with state.base_state: {state.get('base_state', None)}")
             model_state_hook_update = state["model_hook_state"] + ";before_model"
             return {'model_hook_state': model_state_hook_update}
 
         def after_model(self, state: ModelHookState, runtime: Runtime[UserContext]) -> dict[str, Any] | None:
-            print(f"--> after_model called with context: {runtime.context}...")
-            # print(f"--> after_model state.__class__: {type(state)}")
-            print(f"--> after_model state.keys: {state.keys()}")
-            print(f"--> after_model called with state.base_state: {state.get('base_state', None)}")
+            print(f"  <-- after_model called with context: {runtime.context}...")
+            # print(f"      after_model state.__class__: {type(state)}")
+            print(f"      after_model state.keys: {state.keys()}")
+            print(f"      after_model called with state.base_state: {state.get('base_state', None)}")
             model_state_hook_update = state["model_hook_state"] + ";after_model"
             return {'model_hook_state': model_state_hook_update}
 
-    class WrapModelHook(AgentMiddleware[MyAgentState, UserContext]):
+    class WrapModelHook(AgentMiddleware[MyAgentState, UserContext, MyResponse]):
+        """
+        自定义中间件，展示 wrap_model_call hook 方法的使用。
+        """
         def wrap_model_call(
             self,
             request: ModelRequest,
             handler: Callable[[ModelRequest], ModelResponse],
         ) -> ModelResponse | AIMessage:
-            print(f"--> wrap_model_call called with context: {request.runtime.context}...")
-            # print(f"--> wrap_model_call state.__class__: {type(request.state)}")
-            print(f"--> wrap_model_call state.keys: {request.state.keys()}")
-            print(f"--> wrap_model_call called with state.base_state: {request.state.get('base_state', None)}")
+            print(f"    <--> wrap_model_call called with context: {request.runtime.context}...")
+            # print(f"         wrap_model_call state.__class__: {type(request.state)}")
+            print(f"         wrap_model_call state.keys: {request.state.keys()}")
+            print(f"         wrap_model_call called with state.base_state: {request.state.get('base_state', None)}")
             return handler(request)
 
-    class WrapToolHook(AgentMiddleware[MyAgentState, UserContext]):
+    class WrapToolHook(AgentMiddleware[MyAgentState, UserContext, MyResponse]):
+        """
+        自定义中间件，展示 wrap_tool_call hook 方法的使用。
+        """
         def wrap_tool_call(
             self,
             request: ToolCallRequest,
             handler: Callable[[ToolCallRequest], ToolMessage | Command],
         ) -> ToolMessage | Command:
-            print(f"--> wrap_tool_call called with context: {request.runtime.context}...")
-            # print(f"--> wrap_tool_call state.__class__: {type(request.state)}")
-            print(f"--> wrap_tool_call state.keys: {request.state.keys()}")
-            print(f"--> wrap_tool_call called with state.base_state: {request.state.get('base_state', None)}")
+            print(f"    <--> wrap_tool_call called with context: {request.runtime.context}...")
+            # print(f"         wrap_tool_call state.__class__: {type(request.state)}")
+            print(f"         wrap_tool_call state.keys: {request.state.keys()}")
+            print(f"         wrap_tool_call called with state.base_state: {request.state.get('base_state', None)}")
             return handler(request)
 
     @tool(description="获取当前Agent的执行上下文")
@@ -1741,23 +1758,26 @@ def auto_agent_usage():
         user_name = runtime.context.user_name
         # 然后从store里获取用户信息
         user_info = runtime.store.get(namespace=("user", "db"), key=user_name)
-        return f"当前的Agent执行上下文是：{user_name} -> {user_info}"
+        result = f"当前的Agent执行上下文是：{user_name} -> {user_info}"
+        return result
 
     @tool(description="获取某个城市的天气信息")
     def get_weather(city: str) -> str:
-        return f"{city}的天气是晴天"
+        result = f"{city}的天气是晴天"
+        return result
 
+    # ---------- 构建 Agent -----------
     agent: CompiledStateGraph = create_agent(
         name="Some-Agent",
         model=model,
         system_prompt="你是一个智能助手",
         tools=[get_agent_context, get_weather],
         middleware=[AgentHook(), ModelHook(), WrapModelHook(), WrapToolHook()],
+        state_schema=MyAgentState,
+        context_schema=UserContext,
         checkpointer=memory_saver,
         store=memory_store,
         response_format=None,
-        state_schema=MyAgentState,
-        context_schema=UserContext,
         # interrupt_before=None,
         # interrupt_after=None,
         # debug=True
@@ -1766,6 +1786,7 @@ def auto_agent_usage():
     # from .langgraph_practice import show_graph
     # show_graph(agent)
 
+    print('************** Agent-Chat-Round-1 **************')
     agent_response = agent.invoke(
         # input输入的dict必须对应初始化时传入的state_schema，这里是 MyAgentState；
         # 此外，还可以传入各个Middleware的state_schema里的key
@@ -1787,7 +1808,7 @@ def auto_agent_usage():
     print("agent response base_state: ", agent_response['base_state'])
     print("agent response model_hook_state: ", agent_response['model_hook_state'])
 
-    print("******************************************")
+    print('\n************** Agent-Chat-Round-2 **************')
     agent_response = agent.invoke(
         input={
             "messages": HumanMessage(content="当前Agent的运行上下文是什么？"),
@@ -1805,7 +1826,7 @@ def auto_agent_usage():
     print("agent response model_hook_state: ", agent_response['model_hook_state'])
 
 
-# %% ======================= Langchain v1.x Auto-Agent 配合 MCP 使用 =======================
+# %% ======================= LangChain v1.x Auto-Agent 配合 MCP 使用 =======================
 async def auto_agent_with_mcp_usage() -> None:
     """
     展示 LangChain v1.x auto agent 配合 MCP 使用。
@@ -1940,8 +1961,9 @@ def main():
     # vector_store_usage()
     # retriever_usage()
     # -----------------------------
-    auto_agent_usage()
+    # auto_agent_usage()
     # asyncio.run(auto_agent_with_mcp_usage())
+    ...
 
 
 if __name__ == '__main__':

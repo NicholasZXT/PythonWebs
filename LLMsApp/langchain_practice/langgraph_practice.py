@@ -11,6 +11,7 @@
 即使升级到 LangGraph v1.0.x 版本，LangGraph 的核心架构和组件都没有太大的变化。
 """
 # %%
+import os
 from typing import Annotated, List, TypedDict, Dict, Union, Iterator
 from dataclasses import dataclass
 # from typing_extensions import TypedDict
@@ -57,33 +58,47 @@ from langchain_core.tools import BaseTool, StructuredTool, tool
 # ---------- 其他依赖 ----------
 import json
 
-# --- vLLM 部署 ---
-# API_KEY = 'Empty'
-# LLM_URL = 'http://172.16.0.32:10086/v1'
-# MODEL = 'Qwen2.5-32B-Instruct'
+# %%
+API_KEY = os.getenv('API_KEY', 'EMPTY')
+print(f">>> API_KEY:", API_KEY)
 # --- Ollama 本地部署 ---
-API_KEY = 'Empty'
-LLM_URL = 'http://localhost:11434'
-MODEL = 'qwen2.5:7b'
+# LLM_URL = 'http://localhost:11434'
+# MODEL = 'qwen2.5:7b'
 # MODEL = 'qwen3:8b'
+# MODEL = 'qwen2.5:14b'
+# MODEL = 'qwen3:14b'
+# --- 在线模型服务 ---
+# LLM_URL = 'https://api.deepseek.com'  # DeepSeek
+# LLM_URL = 'https://ark.cn-beijing.volces.com/api/v3'  # 火山引擎
+LLM_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1'  # 阿里百炼
+MODEL = 'deepseek-v4-flash'
+# MODEL = 'deepseek-v4-pro'
+# --- vLLM 部署 ---
+# LLM_URL = 'http://172.16.0.32:10086/v1'
+# MODEL = 'Qwen2.5-32B'
+# MODEL = 'Qwen3-32B'
+
 
 # %%
 def get_client_chat() -> Union[BaseChatModel, SimpleChatModel]:
-    # client_chat = ChatOpenAI(
-    #     openai_api_key=API_KEY,
-    #     openai_api_base=LLM_URL,
-    #     model_name=MODEL,
-    #     # temperature=0.7,
-    #     # top_p=1,
-    #     # streaming=False,
-    # )
-    client_chat = ChatOllama(
+    client_chat = ChatOpenAI(
         base_url=LLM_URL,
+        api_key=API_KEY,
         model=MODEL,
         # temperature=0.7,
         # top_p=1,
-        keep_alive='30m'
+        # streaming=False,
     )
+    # client_chat = ChatOllama(
+    #     base_url=LLM_URL,
+    #     model=MODEL,
+    #     # temperature=0.7,
+    #     # top_p=1,
+    #     keep_alive='30m',
+    #     # 控制模型是否进行think，只对支持think的模型有效，但是似乎对 qwen3 的think模式无效
+    #     think=False
+    # )
+    print(f"{'-'*55}\n===> Using model '{MODEL}' with {client_chat.get_name()}\n{'-'*55}")
     return client_chat
 
 

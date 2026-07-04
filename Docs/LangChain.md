@@ -1181,23 +1181,21 @@ Middleware 的相关实现在 `langchain.agents.middleware` 中。
 
 v1.0版新增的middleware功能是**专门配合`create_agent()`函数使用的，LangGraph框架本身并没有提供中间件这一抽象**。
 
-`creage_agent()`函数是基于LangGraph创建的Agent。
-
-`create_agent()`里的middleware调用时机如官方文档图片所示：
+`creage_agent()`函数是基于LangGraph创建的Agent，其中 middleware 调用时机如官方文档图片所示：
 
 <img src="https://mintcdn.com/langchain-5e9cc07a/RAP6mjwE5G00xYsA/oss/images/middleware_final.png?w=840&fit=max&auto=format&n=RAP6mjwE5G00xYsA&q=85&s=e9b14e264f68345de08ae76f032c52d4" alt="AgentMiddleware.hook" style="zoom:80%;" align="left"/>
 
 上述调用的hook方法是由`AgentMiddleware`基类定义的（[官方文档：Custom middleware](https://docs.langchain.com/oss/python/langchain/middleware/custom)），所有Middleware都要继承此类。
 
-`AgentMiddleware(Generic[StateT, ContextT])` 是一个泛型类，需要`StateT`和`ContextT`两个泛型参数：
+`AgentMiddleware(Generic[StateT, ContextT])` 是一个泛型类：
 
-- `StateT`: 传递给Middleware的状态对象schema，需要继承自 `AgentState` 类
-- `ContextT`: 底层LangGraph的 `Runtime[ContextT]` 泛型参数
+- 两个泛型参数如下：
+  - `StateT`: 传递给Middleware的状态对象schema，需要继承自 `AgentState` 类
+  - `ContextT`: 底层LangGraph的 `Runtime[ContextT]` 泛型参数
 
-`AgentMiddleware(Generic[StateT, ContextT])` 定义了如下两个属性：
-
-- `state_schema: type(StateT)`: 状态对象的类
-- `tools: List[BaseTool]`: 该 middleware 所附加的工具列表 —— 这个不知道有什么用。
+- 定义了如下两个属性：
+  - `state_schema: type(StateT)`: 状态对象的类
+  - `tools: List[BaseTool]`: 该 middleware 所附加的工具列表 —— 这个不知道有什么用。
 
 自定义Middleware时，需要继承`AgentMiddleware`并实现其中的某个方法，可实现的hook方法分为如下两类：
 
@@ -2598,6 +2596,12 @@ Module名称为`langchain`，源码内容如下：
 ---------------------------------------------------
 # LangChain-Community
 
+注意：
+
+> LangChain-Community包已经**于 2026.6.19 存档停止维护**，参见GitHub Issue [Sunsetting langchain-community #674](https://github.com/langchain-ai/langchain-community/issues/674)。
+>
+> 后续官方建议使用各自专门维护的`langchain-xxx`包，参见 [LangChain Integrations](https://docs.langchain.com/oss/python/integrations/providers/overview).
+
 LangChain-Community是一个第三方社区扩展包，提供了一些常用的功能。
 
 `langchain_community` 包并没有随着 LangChain-Core 和 LangChain 一起升级到 v1.x 版本，而是升级到 v0.4.x 版本。
@@ -2985,10 +2989,10 @@ class ToolNode(RunnableCallable):
 
 `deepagents`包是LangChain官方配合 LangChain-v1.0 提供的用于编写复杂Agent的包，它底层基于`langchain`+`langgraph`包进行的构建。
 
-简单看了下`deepagents`的源码，以 **v0.5.2版本** 为例，源码内容并不多，不像langchain/langgraph那样复杂，主要内容如下：
+简单看了下`deepagents`的源码，以 **v0.5.2版本** 为例，源码内容并不多，不像`langchain`/`langgraph`那样复杂，主要内容如下：
 
 ```text
-#v-0.5.2 版本
+# v-0.5.2 版本
 deepagents/
 ├── graph.py    # 这是最核心的文件， create_deep_agent() 函数就在此
 # 定义了虚拟文件系统，抽象接口协议在 protocol.py 中
@@ -3089,7 +3093,7 @@ def create_deep_agent(
     # 这是deepagents内置的一个 General-purpose subagent，下面是配置该subagent的spec
     # Build general-purpose subagent with default middleware stack
     gp_middleware: list[AgentMiddleware[Any, Any, Any]] = [
-        # 要注意这个中间件，它生成的 TO-list 就是执行的 plan ----------------- KEY
+        # 要注意这个中间件，它生成的 ToDo-list 就是执行的 plan ----------------- KEY
         TodoListMiddleware(),
         FilesystemMiddleware(
             backend=backend,
