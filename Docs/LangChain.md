@@ -1254,7 +1254,9 @@ LangChain 默认提供了如下built-in middleware：
 
 参考官方文档 [Human-in-the-loop](https://docs.langchain.com/oss/python/langchain/human-in-the-loop).
 
-`HumanInTheLoopMiddleware` 的作用是**在模型调用之后，如果有工具调用，判断哪些工具调用需要触发人工处理**。
+`HumanInTheLoopMiddleware` 的作用是**在模型调用之后（实现了`after_model`方法），如果有工具调用，判断哪些工具调用需要触发人工处理**。
+
+> 看了下源码，LangChain官方提供的这个HIL处理中间件考虑的还挺周全的。
 
 它配置了如下两个属性：
 - `description_prefix: str`，触发HIL时的描述前缀
@@ -1263,9 +1265,10 @@ LangChain 默认提供了如下built-in middleware：
   - value，该工具的中断配置，可选值如下：
     - `True`, 表示触发中断，后续允许 `approve, edit, and reject` 等HIL结果
     - `False`, 表示自动批准该工具的调用
-    - `InterruptOnConfig`对象, 表示其他中断配置：
+    - `InterruptOnConfig`字典配置, 这是最完整的中断配置，有如下几个key：
       - `allowed_decisions`, 允许的HIL结果，可选值为 `Literal["approve", "edit", "reject"]`
       - `description: str`, 触发HIL时的描述
+      - `when: NotRequired[Callable[[ToolCallRequest], bool]]`，可调用对象，根据工具调用请求的上下文进行精细判断控制。
 
 源码实现逻辑大致如下：
 - 实现 `AgentMiddleware` 的 `after_model` hook 方法
@@ -1276,7 +1279,15 @@ LangChain 默认提供了如下built-in middleware：
   - 因此要求恢复执行时的 `Command` 对象的 `resume` 参数接受的dict里必须要包含 `decisions` 这个 key，
   - `decisions` 是一个 `List[Dict[str, Any]]`，`Dict`的一个key是 `type`，value是 `Literal["approve", "edit", "reject"]`。
 
+
+
+#### TodoListMiddleware
+
+
+
 #### ModelCallLimitMiddleware
+
+
 
 
 ---------------
@@ -2225,24 +2236,28 @@ def create_agent(
 研究`create_agent()`函数源码可以发现，Middleware的使用有如下几个要注意的地方：
 
 - 所有middleware的`.tools`会被合并到一起，封装到`ToolNode`里
-- 所有middleware的`wrap_tool_call`/`awrap_tool_call`方法会被合并成一条链，封装到`ToolNode`里，在每次调用tool前后执行。
+- 所有middleware的`wrap_tool_call`/`awrap_tool_call`方法会被合并成一条调用链，封装到`ToolNode`里，在每次调用tool前后执行。
 - 所有middleware的`wrap_model_call`方法也会被合并成一条链，封装到一个`model_node`（对应源码里的`model_node()`闭包函数）里，在每次模型调用前后执行。
-- 所有middleware的`before_agent`/`after_agent`/`before_model`/`after_model`方法，**各自会被封装成LangGraph里的一个Node**，并依次添加之间的边，在指定时机/条件下执行
-- 同一个middleware不能多次使用，否则会抛异常，提醒有重复的middleware
+- 所有middleware的`before_agent`/`after_agent`/`before_model`/`after_model`方法，**各自会被封装成LangGraph里的一个Node**，
+  并依次添加之间的边，在指定时机/条件下执行。
+- 同一个middleware不能多次使用，否则会抛异常，提醒有重复的middleware。
 
 > `create_agent()` 函数内部对所有middleware的 `wrap_tool_call` / `wrap_model_call` 进行合并的
 > `_chain_model_call_handlers()` / `_chain_tool_call_wrappers()` 方法值得看看（涉及到装饰器和绑定方法的使用）。
+> 简单来说：收集各个中间件hook方法的时候，是通过实例对象访问的绑定方法（而不是通过类访问获取的方法本身）后续链式封装时依次调用绑定方法也可以正确获取
+> 方法所属的中间件实例对象。
 
-最重要的原则如下：
-
-> 每个middleware继承`AgentMiddleware`时，**最好只实现其中一个hook方法**——尽量遵守**单一职责**的实践；
->
-> 即使要实现多个hook方法，这些方法之间**不要有关联或者访问共享变量的操作**，因为根据源码里的逻辑，这些方法都是被拆分开使用的，
-> `AgentMiddleware`抽象类及其子类只不过是一个封装方法的容器而已，这也要求`AgentMiddleware`子类里最好不要定义实例属性存放共享状态。
+个人总结的几个要点如下：
+- 每个middleware继承`AgentMiddleware`时，**最好只实现其中一个hook方法**——尽量遵守**单一职责**的实践。
+- 即使要实现多个hook方法，这些方法之间最好**不要有关联或者访问共享变量（同一个属性变量）的操作**，
+  因为根据源码里的逻辑，这些方法都是在不同地方使用的，在异步或者多线程环境下容易出现并发访问的问题，难以排查。
+- 如果一定要多个hook方法访问一个属性变量，一个比较好的做法是定义中间件的State Schema —— 将可能涉及的共享变量存入底层LangGraph的状态对象中， 
+  由LangGraph的Channel来保证状态的隔离和并发安全。
 
 #### Tools封装
 
-`create_agent()`使用 `_ToolNode`类（v1.0.3版本开始改为LangGraph的`ToolNode`）封装所有的tools，然后还需要构建 `_ToolNode` 的进入边和输出边：
+`create_agent()`使用 `_ToolNode`类（v1.0.3版本开始改为LangGraph的`ToolNode`）封装所有的tools，
+然后还需要构建 `_ToolNode` 的进入边和输出边：
 
 - 输出边是通过 `factory.py` 里的 `_make_tools_to_model_edge()` 方法构建的：
   - source 是 `_ToolNode`，默认名称为 `tools`
@@ -3317,6 +3332,19 @@ def create_deep_agent(
 
 ## `profiles`模块
 
+官方文档 [Context Management -> Profiles](https://docs.langchain.com/oss/python/deepagents/profiles).
+
+> 以下是基于 deepagents-v0.6.12 的代码。
+
+Profile是用于为指定的 模型提供商/模型 添加一些定制化的内容，主要分为两种 Profile:
+- ProviderProfile: 基于模型提供商的定制，可配置项参见 `profiles.provider.providers_profiles.py` 定义的 `ProviderProfile` dataclass 类属性。
+- HarnessProfile: 基于某个具体模型的定制，可配置项参见 `profiles.harness.harness_profiles.py` 定义的 `HarnessProfile` dataclass 类属性。
+
+官方内置了一些针对 OpenAI、Anthropic 的一些Profile，可以参考实现。
+
+当然，也可以自己定义上述两种Profile，然后使用下面的两个工具函数进行注册：
+- `register_harness_profile`
+- `register_provider_profile`
 
 
 ------
