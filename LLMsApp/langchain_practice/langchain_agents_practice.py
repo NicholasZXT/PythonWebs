@@ -35,7 +35,7 @@ from langchain.agents.middleware import (
 )
 # 自带的 middleware 实现
 from langchain.agents.middleware import (
-    HumanInTheLoopMiddleware, TodoListMiddleware, InterruptOnConfig,
+    HumanInTheLoopMiddleware, InterruptOnConfig, TodoListMiddleware,
     SummarizationMiddleware, ModelCallLimitMiddleware, ToolCallLimitMiddleware,
 )
 # %% =============== deepagents组件 ===============
@@ -658,6 +658,272 @@ def agent_middleware_hil_usage():
     print("=" * 60)
 
 
+# %% ======================= LangChain v1.x 内置Middleware使用研究 =======================
+def agent_middleware_todolist_usage():
+    """
+    展示 TodoListMiddleware 使用。
+
+    TodoListMiddleware 是 LangChain v1.x 内置的"规划与任务管理"中间件，核心功能：
+    1. 自动为 Agent 注入 `write_todos` 工具，让 LLM 可以创建和管理结构化任务列表。
+    2. 自动注入 system prompt（通过 wrap_model_call hook），指导 LLM 何时以及如何使用 todo 功能。
+    3. 在 State 中维护 `todos` 字段（类型为 list[Todo]），追踪任务进度。
+    4. 强制约束：每个模型回合最多调用一次 write_todos（after_model 中检测并行调用并报错）。
+
+    Todo 结构（TypedDict，源码定义在 todo.py）：
+    - content: str        — 任务描述
+    - status: Literal["pending", "in_progress", "completed"] — 任务状态
+
+    PlanningState（中间件的 state_schema）：
+    - todos: NotRequired[list[Todo]] — 注意被 OmitFromInput 标记，因此只能在输出中获取，不能作为输入传入
+
+    适用场景：
+    - 复杂多步骤任务（3步以上）
+    - 用户明确提供多个任务
+    - 需要规划和跟踪进度的非平凡任务
+
+    不适用场景：
+    - 单一简单任务
+    - 纯对话/信息类请求
+    - 3步以内可完成的简单任务
+
+    构造参数：
+    - system_prompt: str  — 自定义注入的 system prompt（默认使用内置 WRITE_TODOS_SYSTEM_PROMPT）
+    - tool_description: str — 自定义 write_todos 工具的描述（默认使用内置 WRITE_TODOS_TOOL_DESCRIPTION）
+    """
+    print("===> agent_middleware_todolist_usage()")
+    model = get_client_chat()
+
+    # ========================================================================
+    # 1. 定义 mock 工具（模拟一个需要多步骤完成的任务场景：数据分析报告）
+    # ========================================================================
+    @tool(description="从数据库查询某部门过去N天的销售数据，返回JSON格式")
+    def query_sales_data(department: str, days: int) -> str:
+        """模拟查询销售数据"""
+        return (
+            f'{{"department": "{department}", "days": {days}, '
+            f'"records": [{{"date": "2026-07-08", "amount": 15200}}, '
+            f'{{"date": "2026-07-07", "amount": 13800}}, '
+            f'{{"date": "2026-07-06", "amount": 20100}}]}}'
+        )
+
+    @tool(description="对输入的JSON数据进行统计分析，返回平均值、最大值、最小值、总和")
+    def analyze_statistics(data_json: str) -> str:
+        """模拟统计分析"""
+        return (
+            '{"mean": 16366.67, "max": 20100, "min": 13800, "total": 49100, '
+            '"trend": "upward", "volatility": "moderate"}'
+        )
+
+    @tool(description="根据分析结果生成Markdown格式的报告")
+    def generate_report(department: str, analysis_json: str) -> str:
+        """模拟生成报告"""
+        return (
+            f"# {department} 销售数据分析报告\n\n"
+            f"## 统计摘要\n{analysis_json}\n\n"
+            f"## 结论\n销售趋势向好，建议增加库存。"
+        )
+
+    @tool(description="将报告发送到指定邮箱")
+    def send_report_email(to: str, subject: str, report_content: str) -> str:
+        """模拟发送邮件"""
+        return f"报告已发送至 {to}，主题: {subject}"
+
+    # ========================================================================
+    # 场景1：基本使用 —— 最简单的 TodoListMiddleware 用法
+    # Agent 会自动使用 write_todos 工具来规划复杂任务，无需手动传入 todos
+    # ========================================================================
+    print("\n" + "=" * 60)
+    print("【场景1】基本使用：Agent 自动使用 write_todos 规划并执行复杂任务")
+    print("=" * 60)
+
+    # 创建带有 TodoListMiddleware 的 Agent
+    # 注意：write_todos 工具由中间件自动注入，无需手动添加到 tools 列表
+    agent: CompiledStateGraph = create_agent(
+        name="TodoList-Demo-Agent",
+        model=model,
+        system_prompt="你是一个数据分析助手，擅长规划并执行多步骤任务。",
+        tools=[query_sales_data, analyze_statistics, generate_report, send_report_email],
+        middleware=[TodoListMiddleware()],  # 使用默认配置即可
+        # 注意：TodoListMiddleware 不需要 checkpointer 也能正常工作（与 HITL 不同）
+    )
+
+    # 发起一个需要多步骤的复杂请求
+    # Agent 会先调用 write_todos 创建计划，然后逐步执行
+    result = agent.invoke(
+        input={
+            "messages": HumanMessage(
+                content="请帮我完成以下任务：\n"
+                        "1. 查询'电子产品'部门过去3天的销售数据\n"
+                        "2. 对数据进行统计分析\n"
+                        "3. 生成 Markdown 格式的分析报告\n"
+                        "4. 将报告发送到 manager@example.com\n\n"
+                        "请规划好每一步再执行。"
+            ),
+        },
+    )
+
+    # 打印 Agent 的回复消息
+    print("\n>>> Agent 最终回复:")
+    for msg in result.get("messages", []):
+        if isinstance(msg, AIMessage) and msg.content:
+            print(f"  AI: {msg.content}")
+        elif isinstance(msg, ToolMessage):
+            # 过滤掉 write_todos 工具的内部消息，避免输出过于冗长
+            if msg.name != "write_todos":
+                print(f"  Tool[{msg.name}]: {msg.content}")
+
+    # 从返回的 state 中获取 todos 任务列表 —— 这是 TodoListMiddleware 的核心输出
+    todos = result.get("todos", [])
+    print(f"\n>>> 最终 todos 状态 (共 {len(todos)} 项):")
+    for i, todo in enumerate(todos):
+        status_icon = {"pending": "⏳", "in_progress": "🔄", "completed": "✅"}.get(todo["status"], "❓")
+        print(f"  [{i}] {status_icon} {todo['status']:12s} | {todo['content']}")
+
+    # ========================================================================
+    # 场景2：自定义 system_prompt 和 tool_description
+    # 展示如何定制 TodoListMiddleware 的提示词，以适配特定业务场景
+    # ========================================================================
+    print("\n" + "=" * 60)
+    print("【场景2】自定义 system_prompt 和 tool_description")
+    print("=" * 60)
+
+    # 自定义 system_prompt：更强调中文语境和任务优先级
+    custom_system_prompt = """## `write_todos` 任务管理工具
+
+你可以使用 `write_todos` 工具来创建和管理结构化的任务列表。
+对于复杂的多步骤任务，务必先规划再执行。
+
+## 任务状态说明
+- pending: 待开始
+- in_progress: 进行中（可同时有多个不相关的并行任务）
+- completed: 已完成
+
+## 重要规则
+1. 开始任务前，先将状态标记为 in_progress
+2. 完成任务后，立即标记为 completed
+3. 遇到阻塞时，保持 in_progress 并创建新的描述问题的任务
+4. 每次只调用一次 write_todos，不要并行调用
+5. 所有任务完成后，在最后一条消息中给出完整回答"""
+
+    # 自定义 tool_description：更简洁的描述
+    custom_tool_description = """创建和管理任务列表。用于规划复杂的多步骤任务。
+参数: todos - 任务列表，每项包含 content(描述) 和 status(状态: pending/in_progress/completed)"""
+
+    agent_custom: CompiledStateGraph = create_agent(
+        name="TodoList-Custom-Demo",
+        model=model,
+        system_prompt="你是一个擅长任务规划的执行助手。",
+        tools=[query_sales_data, analyze_statistics, generate_report, send_report_email],
+        middleware=[
+            TodoListMiddleware(
+                system_prompt=custom_system_prompt,
+                tool_description=custom_tool_description,
+            )
+        ],
+    )
+
+    result = agent_custom.invoke(
+        input={
+            "messages": HumanMessage(
+                content="请查询'服装'部门过去7天的销售数据，分析统计信息，生成报告，并发送给 boss@example.com。"
+            ),
+        },
+    )
+
+    print("\n>>> Agent 最终回复:")
+    for msg in result.get("messages", []):
+        if isinstance(msg, AIMessage) and msg.content:
+            print(f"  AI: {msg.content}")
+        elif isinstance(msg, ToolMessage) and msg.name != "write_todos":
+            print(f"  Tool[{msg.name}]: {msg.content}")
+
+    todos = result.get("todos", [])
+    print(f"\n>>> 最终 todos 状态 (共 {len(todos)} 项):")
+    for i, todo in enumerate(todos):
+        status_icon = {"pending": "⏳", "in_progress": "🔄", "completed": "✅"}.get(todo["status"], "❓")
+        print(f"  [{i}] {status_icon} {todo['status']:12s} | {todo['content']}")
+
+    # ========================================================================
+    # 场景3：与其他中间件组合使用（如 SummarizationMiddleware）
+    # 展示 TodoListMiddleware 可以与多个中间件叠加，各司其职
+    # ========================================================================
+    print("\n" + "=" * 60)
+    print("【场景3】与其他中间件组合：TodoList + Summarization + ModelCallLimit")
+    print("=" * 60)
+
+    agent_combined: CompiledStateGraph = create_agent(
+        name="TodoList-Combined-Demo",
+        model=model,
+        system_prompt="你是一个需要规划任务并注意上下文长度的助手。",
+        tools=[query_sales_data, analyze_statistics, generate_report, send_report_email],
+        middleware=[
+            TodoListMiddleware(),  # 任务规划与追踪
+            # SummarizationMiddleware 会在上下文接近窗口限制时自动压缩历史消息
+            # 注意：SummarizationMiddleware 也需要传入 model 参数用于生成摘要
+            SummarizationMiddleware(model=model),
+            # ModelCallLimitMiddleware 限制模型调用次数，防止无限循环
+            ModelCallLimitMiddleware(thread_limit=10),
+        ],
+    )
+
+    result = agent_combined.invoke(
+        input={
+            "messages": HumanMessage(
+                content="请查询'家电'部门过去5天的销售数据，分析统计，生成报告，发送给 director@example.com。"
+            ),
+        },
+    )
+
+    print("\n>>> Agent 最终回复:")
+    for msg in result.get("messages", []):
+        if isinstance(msg, AIMessage) and msg.content:
+            print(f"  AI: {msg.content}")
+        elif isinstance(msg, ToolMessage) and msg.name != "write_todos":
+            print(f"  Tool[{msg.name}]: {msg.content}")
+
+    todos = result.get("todos", [])
+    print(f"\n>>> 最终 todos 状态 (共 {len(todos)} 项):")
+    for i, todo in enumerate(todos):
+        status_icon = {"pending": "⏳", "in_progress": "🔄", "completed": "✅"}.get(todo["status"], "❓")
+        print(f"  [{i}] {status_icon} {todo['status']:12s} | {todo['content']}")
+
+    # ========================================================================
+    # 场景4：简单任务 —— 验证 Agent 不会滥用 write_todos
+    # 对于简单任务，内置 system prompt 会指导 LLM 跳过 write_todos，直接执行
+    # ========================================================================
+    print("\n" + "=" * 60)
+    print("【场景4】简单任务：Agent 应跳过 write_todos，直接回答")
+    print("=" * 60)
+
+    agent_simple: CompiledStateGraph = create_agent(
+        name="TodoList-Simple-Demo",
+        model=model,
+        system_prompt="你是一个助手。对于简单任务直接回答，复杂任务才用 write_todos 规划。",
+        tools=[query_sales_data, analyze_statistics],  # 少给几个工具，降低复杂度
+        middleware=[TodoListMiddleware()],
+    )
+
+    result = agent_simple.invoke(
+        input={
+            "messages": HumanMessage(content="1+1等于几？"),  # 极简单的问题
+        },
+    )
+
+    print("\n>>> Agent 最终回复:")
+    for msg in result.get("messages", []):
+        if isinstance(msg, AIMessage) and msg.content:
+            print(f"  AI: {msg.content}")
+
+    todos = result.get("todos", [])
+    if not todos:
+        print("\n>>> 未使用 write_todos（简单任务，直接回答，符合预期）✅")
+    else:
+        print(f"\n>>> todos 状态: {todos}")
+
+    print("\n" + "=" * 60)
+    print("=== TodoListMiddleware 所有场景演示完毕 ===")
+    print("=" * 60)
+
 
 # %% ======================= LangChain v1.x Auto-Agent 配合 MCP 使用 =======================
 async def auto_agent_with_mcp_usage() -> None:
@@ -761,7 +1027,8 @@ async def auto_agent_with_mcp_usage() -> None:
 def main():
     """运行入口"""
     # auto_agent_usage()
-    agent_middleware_hil_usage()
+    # agent_middleware_hil_usage()
+    agent_middleware_todolist_usage()
     # asyncio.run(auto_agent_with_mcp_usage())
 
 if __name__ == "__main__":
