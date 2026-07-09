@@ -257,3 +257,8 @@ group = [
     "test", "other"
 ]
 #torch-backend = "auto"
+
+# ------------------------------------ Pylance(基于pyright) 配置 ------------------------------------
+[tool.pyright]
+typeCheckingMode = "basic"
+reportCallIssue = "none"
