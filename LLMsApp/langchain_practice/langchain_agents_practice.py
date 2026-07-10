@@ -676,6 +676,10 @@ def agent_middleware_todolist_usage():
     PlanningState（中间件的 state_schema）：
     - todos: NotRequired[list[Todo]] — 注意被 OmitFromInput 标记，因此只能在输出中获取，不能作为输入传入
 
+    构造参数：
+    - system_prompt: str  — 自定义注入的 system prompt（默认使用内置 WRITE_TODOS_SYSTEM_PROMPT）
+    - tool_description: str — 自定义 write_todos 工具的描述（默认使用内置 WRITE_TODOS_TOOL_DESCRIPTION）
+    
     适用场景：
     - 复杂多步骤任务（3步以上）
     - 用户明确提供多个任务
@@ -685,10 +689,22 @@ def agent_middleware_todolist_usage():
     - 单一简单任务
     - 纯对话/信息类请求
     - 3步以内可完成的简单任务
-
-    构造参数：
-    - system_prompt: str  — 自定义注入的 system prompt（默认使用内置 WRITE_TODOS_SYSTEM_PROMPT）
-    - tool_description: str — 自定义 write_todos 工具的描述（默认使用内置 WRITE_TODOS_TOOL_DESCRIPTION）
+    
+    TodoListMiddleware 中实现了 wrap_model_call 和 after_model 两个 hook 方法：
+    - wrap_model_call：在模型调用前注入 system prompt，指导 LLM 使用 write_todos 工具。
+    - after_model：在模型调用后检查是否调用了 write_todos 工具，检查并强制约束每个回合只能调用一次 write_todos。
+    
+    注入的 write_todos 工具里会返回Command(update={"todos": [...]})，更新 PlanningState 中的 todos 字段，供后续回合使用。
+    
+    需要注意的是，此中间件是一个"零调度逻辑"的中间件。
+    它不包含任何 if-else 来判断"下一步该调用哪个工具"，也没有任何循环来遍历 todo 列表。
+    所有编排逻辑——什么时候规划、什么时候执行、什么时候更新状态、什么时候结束——全部由 LLM 在 prompt 的指导下自主完成。
+    它不是一个项目经理，它只是给 LLM 发了一本《任务管理手册》和一支笔：
+    - 手册 = WRITE_TODOS_SYSTEM_PROMPT（通过 wrap_model_call 注入）
+    - 笔 = write_todos 工具（通过 self.tools 注入）
+    - 笔记本 = state.todos（通过 _write_todos 写入）
+    - 规则检查 = after_model（防止一支笔同时写两行）
+    LLM 拿到手册和笔后，自己决定什么时候写计划、什么时候打勾、什么时候继续干活。
     """
     print("===> agent_middleware_todolist_usage()")
     model = get_client_chat()
