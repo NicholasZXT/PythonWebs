@@ -7,29 +7,23 @@ import os
 import json
 import asyncio
 import anyio
+import litellm
 # ------ LiteLLM 请求封装函数 ------
 # 大部分请求函数的实现都在 litellm.main.py 中，但可以从顶层直接导入
 from litellm import (
-    # --- completion 系列是主要的使用入口 ---
+    # --- completion 系列是主要的使用入口，对应于 OpenAI Chat Completion 规范 ---
+    # Anthropic Message API规范没有专门的函数，也是通过 completion 系列函数来调用
     completion, acompletion,
     completion_with_retries, acompletion_with_retries,
     batch_completion, batch_completion_models, batch_completion_models_all_responses,
+    # --- OpenAI 新一代的 response API 规范 ---
     responses, aresponses, responses_with_retries, aresponses_with_retries,
+    # --- OpenAI 其他特定用途 API 规范 ---
     embedding, aembedding,
     text_completion, atext_completion,
     image_generation, aimage_generation,
     transcription, atranscription,
     speech, aspeech,
-)
-# ------ LiteLLM 工具函数 ------
-# 大部分工具函数可以从直接 litellm 导入声明，但是实际实现都是在 litellm.utils.py 中
-# from litellm import (
-from litellm.utils import (
-    check_valid_key, get_valid_models, validate_environment,
-    get_standard_openai_params, get_supported_openai_params,
-    supports_response_schema,
-    supports_function_calling, supports_parallel_function_calling,
-    trim_messages,
 )
 # ------ LiteLLM 类型 ------
 # litellm.types 这个模块没有顶级声明，似乎不是对外公开的类型说明，常用的类型反倒是在 litellm.utils.py 中
@@ -37,24 +31,74 @@ from litellm.utils import (
 from litellm.utils import (
     ModelInfo, ModelResponse, ModelResponseStream, CustomStreamWrapper
 )
+from litellm.types.llms.openai import ResponsesAPIResponse
 # ------ LiteLLM 异常 ------
+# LiteLLM 针对模型请求过程中的各种异常也做了统一的映射处理
 # 大部分异常也可以直接从 litellm 导入声明
-from litellm.exceptions import (
-    AuthenticationError, RateLimitError, APIError
+from litellm import (
+# from litellm.exceptions import (
+    UnsupportedParamsError, AuthenticationError, PermissionDeniedError, NotFoundError,
+    InvalidRequestError, BadRequestError, APIConnectionError, APIError, JSONSchemaValidationError,
+    ContextWindowExceededError, RateLimitError, BudgetExceededError
+)
+# ------ LiteLLM 工具函数 ------
+# 大部分工具函数可以从直接 litellm 导入声明，但是实际实现都是在 litellm.utils.py 中
+# from litellm import (
+from litellm.utils import (
+    check_valid_key, get_valid_models, validate_environment,
+    get_standard_openai_params, get_supported_openai_params,
+    supports_response_schema, supports_reasoning,
+    supports_function_calling, supports_parallel_function_calling,
+    trim_messages,
 )
 # ------ LiteLLM 矢量数据库 ------
 from litellm.vector_stores.vector_store_registry import VectorStoreRegistry, LiteLLM_ManagedVectorStore
 
 # %% ===================================================================================================================
+API_KEY = os.getenv('API_KEY', 'EMPTY')
+print(f">>> API_KEY:", API_KEY)
+# 对于LiteLLM，模型名称格式为：Provider/模型名称 ------------------ KEY
 # --- Ollama 本地部署 ---
-API_KEY = 'Empty'
-LLM_URL = 'http://localhost:11434'
-# 对于LiteLLM，模型名称格式为：Provider/模型名称
-MODEL = 'ollama/qwen2.5:7b'
+# LLM_URL = 'http://localhost:11434'
+# MODEL = 'ollama/qwen2.5:7b'
 # MODEL = 'ollama/qwen3:8b'
 # MODEL = 'ollama/qwen2.5:14b'
 # MODEL = 'ollama/qwen3:14b'
 MODEL_EMBEDDING = 'ollama/bge-m3:567m'
+# --- 在线模型服务 ---
+# LLM_URL = 'https://api.deepseek.com'  # DeepSeek
+# LLM_URL = 'https://ark.cn-beijing.volces.com/api/v3'  # 火山引擎
+LLM_URL = 'https://dashscope.aliyuncs.com/compatible-mode/v1'  # 阿里百炼
+MODEL = 'deepseek/deepseek-v4-flash'
+# MODEL = 'deepseek/deepseek-v4-pro'
+
+
+# %% ===================================================================================================================
+def litellm_configuration_usage():
+    """
+    展示LiteLLM配置方式，参考官方文档：https://docs.litellm.ai/docs/set_keys
+    LiteLLM 支持3种方式对 API_KEY, API_BASE 等内容进行配置
+    1. 环境变量
+    2. litellm 全局变量
+    3. 具体函数参数
+    """
+    # 1. 环境变量，注意此种方式要在执行请求之前
+    # Set OpenAI API key
+    os.environ['OPENAI_BASE_URL'] = "https://your_host/v1"
+    os.environ["OPENAI_API_KEY"] = "Your API Key"
+    os.environ["ANTHROPIC_API_KEY"] = "Your API Key"
+    # 禁用远程 cost map 获取，避免网络警告
+    os.environ["LITELLM_LOCAL_MODEL_COST_MAP"] = "True"
+
+    # 2. litellm 包全局变量，可配置的变量参考 litellm 包的 __init__.py 入口里定义的变量
+    litellm.api_base = "https://hosted-llm-api.co"
+    litellm.api_key = "sk-OpenAIKey"  # 对所有模型生效
+    litellm.openai_key = "sk-OpenAIKey"
+    # 跳过 SSL 证书验证
+    litellm.ssl_verify = False
+    litellm.model_cost_map_url = ""
+
+    # 3. 调用 completion() 等函数时，通过对应参数传入
 
 
 # %% ===================================================================================================================
@@ -78,7 +122,7 @@ def litellm_completion_basic_usage():
         messages=messages,
     )
     print("type(res):", type(res))
-    # ModelResponse 示例如下：
+    # ModelResponse 示例如下，标准的 OpenAI Chat Completion 非流式响应体：
     # {
     #     "id": "chatcmpl-548eb698-a1bf-4679-9cc0-55dcccbc3e97",
     #     "created": 1783067016,
@@ -141,6 +185,7 @@ def litellm_completion_basic_usage():
     print("res_stream.chunks:")
     for chunk_num, chunk in enumerate(res_stream, start=1):
         print(f"chunk[{chunk_num}]")
+        # 迭代 CustomStreamWrapper 返回的是 ModelResponseStream，它是标准的 OpenAI Chat Completion 流式响应体
         if chunk_num == 1:
             print("type(chunk):", type(chunk))  # ModelResponseStream
         # print("chunk.json():\n", chunk.json())
@@ -152,6 +197,7 @@ def litellm_completion_basic_usage():
         for choice_num, choice in enumerate(chunk.choices):
             print("    choice_num:", choice_num)
             print("    choice.finish_reason:", choice.finish_reason)
+            # 流式响应的 choice 里，使用 delta 表示每次流式返回的增量内容
             print("    choice.delta:", choice.delta)
             print("    choice.delta.role:", choice.delta.role)
             print("    choice.delta.content:", choice.delta.content)
@@ -183,7 +229,8 @@ async def litellm_completion_basic_usage_async():
     ]
 
     print("--------- Async Non Stream Mode --------")
-    # 异步非Stream模式下，除了改为使用 acompletion + await 之外，拿到的结果也是同步API返回的 ModelResponse，因此剩下的使用方式都一样。
+    # 异步非Stream模式下，除了改为使用 acompletion + await 之外，
+    # 拿到的结果也是同步API返回的 ModelResponse，因此剩下的使用方式都一样。
     res: ModelResponse = await acompletion(
         base_url=LLM_URL,
         api_key=API_KEY,
@@ -262,6 +309,9 @@ def litellm_completion_with_retry_usage():
     """
     print("===> litellm_completion_with_retry_usage")
 
+    # 全局设置重试次数
+    litellm.num_retries = 3
+
     messages = [
         {"role": "system", "content": "You are a helpful assistant."},
         {"role": "user", "content": "请用一句话介绍Python编程语言"},
@@ -335,7 +385,7 @@ async def litellm_completion_with_retry_usage_async():
 def litellm_response_usage():
     """
     LiteLLM response API使用 - 同步
-    responses() 是 LiteLLM 对 OpenAI /responses API 的封装，与 completion() 的主要区别：
+    responses() 是 LiteLLM 对 OpenAI 最新的 responses API 规范的实现，与 completion() 的主要区别：
     - 使用 input 参数（字符串）而非 messages 参数（列表）
     - 返回格式不同：output 数组中包含 output_text 类型的消息块
     - 使用 max_output_tokens 而非 max_tokens
@@ -978,7 +1028,6 @@ def litellm_completion_thinking_usage():
     print("===> litellm_completion_thinking_usage")
 
     # 检查模型是否支持 reasoning
-    from litellm import supports_reasoning
     print("supports_reasoning:", supports_reasoning(MODEL))
 
     messages = [
