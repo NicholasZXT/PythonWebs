@@ -137,7 +137,8 @@ llms = [
     "litellm ~= 1.88.0",
     "mcp[cli] >= 1.12.0",
 #   另一个 MCP package
-    "fastmcp >= 2.10.0"
+    "fastmcp >= 2.10.0",
+    "claude-agent-sdk"
 ]
 # --- langchain v0.3.x 版本 ---
 #langchain = [

@@ -533,6 +533,24 @@ wheels = [
 ]
 
 [[package]]
+name = "claude-agent-sdk"
+version = "0.1.69"
+source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "mcp" },
+    { name = "sniffio" },
+]
+sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/4f/fa/c6913cf92796cf2d9792ebb30247880cc5740be70d0cc2663ab1d0e253f2/claude_agent_sdk-0.1.69.tar.gz", hash = "sha256:4034a1c9d550329af7aeb0615f9bd2e7b853a9a53da7be5278ee062330df223a", size = 241101, upload-time = "2026-04-28T00:43:39.873Z" }
+wheels = [
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/cf/1b/14ad5b8686f68bc3c41ce5c287d9b6a919bf5a4c6d70cb1513ccec03df64/claude_agent_sdk-0.1.69-py3-none-macosx_11_0_arm64.whl", hash = "sha256:dd896e6e30719d4824687b2aa968d603e4d4f0056fdd848932cf969f393a32a7", size = 63446754, upload-time = "2026-04-28T00:43:43.296Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/81/ee/a183b8b9ca5c7b8cc51d93ba83676938803b8f63f0c788b402d4056cc606/claude_agent_sdk-0.1.69-py3-none-macosx_11_0_x86_64.whl", hash = "sha256:09f1e0b75811e2777bfde119af24a1c1c3a13e333f23af11eb049eccf1dece64", size = 65296492, upload-time = "2026-04-28T00:43:46.336Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/e3/a1/2252335f8991c62ba2b6ec2441406978c4267e357e9659092bce6af6a614/claude_agent_sdk-0.1.69-py3-none-manylinux_2_17_aarch64.whl", hash = "sha256:1aab5107a71290f5afa38b1f967c7b27df986248b662a81fc69b5a38be3f17f2", size = 76619235, upload-time = "2026-04-28T00:43:49.63Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/9c/a4/8426b7325e64bc2487ee943d8f0ad885920f0919466f039ebe70b40ed42e/claude_agent_sdk-0.1.69-py3-none-manylinux_2_17_x86_64.whl", hash = "sha256:f8caf9f2d29f109b1c5e5c1336984376b3597634ab0cd4d7d902f43bb33ee020", size = 76786152, upload-time = "2026-04-28T00:43:53.675Z" },
+    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/7e/ae/d64cbe0ecd68f7b5c255316ce78e158eb499d6da988b99d5fbee00cc4824/claude_agent_sdk-0.1.69-py3-none-win_amd64.whl", hash = "sha256:d8327e7f60a687b1cbfcc6da3b1428c89a60194c884bebee3fb282807163bd2c", size = 78193701, upload-time = "2026-04-28T00:43:57.983Z" },
+]
+
+[[package]]
 name = "click"
 version = "8.4.2"
 source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
@@ -4039,6 +4057,7 @@ litestar = [
     { name = "litestar", extra = ["standard"] },
 ]
 llms = [
+    { name = "claude-agent-sdk" },
     { name = "fastmcp" },
     { name = "litellm" },
     { name = "mcp", extra = ["cli"] },
@@ -4180,6 +4199,7 @@ langchain = [
 ]
 litestar = [{ name = "litestar", extras = ["standard"], specifier = ">=2.12.1" }]
 llms = [
+    { name = "claude-agent-sdk" },
     { name = "fastmcp", specifier = ">=2.10.0" },
     { name = "litellm", specifier = "~=1.88.0" },
     { name = "mcp", extras = ["cli"], specifier = ">=1.12.0" },
