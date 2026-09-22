@@ -1,7 +1,7 @@
-[TOC]
+[toc]
 
+---
 
-------
 # LiteLLM
 
 官方文档 [LiteLLM](https://docs.litellm.ai/).
@@ -44,7 +44,7 @@ LiteLLM **不是一个全栈 LLM 应用框架**，而是一个**轻量级的 LLM
 - 几乎零学习成本，代码改动极小。
 - 可与任何上层框架（如 LangChain、LlamaIndex、FastAPI、Flask）无缝集成。
 
-------
+---
 
 ## Python SDK
 
@@ -52,16 +52,12 @@ LiteLLM **不是一个全栈 LLM 应用框架**，而是一个**轻量级的 LLM
 >
 > 看了下源码，**LiteLLM Python SDK并不是一个轻量级的包**，内容比我以为的要多不少。
 
-
-
-------
+---
 
 ## Proxy Server
 
+-------------------------------------------------------------------------
 
-
-
-------
 # MCP
 
 官方文档 [Model Context Protocol](https://modelcontextprotocol.io/docs/getting-started/intro).
@@ -74,15 +70,17 @@ MCP 是一个**开源标准协议**，用于将 AI 应用连接到外部系统�
 - **AI 应用/Agent**：获得丰富的数据源、工具和应用生态
 - **终端用户**：AI 应用能访问用户数据并代替用户执行操作
 
+-------------------------------------------------------------------------
 ## MCP架构
 
 参考官方文档 [Architecture Overview](https://modelcontextprotocol.io/docs/learn/architecture).
 
+---
 ### MCP角色
 
 MCP的三大参与者如下：
 
-```text   
+```text
 ┌─────────────────────────────────────┐
 │         MCP Host (AI 应用)          │
 │  ┌─────────┐ ┌─────────┐           │
@@ -103,18 +101,16 @@ MCP的三大参与者如下：
 | MCP Client | 维护与一个 MCP Server 的连接组件               | Host 内部实例化的协议级对象     |
 | MCP Server | 向 Client 提供上下文（数据/工具/提示词）的程序 | 文件系统服务器、Sentry 服务器   |
 
-
-
 ### MCP体系
 
 MCP体系有两层：
 
-| 层级                     | 职责                                 | 关键技术                                                     |
-| ------------------------ | ------------------------------------ | ------------------------------------------------------------ |
-| 数据层 (Data Layer)      | 定义 JSON-RPC 2.0 消息协议、核心原语 | `server/discover`、`tools/list`、`tools/call`                |
+| 层级                     | 职责                                 | 关键技术                                                          |
+| ------------------------ | ------------------------------------ | ----------------------------------------------------------------- |
+| 数据层 (Data Layer)      | 定义 JSON-RPC 2.0 消息协议、核心原语 | `server/discover`、`tools/list`、`tools/call`               |
 | 传输层 (Transport Layer) | 管理通信通道和认证                   | Stdio（本地进程通信）、Streamable HTTP（远程，支持 SSE 流式传输） |
 
-**Data Layer**: 
+**Data Layer**:
 
 - 定义了基于 JSON-RPC 的传输格式。
 - Data Layer 层定义了如下3个功能：
@@ -123,14 +119,20 @@ MCP体系有两层：
   - Notifications: 服务端和客户端之间的通知机制。比如server端提供的工具列表有变动，client会收到通知。
 
 其中服务原语分为服务端和客户端：
+
 - 服务端有3类：
-  - Tools, 
-  - Resources, 
-  - Prompts.
+
+  - Tools
+  - Resources
+  - Prompts
+
 - 客户端有3类：
-  - Sampling
+
   - Elicitation
-  - Logging
+  - Sampling（废弃）
+  - Logging（废弃）
+
+> 最新的规范（2026-07-28）里，Sampling 和 Logging 都被标记为待废弃的了。
 
 **Transport Layer**: 传输层
 
@@ -146,18 +148,18 @@ MCP体系有两层：
 - 发现结果可缓存，不需要每次请求都重复执行
 
 ---
-### 服务端
+
+### 服务端原语
 
 官方文档 [Server Concepts](https://modelcontextprotocol.io/docs/learn/server-concepts).
 
 服务端的能力主要是3类服务原语。
 
-| 原语      | 本质         | 控制方 | 类比        |
-| --------- | ------------ | ------ | ----------- |
+| 原语      | 本质         | 控制方  | 类比        |
+| --------- | ------------ | ------- | ----------- |
 | Tools     | 可执行的操作 | 🤖 模型 | API 函数    |
 | Resources | 只读的数据   | 📄 应用 | 数据库/文件 |
 | Prompts   | 交互模板     | 👤 用户 | 工作流模板  |
-
 
 #### Tools — 由模型控制
 
@@ -165,11 +167,10 @@ MCP体系有两层：
 
 **控制方**：LLM 模型根据上下文自主决定调用时机，但应用层可实现用户审批机制（确认对话框、权限设置等）。
 
-| Method       | Purpose      | Returns                                |
-| ------------ | ------------ | -------------------------------------- |
+| Method         | Purpose      | Returns                                |
+| -------------- | ------------ | -------------------------------------- |
 | `tools/list` | 发现可用工具 | Array of tool definitions with schemas |
 | `tools/call` | 执行指定工具 | Tool execution result                  |
-
 
 #### Resources — 由应用控制
 
@@ -182,8 +183,8 @@ MCP体系有两层：
 
 **控制方**：应用决定何时获取、如何使用资源数据（embedding 检索、关键词搜索、直接传入模型）。
 
-| Method                     | Purpose      | Returns                                |
-| -------------------------- | ------------ | -------------------------------------- |
+| Method                       | Purpose      | Returns                                |
+| ---------------------------- | ------------ | -------------------------------------- |
 | `resources/list`           | 列出可用资源 | Array of resource descriptors          |
 | `resources/templates/list` | 发现资源模板 | Array of resource template definitions |
 | `resources/read`           | 读取资源内容 | Resource data with metadata            |
@@ -195,8 +196,8 @@ MCP 协议层面不限制具体格式，通过数据载体和 `mimeType` 支持�
 
 | 数据载体字段 | 数据类型      | 适用场景     | 示例                           |
 | ------------ | ------------- | ------------ | ------------------------------ |
-| `text`       | 字符串        | 文本类资源   | Markdown, JSON, 纯文本代码     |
-| `blob`       | Base64 二进制 | 非文本类资源 | PDF, DOCX, PNG/JPEG 图像, 音频 |
+| `text`     | 字符串        | 文本类资源   | Markdown, JSON, 纯文本代码     |
+| `blob`     | Base64 二进制 | 非文本类资源 | PDF, DOCX, PNG/JPEG 图像, 音频 |
 
 **注意**：协议支持传输任何格式，但**实际能否被 LLM 消费，取决于 Client/Host 的实现**。例如：图像需要 Host 支持 Vision 能力；PDF 可能需要 Server 端先提取文本再作为 `text` 返回，而不是直接返回二进制。
 
@@ -213,16 +214,14 @@ MCP 协议层面不限制具体格式，通过数据载体和 `mimeType` 支持�
 2. 按需加载：应用根据对话上下文判断需要时，才读取资源（如用户问“我的日程”时才读取日历）。
 3. 模型建议加载：LLM 分析后建议应用加载某资源（如 LLM 返回：“建议查看用户的日历资源来确认可用日期”）。
 
-
-
 #### Prompts — 由用户控制
 
 **可复用的交互模板**，指导模型如何组合使用工具和资源，封装经过验证的交互模式。
 
 **控制方**：用户主动触发（斜杠命令 `/plan-vacation`、命令面板、UI 按钮）。
 
-| Method         | Purpose        | Returns                               |
-| -------------- | -------------- | ------------------------------------- |
+| Method           | Purpose        | Returns                               |
+| ---------------- | -------------- | ------------------------------------- |
 | `prompts/list` | 发现可用提示词 | Array of prompt descriptors           |
 | `prompts/get`  | 获取提示词详情 | Full prompt definition with arguments |
 
@@ -270,15 +269,14 @@ MCP 协议层面不限制具体格式，通过数据载体和 `mimeType` 支持�
 }
 ```
 
-
 二、**加载时机与触发机制（两阶段）**
 
 核心结论：*Prompts 列表不会注入 LLM 上下文，内容仅在用户显式触发后加载*。
 
-| 阶段         | 时机                    | 协议方法       | 作用与数据流向                                               |
-| ------------ | ----------------------- | -------------- | ------------------------------------------------------------ |
+| 阶段         | 时机                    | 协议方法         | 作用与数据流向                                                                                              |
+| ------------ | ----------------------- | ---------------- | ----------------------------------------------------------------------------------------------------------- |
 | 阶段一：发现 | 应用启动 / 打开命令面板 | `prompts/list` | 返回轻量元数据（name, title, description）。仅停留在应用层用于渲染 UI（如斜杠命令列表），不消耗 LLM Token。 |
-| 阶段二：激活 | 用户主动触发命令        | `prompts/get`  | 返回完整的 messages 数组。Host 将其注入当前对话上下文，LLM 才开始基于此进行推理。 |
+| 阶段二：激活 | 用户主动触发命令        | `prompts/get`  | 返回完整的 messages 数组。Host 将其注入当前对话上下文，LLM 才开始基于此进行推理。                           |
 
 三、**核心使用场景**
 
@@ -298,29 +296,27 @@ MCP 协议层面不限制具体格式，通过数据载体和 `mimeType` 支持�
 
 五、**MCP Prompts vs Skills**
 
-| 对比维度   | Agent Skills (框架级)                     | MCP Prompts (协议级)                                         |
-| ---------- | ----------------------------------------- | ------------------------------------------------------------ |
-| 元数据加载 | 启动时注入 LLM 上下文                     | 不进 LLM 上下文（仅加载到应用层 UI）                         |
-| 触发机制   | LLM 自主判断触发 + 用户手动               | 仅用户显式触发                                               |
-| Token 消耗 | 始终占用（即使本次对话未使用）            | 零消耗（直到被用户触发）                                     |
-| 设计哲学   | 模型中心（Model-Centric）：优化模型自主性 | 用户中心（User-Centric）：优化用户控制力与 Token 效率        |
+| 对比维度   | Agent Skills (框架级)                     | MCP Prompts (协议级)                                                  |
+| ---------- | ----------------------------------------- | --------------------------------------------------------------------- |
+| 元数据加载 | 启动时注入 LLM 上下文                     | 不进 LLM 上下文（仅加载到应用层 UI）                                  |
+| 触发机制   | LLM 自主判断触发 + 用户手动               | 仅用户显式触发                                                        |
+| Token 消耗 | 始终占用（即使本次对话未使用）            | 零消耗（直到被用户触发）                                              |
+| 设计哲学   | 模型中心（Model-Centric）：优化模型自主性 | 用户中心（User-Centric）：优化用户控制力与 Token 效率                 |
 | 标准化程度 | 框架私有：跨框架不互通                    | 协议标准：一次编写，在 Claude/Cursor/VS Code 等任意 MCP Client 中通用 |
 
-
-
 ---
-### 客户端
+
+### 客户端原语
 
 官方文档 [Client Concepts](https://modelcontextprotocol.io/docs/learn/client-concepts).
 
 客户端主要定义了如下3类能力。
 
-| 能力                    | 状态           | 说明                                                   |
-| ----------------------- | -------------- | ------------------------------------------------------ |
+| 能力                    | 状态            | 说明                                                   |
+| ----------------------- | --------------- | ------------------------------------------------------ |
 | Elicitation（信息征询） | ✅ 最新版本保留 | Server 向用户请求额外信息（表单模式 / URL 模式）       |
-| Roots（根目录）         | ⚠️ 已弃用       | 指定 Server 可访问的文件系统范围，建议改用工具参数     |
-| Sampling（采样）        | ⚠️ 已弃用       | Server 通过 Client 请求 LLM 补全，建议直接集成 LLM API |
-
+| Roots（根目录）         | ⚠️ 已弃用     | 指定 Server 可访问的文件系统范围，建议改用工具参数     |
+| Sampling（采样）        | ⚠️ 已弃用     | Server 通过 Client 请求 LLM 补全，建议直接集成 LLM API |
 
 #### Elicitation
 
@@ -344,20 +340,101 @@ Client → Server: 重试请求（附带用户输入）
 Server → Client: 最终结果
 ```
 
-
 #### Sampling (Deprecated)
 
 Sampling指的是，MCP服务端在提供服务之前，可能需要借助MCP客户端向LLM发起请求（因为客户端是由AI应用程序发起的，所以客户端可以访问LLM），进行某些规划。
 这个访问LLM的过程以及LLM返回的消息，MCP客户端都会进行提示，请求用户的准许（Human-in-the-loop control）。
 
-
 #### Roots (Deprecated)
 
 Roots 指的是 MCP服务器可以访问的文件系统边界。
 
+---
+### MCP核心协议规范
+
+官方文档 [Specification](https://modelcontextprotocol.io/specification/2026-07-28).
+
+#### 基本协议
+
+##### 消息协议格式
+
+MCP协议中，客户端/服务端的消息格式均采用 **JSON-RPC 2.0** 规范。
+
+一、Request Message
+
+二、Responses Message
+
+三、Notifications Message
+
+
+
+##### 版本协商和兼容性
+MCP的客户端和服务端没有握手协商的过程，协议申明和适配是针对每次请求而言的。
+
+每次请求JSON体的`_meta`字段包含了当前服务端/客户端的MCP协议版本号。
+
+##### 消息模式-KEY
+
+MCP协议下的客户端/服务端消息模式只有3种：
+1. Request/Response：一来一回消息。
+2. Multi Round-Trip Requests (MRTR)：多轮消息，也就是服务端需要请求客户端提供某些输入。
+3. Subscribe and Notify: 订阅消息，客户端向服务端订阅某些通知（比如工具列表更新、资源更新等）。
+
+核心协议的所有功能都是基于上述3种消息模式实现的，Transport模式都要实现上述3种消息模式。
+
+以下是一些特殊消息模式的解释。
+
+一、**Multi Round-Trip Requests**
+
+
+二、**Substriptions**
+
+三、**Cancellation**
+
+四、**Progress**
+
+对于长期运行的任务，MCP协议通过 notification messages 提供了 *Progress Tracking* 的功能。
+
+> 注意，此功能是可选项，不同版本的客户端/服务端不一定都实现了此功能。
+
+
+
+##### Transport-KEY
+
+##### 鉴权
+
+
+#### 客户端特性
+
+#### 服务端特性
+
 
 ---
+### MCP扩展
 
+官方文档 [Extentsions Overview](https://modelcontextprotocol.io/extensions/overview).
+
+MCP扩展为上面的MCP core protocol提供了可选的功能增强。
+
+MCP扩展标识符格式为 `{vendor-prefix}/{extension-name}`，例如 `io.modelcontextprotocol/oauth-client-credentials`（其中`io.modelcontextprotocol`是官方扩展的前缀）。
+
+#### 官方扩展
+
+官方目前提供了如下 4 个扩展。
+
+##### MCP Authorization Extensions
+
+##### MCP Apps
+
+##### MCP Tasks
+
+对于长时间操作提供异步任务执行的支持。
+
+##### Skills over MCP
+
+
+
+-------------------------------------------------------------------------
 ## MCP Python SDK
 
 Github地址 [modelcontextprotocol/python-sdk](https://github.com/modelcontextprotocol/python-sdk).
@@ -367,33 +444,35 @@ MCP Python 服务端是基于 starlette 开发的。
 MCP Python package 源码里重要的有如下几部分：
 
 ---
+
 ### `types.py`
 
 此文件里基于pydantic-v2定义了 MCP 服务端和客户端的JSON-RPC协议格式，
 详细格式参见官方文档 [MCP Specification](https://modelcontextprotocol.io/specification/2025-06-18)）。
 
 ---
+
 ### `server` Module
 
 模块 `server` 主要定义了 MCP 服务端的实现组件，分为如下几个子模块：
 
 - `session.py`: 定义了服务端的 `ServerSession` 类。
-
 - `stdio.py`: 定义了基于Stdio的服务端实现 `stdio_server` 函数。
 
 #### `fastmcp`
+
 定义了 MCP 服务端的主要组件。
 
 - `server.py`: 定义了 `FastMCP`类和`Context`类。
 
-
 #### `auth`
+
 定义了 OAuth2 认证相关的类。
 
 #### `lowlevel`
 
-
 ---
+
 ### `client` Module
 
 模块 `client` 主要定义了 MCP 客户端的实现组件。
@@ -404,7 +483,6 @@ MCP Python package 源码里重要的有如下几部分：
 - `sse.py` 里定义了`sse_client`的实现。
 - `streamable_http.py` 里定义了`streamablehttp_client`的实现。
 - `auth.py` 里定义了 OAuth2 认证相关的类。
-
 
 ### Example
 
@@ -423,12 +501,12 @@ MCP Python SDK 的官方文档目前写的并不完善，不过好在官方的�
 
 提供了一些基于 `FastMCP` 类进行MCP服务器开发的示例，比较有用。
 
-
 #### `clients`
 
 提供了 MCP 客户端的示例代码。
 
 主要有两个：
+
 - `simple-auth-client`
 - `simple-chatbot`
 
@@ -436,10 +514,7 @@ MCP Python SDK 的官方文档目前写的并不完善，不过好在官方的�
 
 提供了基于更加底层的 `Server` + `ServerSession` 类进行MCP服务器开发的示例。
 
-
-
-------
-
+-------------------------------------------------------------------------
 ## FastMCP v2.0
 
 官方文档 [FastMCP](https://gofastmcp.com/getting-started/welcome).
@@ -460,27 +535,21 @@ FastMCP v2.0 源码结构如下；
 ### `mcp_config.py`
 
 基于 `pydantic` 的 `BaseModel` 类定义了 MCP 服务器的各种配置类：
+
 - `StdioMCPServer`
 - `RemoteMCPServer`
 - `MCPConfig`: 汇总配置类
 
-
 ### `client` module
-
 
 ### `server` module
 
-
 ### `tools` module
-
 
 ### `resources` module
 
-
 ### `prompts` module
 
-
 ### `cli` module
-
 
 ### `utilities` module
