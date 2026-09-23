@@ -88,7 +88,7 @@ flask = [
     "python-jose >= 3.3.0",
 ]
 fastapi = [
-#    "anyio >= 4.9.0",  # 不显示指定版本时，下面的Starlette、mcp、httpx都会会使用此版本
+#    "anyio >= 4.9.0",  # 不显式指定版本时，下面的Starlette、mcp、httpx都会会使用此版本
     "anyio >= 4.12.0",
     "uvicorn >= 0.20.0",
     "starlette >= 0.46.1",
@@ -135,10 +135,12 @@ nlp = [
 llms = [
     "openai >= 1.0.0",
     "litellm ~= 1.88.0",
-    "mcp[cli] >= 1.12.0",
-#   另一个 MCP package
-    "fastmcp >= 2.10.0",
-    "claude-agent-sdk"
+    # 官方mcp sdk 已经发布 2.x 版本，但是变动较大，暂时不进行升级；1.x 版本依旧在更新，目前最新是 1.30
+    "mcp[cli] >= 1.12.0,<2.0.0",
+    # 社区 mcp package，配合官方mcp sdk v2.x 的版本是 v4.x，暂时不进行升级，但是可以升级到3.x版本（3.4.7是最后一个版本）
+    # "fastmcp >= 2.10.0",
+    "fastmcp >= 3.4.7,<4.0.0",
+    # "claude-agent-sdk"
 ]
 # --- langchain v0.3.x 版本 ---
 #langchain = [

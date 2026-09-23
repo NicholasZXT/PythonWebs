@@ -432,10 +432,17 @@ MCP扩展标识符格式为 `{vendor-prefix}/{extension-name}`，例如 `io.mode
 
 ##### Skills over MCP
 
+-------------------------------------------------------------------------
+## MCP Package
 
+Python生态里，MCP的SDK实现主要有2种：
+1. MCP官方的 MCP Python SDK
+2. 社区的FastMCP
+
+这两者发展都比较快，版本变迁说明参考 [mcp_changes.md](mcp_changes.md) 文档。
 
 -------------------------------------------------------------------------
-## MCP Python SDK
+## MCP Python SDK v1.x
 
 Github地址 [modelcontextprotocol/python-sdk](https://github.com/modelcontextprotocol/python-sdk).
 

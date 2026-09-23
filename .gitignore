@@ -6,6 +6,7 @@
 .idea/
 # 忽略任何 logs 目录
 logs/
+.workbuddy/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
